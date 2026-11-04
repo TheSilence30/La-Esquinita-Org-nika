@@ -1,0 +1,2 @@
+nombre,codigo_barras,categoria,marca,unidad_base,se_vende_por_peso,precio_compra,precio_venta,precio_mayorista,stock_inicial,stock_minimo,controla_lote,lote,fecha_vencimiento,presentacion_extra,factor_presentacion,codigo_barras_presentacion,precio_venta_presentacion,proveedor
+EJEMPLO Quinua orgánica 500 g,7750000000000,Orgánicos,MarcaX,unidad,no,8.50,12.00,10.50,24,6,si,L2026-10,2027-05-30,Caja,12,7750000000001,132.00,Proveedor Y
