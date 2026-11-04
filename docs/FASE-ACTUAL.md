@@ -43,3 +43,31 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 ## Criterio de salida
 
 Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de datos aprobados por el usuario.
+
+## Bitácora
+
+### 2026-11-04 — Monorepo + Spike 1 (rama `phase-0/monorepo-scan-spike`, sin fusionar)
+
+**Se hizo**
+
+- Entorno verificado: `flutter doctor` sin problemas. Se instalaron el NDK 28.2.13676358 (lo requiere `mobile_scanner`) y `dart_frog_cli` 1.2.14. Este último **no está en el PATH**: falta agregar `C:\Users\Leandro\AppData\Local\Pub\Cache\bin`.
+- Tablet: SM-X133, Android 16, 4 GB de RAM, 800×1340 px; densidad de fábrica 240 dpi, que da **533×893 dp**. Decisión abierta n.º 1 cerrada.
+- Monorepo con pub workspace: `apps/esquinita_app`, `apps/server` (`GET /health`) y `packages/esquinita_core`. Análisis estático en modo estricto.
+- Core: `Money`, `Quantity` y `ScanFilter` (confirmación 300 ms, enfriamiento 1,5 s, re-armado tras 500 ms de ausencia; los tres configurables).
+- App: pantalla del Spike 1 con métricas, campo “× cantidad”, ingreso manual, CSV y diseño adaptable (celular, tablet, PC). Umbral de tablet: 520 dp.
+- Pruebas: core 19, app 16 y servidor 1, todas en verde. `analyze` sin problemas. APK debug y build de Windows compilan.
+- APK instalado en la tablet: abre sin errores en el log.
+
+**Falta**
+
+- Spike 1: **prueba en dispositivo**. Hay que escanear productos reales siguiendo el protocolo de `docs/informes/fase-0.md`, y obtener el CSV, el video y la línea “Pantalla:”. El sonido usa el clic del sistema, que no suena si los sonidos de toque de Android están apagados; si no sirve, agregar un pitido propio.
+- CI con GitHub Actions (analyze + test) y `docker-compose.yml` con PostgreSQL 16. Antes hay que iniciar Docker Desktop.
+- Spikes 2 a 6, prototipo navegable y modelo de datos.
+- Revisión del usuario y fusión de la rama a `main` (la hace el usuario).
+
+**Siguiente paso exacto**
+
+1. El usuario abre **La Esquinita › Spike 1** en la tablet y ejecuta los pasos 2 a 7 del protocolo de `docs/informes/fase-0.md`, en horizontal y en vertical.
+2. Pega el CSV de **Copiar resultados (CSV)** y la línea “Pantalla:” en la conversación.
+3. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
+4. Después: CI y `docker-compose.yml`, y luego el Spike 3 (térmica Bluetooth).
