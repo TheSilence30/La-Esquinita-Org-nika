@@ -9,7 +9,7 @@ Estado: **en curso**. Cada spike se marca ✅ solo con evidencia en hardware rea
 | Flutter / Dart | 3.47.9 stable / 3.13.7 — `flutter doctor` sin problemas |
 | Android SDK / NDK | 36 / 28.2.13676358 |
 | Visual Studio | 2026 Community, C++ y Windows SDK 10.0.26100 |
-| Tablet | Galaxy Tab A11 **SM-X133**, Android 16, 4 GB de RAM (3,8 GB visibles), 800×1340 px |
+| Tablet | Galaxy Tab A11 **SM-X133**, Android 16, 4 GB de RAM (3,8 GB visibles), 800×1340 px; densidad física 213 dpi con override de fábrica a 240 dpi → **533×893 dp** (umbral de tablet en la app: 520 dp) |
 | Docker Desktop | 29.1.3 instalado (motor no iniciado en la verificación) |
 
 ## Spike 1 — Escaneo con cámara (Tab A11)

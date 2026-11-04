@@ -14,11 +14,11 @@ enum FormFactor {
   /// Windows/macOS/Linux, any window size.
   desktop;
 
-  /// The Tab A11 is 800 px wide; depending on its display density that is
-  /// roughly 530–600 dp, right at Material's usual 600 dp tablet breakpoint.
-  /// 550 keeps it on the tablet layout while phones (≤ ~430 dp) stay phones.
-  // TODO(device): confirm the real dp width on the Tab A11 (spike page shows it).
-  static const tabletMinShortestSide = 550.0;
+  /// The Tab A11 (SM-X133) is 800 px wide. Its physical density is 213 dpi
+  /// (≈ 600 dp) but it ships with a 240 dpi override (1.5x → 533 dp), below
+  /// Material's usual 600 dp breakpoint. 520 keeps it on the tablet layout at
+  /// either setting, while phones (≤ ~480 dp) stay phones.
+  static const tabletMinShortestSide = 520.0;
 
   static FormFactor of(BuildContext context) =>
       resolve(defaultTargetPlatform, MediaQuery.sizeOf(context));

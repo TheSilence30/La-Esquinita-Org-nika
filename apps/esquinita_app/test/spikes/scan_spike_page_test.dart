@@ -8,8 +8,9 @@ import 'package:flutter_test/flutter_test.dart';
 const sizes = {
   'phone portrait 360×740': Size(360, 740),
   'phone landscape 740×360': Size(740, 360),
-  'Tab A11 portrait ~600×1005': Size(600, 1005),
-  'Tab A11 landscape ~1005×600': Size(1005, 600),
+  'Tab A11 portrait 533×893 (240 dpi)': Size(533, 893),
+  'Tab A11 landscape 893×533 (240 dpi)': Size(893, 533),
+  'Tab A11 portrait 600×1006 (213 dpi)': Size(600, 1006),
   'PC 1366×768': Size(1366, 768),
   'PC small window 800×600': Size(800, 600),
 };
@@ -86,8 +87,12 @@ void main() {
       FormFactor.phone,
     );
     expect(
-      FormFactor.resolve(TargetPlatform.android, const Size(560, 933)),
-      FormFactor.tablet,
+      FormFactor.resolve(TargetPlatform.android, const Size(533, 893)),
+      FormFactor.tablet, // Tab A11 at its default 240 dpi
+    );
+    expect(
+      FormFactor.resolve(TargetPlatform.android, const Size(480, 1040)),
+      FormFactor.phone,
     );
     expect(
       FormFactor.resolve(TargetPlatform.windows, const Size(360, 740)),
