@@ -58,6 +58,15 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Pruebas: core 19, app 16 y servidor 1, todas en verde. `analyze` sin problemas. APK debug y build de Windows compilan.
 - APK instalado en la tablet: abre sin errores en el log.
 
+**Pendientes ANTES de la prueba en tablet** (revisión del usuario, 2026-11-04)
+
+1. Correcciones de revisión:
+   - [ ] (a) Registrar, en el CSV y en pantalla, el **hueco máximo entre detecciones** de cada código aceptado y los **re-armados falsos**.
+   - [ ] (b) Interruptor **“Incluir QR”**, apagado por defecto. Agregar a CLAUDE.md que en ventas el QR va desactivado.
+   - [ ] (c) **Reloj monotónico** para los tiempos del filtro (`ScanFilter`). `DateTime` UTC solo para registrar la hora de cada lectura.
+2. Umbral de tablet: clasificar por el lado más corto (`shortestSide`) con umbral de **520 dp** y agregar una prueba con **533×893 dp** (la Tab A11 en vertical queda por debajo de 550 dp).
+   - [x] Ya aplicado en el commit `f74a095`: `FormFactor.resolve` usa `size.shortestSide >= 520`, y hay pruebas con 533×893 (clasificación y diseño en vertical y horizontal). Revisar al aplicar el punto 1.
+
 **Falta**
 
 - Spike 1: **prueba en dispositivo**. Hay que escanear productos reales siguiendo el protocolo de `docs/informes/fase-0.md`, y obtener el CSV, el video y la línea “Pantalla:”. El sonido usa el clic del sistema, que no suena si los sonidos de toque de Android están apagados; si no sirve, agregar un pitido propio.
@@ -67,7 +76,8 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Siguiente paso exacto**
 
-1. El usuario abre **La Esquinita › Spike 1** en la tablet y ejecuta los pasos 2 a 7 del protocolo de `docs/informes/fase-0.md`, en horizontal y en vertical.
-2. Pega el CSV de **Copiar resultados (CSV)** y la línea “Pantalla:” en la conversación.
-3. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
-4. Después: CI y `docker-compose.yml`, y luego el Spike 3 (térmica Bluetooth).
+1. Aplicar los pendientes 1 (a, b, c) y 2 de arriba, con sus pruebas automáticas.
+2. Recompilar y reinstalar el APK en la tablet.
+3. Recién entonces, el usuario abre **La Esquinita › Spike 1** y sigue los pasos 2 a 7 del protocolo de `docs/informes/fase-0.md`, en horizontal y en vertical.
+4. El usuario pega en la conversación el CSV de **Copiar resultados (CSV)** y la línea “Pantalla:”. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
+5. Después: CI y `docker-compose.yml`, y luego el Spike 3 (térmica Bluetooth).
