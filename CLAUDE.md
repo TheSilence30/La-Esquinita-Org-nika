@@ -19,7 +19,7 @@ Régimen tributario: **Nuevo RUS**. La V1 **no** integra SUNAT (Fase 8). La vent
 
 ## 2. Plataformas (por prioridad)
 
-1. **Tablet Android — principal y de mayor uso.** Samsung Galaxy Tab A11 (Android 15; RAM por confirmar, probablemente 4 GB). Táctil, escaneo con cámara, impresión Bluetooth en la térmica.
+1. **Tablet Android — principal y de mayor uso.** Samsung Galaxy Tab A11, modelo **SM-X133** (Android 16, 4 GB de RAM, pantalla 800×1340 px). Táctil, escaneo con cámara, impresión Bluetooth en la térmica.
 2. **PC Windows — administración y caja secundaria.** Teclado, mouse, lector USB tipo teclado, Epson L460 (A4) y la térmica por USB.
 3. Celulares Android: soportados con el layout de tablet adaptado.
 
