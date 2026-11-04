@@ -1,0 +1,10 @@
+name: esquinita_workspace
+publish_to: none
+
+environment:
+  sdk: ^3.13.7
+
+workspace:
+  - apps/esquinita_app
+  - apps/server
+  - packages/esquinita_core

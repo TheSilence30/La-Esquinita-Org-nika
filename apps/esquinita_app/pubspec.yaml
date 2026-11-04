@@ -1,0 +1,23 @@
+name: esquinita_app
+description: La Esquinita Orgánika — POS e inventario (Android + Windows).
+publish_to: none
+version: 0.1.0+1
+resolution: workspace
+
+environment:
+  sdk: ^3.13.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  esquinita_core:
+    path: ../../packages/esquinita_core
+  mobile_scanner: ^7.5.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -11,3 +11,22 @@ Sistema de POS, inventario, compras, caja, clientes, notas de pedido e impresió
 ## Stack
 
 Flutter (Android + Windows) · drift/SQLite · Dart Frog · PostgreSQL 16 · Docker.
+
+## Estructura
+
+Monorepo con [pub workspaces](https://dart.dev/tools/pub/workspaces): un `dart pub get` en la raíz resuelve todo.
+
+| Ruta | Contenido |
+| --- | --- |
+| `apps/esquinita_app` | App Flutter (Android + Windows) |
+| `apps/server` | Servidor Dart Frog |
+| `packages/esquinita_core` | Dominio en Dart puro, compartido |
+
+## Comandos
+
+```sh
+dart pub get                                   # en la raíz
+cd packages/esquinita_core && dart test
+cd apps/esquinita_app && flutter test && flutter run
+cd apps/server && dart test && dart_frog dev
+```
