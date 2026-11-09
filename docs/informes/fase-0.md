@@ -47,10 +47,10 @@ Estado: **código listo · pendiente de prueba en dispositivo**.
 
 1. `cd apps/esquinita_app` → `flutter run -d R8YL60HT6CX` (o instalar `build/app/outputs/flutter-apk/app-debug.apk`).
 2. Abrir **Spike 1**, aceptar el permiso de cámara y anotar la línea **Pantalla:** (dp y densidad).
-3. Con luz normal de la tienda, en **horizontal** y luego en **vertical**:
+3. Con luz normal de la tienda, en **horizontal** y luego en **vertical**. Antes de cada paso, elegirlo en **Paso de prueba** (queda en la columna `step` del CSV):
    1. Escanear 20 productos distintos, uno tras otro. Esperado: 20 lecturas.
    2. Dejar un producto **quieto 10 s** frente a la cámara. Esperado: +1 lectura.
-   3. Mostrar el mismo producto, retirarlo ~1 s y volver a mostrarlo, 5 veces. Esperado: +5 lecturas.
+   3. Mostrar el mismo producto, **retirarlo ~2 s** (fuera del encuadre) y volver a mostrarlo, 5 veces. Esperado: +5 lecturas. Con ~1 s, la ausencia cae en el rango sospechoso (500–1000 ms) y no se distingue de un corte del detector.
    4. Poner **× 6**, escanear un producto. Esperado: +6 unidades y el campo vuelve a 1.
    5. Probar un código pequeño o arrugado y uno con poca luz (con y sin linterna).
 4. Pulsar **Copiar resultados (CSV)**, pegarlo aquí y grabar un video corto del escaneo continuo.

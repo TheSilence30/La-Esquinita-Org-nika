@@ -74,6 +74,15 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Spikes 2 a 6, prototipo navegable y modelo de datos.
 - Revisión del usuario y fusión de la rama a `main` (la hace el usuario).
 
+**Corrida 1 en tablet (2026-11-09, parcial, no válida para cerrar el spike)**
+
+- 21 lecturas de 12 códigos. Latencia: p50 62 ms, p95 381 ms. Hueco máximo: 486 ms.
+- `7750543400036` dio 9 lecturas en 16 s, 4 de ellas marcadas como extra (filas 13–15, separadas entre sí ~1,5 s = el enfriamiento). Sin `absence_ms` no se puede saber si fueron cortes del detector o re-presentaciones, porque el paso 3.3 pedía retirar ~1 s, dentro del rango sospechoso.
+- "Cuadros/s" = 1,1 estaba mal calculado (incluía el tiempo sin códigos a la vista).
+- QR: no lo leyó, con `qr=off` en el CSV. Falta confirmar si el interruptor estaba encendido.
+- Faltaron: la línea "Pantalla:", la orientación, los 20 productos distintos y el paso 3.4.
+- Arreglos (2026-11-09): `977db78` agrega la columna `absence_ms`, `42af6c2` corrige los cuadros/s solo con el código a la vista, `dfd6734` agrega el selector **Paso de prueba** y la columna `step`, y el paso 3.3 del protocolo pasa a ~2 s.
+
 **Siguiente paso exacto**
 
 1. ~~Aplicar los pendientes 1 (a, b, c) y 2 de arriba, con sus pruebas automáticas.~~ Hecho el 2026-11-09 (`33e46d5`, `94f79c6`, `b548cf9`). Pruebas: core 29, app 25 y servidor 1, todas en verde; `analyze` sin problemas.
