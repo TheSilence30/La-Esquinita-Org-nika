@@ -57,7 +57,22 @@ Estado: **código listo · pendiente de prueba en dispositivo**.
 
 ### Resultados en dispositivo
 
-_Pendiente._
+_Pendiente: la tabla por orientación se completa cuando se confirme la orientación y se tenga la línea “Pantalla:”._
+
+#### Corrida 2 — 2026-11-09, Tab A11 (SM-X133), orientación sin confirmar
+
+Configuración: `confirm 300 / cooldown 1500 / rearm 500 / sospechoso 1000 ms`, `qr=on` en todos los pasos.
+
+| Paso | Esperado | Obtenido | Observaciones |
+| --- | --- | --- | --- |
+| 3.1 · 20 productos distintos | 20 | 19 códigos de tienda + 2 QR | Los 2 QR (`https://jugoskero.pe`) salieron de envases que también tenían código de barras (filas 16–17 y 20–21): con QR encendido, un mismo producto genera 2 lecturas. Las filas 7–8 (`793969324781` y `…750`) se leyeron con 60 ms de diferencia: dos códigos en el mismo encuadre. Latencia p50 66 ms / p95 191 ms; 16,5 cuadros/s. |
+| 3.2 · Producto quieto 10 s | +1 | +1 | Solo 15 cuadros con código (~0,6 s detectado a 24,8 cuadros/s). **No demuestra los 10 s**: el producto estuvo poco tiempo a la vista o el detector dejó de verlo. Repetir. |
+| 3.3 · Retirar ~2 s ×5 | +5 | +5 | Ausencias de 3800, 6521, 1596 y 3426 ms. Ningún re-armado sospechoso. |
+| 3.4 · × 6 | +6 unidades | +6 | La lectura siguiente (3.5) volvió a 1 unidad. |
+| 3.5 · Pequeño / poca luz | — | 1 lectura (`191069706931`, 46 ms) | No se registró qué condición se probó (pequeño, arrugado, poca luz, con o sin linterna). |
+| Libre · QR | lee | lee (`https://www.naturalmaxx.com.pe`, 44 ms) | El QR funciona con el interruptor encendido. En la corrida 1 no leía porque estaba en `qr=off`. |
+
+En toda la corrida: 0 re-armados sospechosos, 0 lecturas extra y hueco máximo de 387 ms (margen de 113 ms hasta los 500 ms del re-armado). El producto que en la corrida 1 dio 4 lecturas extra (`7750543400036`) **no se probó** en esta.
 
 | Métrica | Horizontal | Vertical |
 | --- | --- | --- |
