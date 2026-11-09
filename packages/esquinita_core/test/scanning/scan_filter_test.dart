@@ -130,6 +130,91 @@ void main() {
     });
   });
 
+  group('diagnostics: max gap and suspicious re-arms', () {
+    test('max gap covers the whole appearance, also after acceptance', () {
+      final f = ScanFilter();
+      f.offer(a, ms(0));
+      expect(f.offer(a, ms(100)).maxGap, ms(100)); // accepted here
+      expect(f.offer(a, ms(450)).maxGap, ms(350)); // still visible
+      expect(f.offer(a, ms(500)).maxGap, ms(350));
+    });
+
+    test('re-arm starts a new appearance: its absence is not a gap', () {
+      final f = ScanFilter();
+      feed(f, a, fromMs: 0, toMs: 99);
+      final r = f.offer(a, ms(800)); // 701 ms away, still remembered
+      expect(r.rearmed, isTrue);
+      expect(r.gap, ms(800 - 99));
+      expect(r.maxGap, Duration.zero);
+    });
+
+    test('600 ms dropout while held still → suspicious, then extra read', () {
+      final f = ScanFilter();
+      expect(feed(f, a, fromMs: 0, toMs: 2013), [33]);
+      // Dropout 2013 → 2613 (600 ms), product never left.
+      final back = f.offer(a, ms(2613));
+      expect(back.suspiciousRearm, isTrue);
+      final extra = f.offer(a, ms(2646));
+      expect(extra.isAccepted, isTrue);
+      expect(extra.afterSuspiciousRearm, isTrue);
+    });
+
+    test('suspicious re-arm inside cooldown and then gone → no extra read', () {
+      final f = ScanFilter();
+      expect(feed(f, a, fromMs: 0, toMs: 99), [33]);
+      // Back after 601 ms, removed for good before the 1.5 s cooldown.
+      final results = [for (var t = 700; t <= 900; t += 33) f.offer(a, ms(t))];
+      expect(results.first.suspiciousRearm, isTrue);
+      expect(results.where((r) => r.isAccepted), isEmpty);
+    });
+
+    test('range is rearmAbsence..limit inclusive', () {
+      for (final (absence, expected) in [
+        (499, false), // not even a re-arm
+        (500, true),
+        (1000, true),
+        (1001, false),
+      ]) {
+        final f = ScanFilter();
+        feed(f, a, fromMs: 0, toMs: 2013);
+        final r = f.offer(a, ms(2013 + absence));
+        expect(r.suspiciousRearm, expected, reason: '$absence ms');
+        // Past the limit the code is forgotten and returns as new.
+        expect(
+          r.rearmed,
+          absence >= 500 && absence <= 1000,
+          reason: '$absence',
+        );
+        expect(r.gap == null, absence > 1000, reason: '$absence ms');
+      }
+    });
+
+    test('long absence: forgotten, not suspicious, normal second read', () {
+      final f = ScanFilter();
+      feed(f, a, fromMs: 0, toMs: 2013);
+      final back = f.offer(a, ms(3500));
+      expect(back.gap, isNull);
+      expect(back.suspiciousRearm, isFalse);
+      final read = f.offer(a, ms(3533));
+      expect(read.isAccepted, isTrue);
+      expect(read.afterSuspiciousRearm, isFalse);
+    });
+
+    test('a code never accepted is not re-armed by an absence', () {
+      final f = ScanFilter();
+      f.offer(a, ms(0));
+      expect(f.offer(a, ms(600)).rearmed, isFalse);
+    });
+
+    test('custom limit is honored', () {
+      final f = ScanFilter(
+        const ScanFilterConfig(suspiciousRearmLimit: Duration(seconds: 2)),
+      );
+      feed(f, a, fromMs: 0, toMs: 2013);
+      expect(f.offer(a, ms(2013 + 1800)).suspiciousRearm, isTrue);
+    });
+  });
+
   group('configurable timings', () {
     test('custom confirm window, cooldown and absence are honored', () {
       final f = ScanFilter(
@@ -146,6 +231,26 @@ void main() {
       expect(feed(f, a, fromMs: 1000, toMs: 4000, everyMs: 50), isEmpty);
       // 1.2 s gap and past the 3 s cooldown → accepted again.
       expect(feed(f, a, fromMs: 5200, toMs: 5400, everyMs: 50), [5250]);
+    });
+
+    test('suspicious limit below rearmAbsence is rejected', () {
+      expect(
+        () => ScanFilter(
+          const ScanFilterConfig(
+            suspiciousRearmLimit: Duration(milliseconds: 400),
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('copyWith changes only the given value', () {
+      final c = const ScanFilterConfig().copyWith(
+        suspiciousRearmLimit: const Duration(seconds: 2),
+      );
+      expect(c.suspiciousRearmLimit, const Duration(seconds: 2));
+      expect(c.rearmAbsence, const Duration(milliseconds: 500));
+      expect(c.cooldown, const Duration(milliseconds: 1500));
     });
 
     test('non-positive durations are rejected', () {

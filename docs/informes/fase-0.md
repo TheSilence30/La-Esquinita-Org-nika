@@ -23,14 +23,16 @@ Estado: **código listo · pendiente de prueba en dispositivo**.
   2. si ya se aceptó, desapareció de la vista al menos **500 ms** (re-armado). Un producto quieto frente a la cámara cuenta **una sola vez**;
   3. pasaron al menos **1,5 s** desde su última aceptación (enfriamiento).
 
-  Los tres tiempos se configuran con `ScanFilterConfig`. Cada código se filtra por separado: un producto distinto entra en cuanto se confirma.
+  Los tres tiempos se configuran con `ScanFilterConfig`. Como diagnóstico hay un cuarto, el **límite de re-armado sospechoso** (1000 ms): una ausencia de un código ya aceptado que dura entre el re-armado (500 ms) y ese límite se cuenta como **re-armado sospechoso**, porque lo más probable es que el producto no se haya movido y el detector solo haya perdido el código un instante. Si después de esa ausencia hay una nueva aceptación, se cuenta como **lectura extra**. Este límite no cambia qué lecturas se aceptan. Todos los tiempos usan un reloj monotónico (`Stopwatch`); la hora UTC solo se registra. Cada código se filtra por separado: un producto distinto entra en cuanto se confirma.
 - `apps/esquinita_app/lib/devices/scanner/camera_scan_view.dart`: `mobile_scanner` 7.5.0 con ML Kit **incluido en el APK** (sin Google Play), `DetectionSpeed.unrestricted` y solo formatos de tienda (EAN‑13/8, UPC‑A/E, Code128, Code39). El QR se activa con el interruptor **“Incluir QR”** (apagado por defecto; en ventas va siempre desactivado).
 - `apps/esquinita_app/lib/spikes/scan_spike_page.dart`: pantalla del spike con:
   - lecturas, unidades, repetidas ignoradas, cuadros/s y latencia (promedio, p50, p95);
+  - **hueco máximo** entre detecciones (global y por código), **re-armados sospechosos** y **lecturas extra**; en el CSV, `max_gap_ms` y `after_suspicious_rearm` por lectura;
   - campo **“× cantidad”**, que se aplica a la siguiente lectura y vuelve a 1;
   - ingreso manual o lector USB;
   - linterna, vibración y sonido;
-  - ajuste de los 3 tiempos en vivo;
+  - ajuste en vivo de los 3 tiempos y del límite de re-armado sospechoso;
+  - interruptor **“Incluir QR”**;
   - botón **Copiar resultados (CSV)**.
 - Layout adaptable: lado a lado cuando la pantalla es más ancha que alta (tablet horizontal, PC) y apilado si no lo es (tablet o celular en vertical). El panel se desplaza en pantallas bajas. La pantalla muestra el factor de forma y el tamaño en dp.
 

@@ -4,12 +4,13 @@ import 'package:flutter/foundation.dart';
 enum ScanSource { camera, manual }
 
 class ScanRead {
-  const ScanRead({
+  ScanRead({
     required this.code,
     required this.at,
     required this.units,
     required this.source,
     this.latency,
+    this.afterSuspiciousRearm = false,
   });
 
   final String code;
@@ -19,6 +20,13 @@ class ScanRead {
 
   /// First detection → acceptance (camera only).
   final Duration? latency;
+
+  /// Accepted right after a suspicious re-arm: probably an extra read.
+  final bool afterSuspiciousRearm;
+
+  /// Largest gap between detections of this appearance (camera only). Keeps
+  /// growing after acceptance while the code stays in view.
+  Duration? maxGap;
 }
 
 /// Spike 1 session: filters camera frames, applies the "× cantidad"
@@ -57,6 +65,15 @@ class ScanSession extends ChangeNotifier {
 
   int framesWithCodes = 0;
   int ignoredRepeats = 0;
+
+  /// Absences in the suspicious range (see `ScanFilter`), extra read or not.
+  int suspiciousRearms = 0;
+
+  /// Reads accepted right after a suspicious re-arm.
+  int extraReads = 0;
+
+  /// The read of each code's current appearance, whose max gap is updated.
+  final Map<String, ScanRead> _openReads = {};
   // Monotonic: frame rate must not be skewed by wall-clock jumps.
   Duration? _firstFrameAt;
   Duration? _lastFrameAt;
@@ -73,6 +90,7 @@ class ScanSession extends ChangeNotifier {
   /// Applies new timings. Starts a fresh filter (codes in view are forgotten).
   void updateConfig(ScanFilterConfig config) {
     _filter = ScanFilter(config);
+    _openReads.clear();
     notifyListeners();
   }
 
@@ -86,16 +104,27 @@ class ScanSession extends ChangeNotifier {
     final accepted = <ScanRead>[];
     for (final code in codes.toSet()) {
       final result = _filter.offer(code, elapsed);
+      // A new appearance closes the previous read's gap tracking.
+      if (result.gap == null || result.rearmed) _openReads.remove(code);
+      if (result.suspiciousRearm) suspiciousRearms++;
       switch (result.outcome) {
         case ScanOutcome.accepted:
-          accepted.add(
-            _record(code, atUtc, ScanSource.camera, latency: result.latency),
+          final read = _record(
+            code,
+            atUtc,
+            ScanSource.camera,
+            latency: result.latency,
+            afterSuspiciousRearm: result.afterSuspiciousRearm,
           );
+          if (read.afterSuspiciousRearm) extraReads++;
+          _openReads[code] = read;
+          accepted.add(read);
         case ScanOutcome.stillVisible || ScanOutcome.coolingDown:
           ignoredRepeats++;
         case ScanOutcome.awaitingConfirmation:
           break;
       }
+      _openReads[code]?.maxGap = result.maxGap;
     }
     notifyListeners();
     return accepted;
@@ -115,6 +144,7 @@ class ScanSession extends ChangeNotifier {
     DateTime at,
     ScanSource source, {
     Duration? latency,
+    bool afterSuspiciousRearm = false,
   }) {
     final read = ScanRead(
       code: code,
@@ -122,6 +152,7 @@ class ScanSession extends ChangeNotifier {
       units: _multiplier,
       source: source,
       latency: latency,
+      afterSuspiciousRearm: afterSuspiciousRearm,
     );
     _reads.add(read);
     _tally[code] = (_tally[code] ?? 0) + _multiplier;
@@ -135,6 +166,9 @@ class ScanSession extends ChangeNotifier {
     _multiplier = 1;
     framesWithCodes = 0;
     ignoredRepeats = 0;
+    suspiciousRearms = 0;
+    extraReads = 0;
+    _openReads.clear();
     _firstFrameAt = null;
     _lastFrameAt = null;
     _filter.reset();
@@ -147,6 +181,17 @@ class ScanSession extends ChangeNotifier {
     if (first == null || last == null || framesWithCodes < 2) return null;
     final ms = (last - first).inMilliseconds;
     return ms == 0 ? null : (framesWithCodes - 1) * 1000 / ms;
+  }
+
+  /// Largest gap of any camera read, or of [code]'s reads when given.
+  Duration? maxGap([String? code]) {
+    Duration? max;
+    for (final r in _reads) {
+      final g = r.maxGap;
+      if (g == null || (code != null && r.code != code)) continue;
+      if (max == null || g > max) max = g;
+    }
+    return max;
   }
 
   List<Duration> get _latencies => [for (final r in _reads) ?r.latency]..sort();
@@ -175,6 +220,7 @@ class ScanSession extends ChangeNotifier {
         '# confirm_ms=${config.confirmWindow.inMilliseconds} '
         'cooldown_ms=${config.cooldown.inMilliseconds} '
         'rearm_ms=${config.rearmAbsence.inMilliseconds} '
+        'suspicious_ms=${config.suspiciousRearmLimit.inMilliseconds} '
         'qr=${_includeQr ? 'on' : 'off'}',
       )
       ..writeln(
@@ -186,11 +232,19 @@ class ScanSession extends ChangeNotifier {
         '# latency_ms avg=${ms(averageLatency)} '
         'p50=${ms(latencyPercentile(50))} p95=${ms(latencyPercentile(95))}',
       )
-      ..writeln('n,code,units,source,at_utc,latency_ms');
+      ..writeln(
+        '# max_gap_ms=${ms(maxGap())} suspicious_rearms=$suspiciousRearms '
+        'extra_reads=$extraReads',
+      )
+      ..writeln(
+        'n,code,units,source,at_utc,latency_ms,max_gap_ms,'
+        'after_suspicious_rearm',
+      );
     for (final (i, r) in _reads.indexed) {
       buffer.writeln(
         '${i + 1},${_csvField(r.code)},${r.units},${r.source.name},'
-        '${r.at.toIso8601String()},${ms(r.latency)}',
+        '${r.at.toIso8601String()},${ms(r.latency)},${ms(r.maxGap)},'
+        '${r.afterSuspiciousRearm ? 1 : 0}',
       );
     }
     return buffer.toString();

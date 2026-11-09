@@ -61,7 +61,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Pendientes ANTES de la prueba en tablet** (revisión del usuario, 2026-11-04)
 
 1. Correcciones de revisión:
-   - [ ] (a) Registrar, en el CSV y en pantalla, el **hueco máximo entre detecciones** de cada código aceptado y los **re-armados falsos**.
+   - [x] (a) Registrar, en el CSV y en pantalla, el **hueco máximo entre detecciones** de cada código aceptado y los **re-armados falsos**. Hecho, con los ajustes del usuario: **re-armado sospechoso** = ausencia de un código ya aceptado entre `rearmAbsence` y `suspiciousRearmLimit` (1000 ms, inclusive y configurable), termine o no en otra aceptación; **lecturas extra** = las aceptaciones que vienen después de un re-armado sospechoso. Ambas cifras aparecen en pantalla y en el CSV, junto con `max_gap_ms` por lectura.
    - [x] (b) Interruptor **“Incluir QR”**, apagado por defecto. Agregar a CLAUDE.md que en ventas el QR va desactivado. Hecho: `scanFormats(includeQr:)`, la cámara se reinicia al cambiar el interruptor, el CSV anota `qr=on/off` y CLAUDE.md §6.11 lo registra.
    - [x] (c) **Reloj monotónico** para los tiempos del filtro (`ScanFilter`). `DateTime` UTC solo para registrar la hora de cada lectura. Hecho: `ScanFilter.offer` recibe `Duration` de un `Stopwatch` compartido; la sesión recibe ambos tiempos y los cuadros/s usan el monotónico. Prueba nueva: salto de 1 h del reloj UTC sin efecto.
 2. Umbral de tablet: clasificar por el lado más corto (`shortestSide`) con umbral de **520 dp** y agregar una prueba con **533×893 dp** (la Tab A11 en vertical queda por debajo de 550 dp).

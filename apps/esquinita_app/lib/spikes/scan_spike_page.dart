@@ -320,6 +320,9 @@ class _Panel extends StatelessWidget {
             _Stat('Latencia prom.', ms(session.averageLatency)),
             _Stat('p50', ms(session.latencyPercentile(50))),
             _Stat('p95', ms(session.latencyPercentile(95))),
+            _Stat('Hueco máx.', ms(session.maxGap())),
+            _Stat('Re-armados sosp.', '${session.suspiciousRearms}'),
+            _Stat('Lecturas extra', '${session.extraReads}'),
           ],
         ),
         const SizedBox(height: 4),
@@ -360,6 +363,9 @@ class _Panel extends StatelessWidget {
             dense: true,
             selected: e.key == lastCode,
             title: Text(e.key, maxLines: 1, overflow: TextOverflow.ellipsis),
+            subtitle: session.maxGap(e.key) == null
+                ? null
+                : Text('Hueco máx. ${ms(session.maxGap(e.key))}'),
             trailing: Text(
               '× ${e.value}',
               style: Theme.of(context).textTheme.titleMedium,
@@ -566,11 +572,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             50,
             1000,
             50,
-            (d) => ScanFilterConfig(
-              confirmWindow: d,
-              cooldown: c.cooldown,
-              rearmAbsence: c.rearmAbsence,
-            ),
+            (d) => c.copyWith(confirmWindow: d),
           ),
           _slider(
             'Enfriamiento del mismo código',
@@ -578,11 +580,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             300,
             5000,
             100,
-            (d) => ScanFilterConfig(
-              confirmWindow: c.confirmWindow,
-              cooldown: d,
-              rearmAbsence: c.rearmAbsence,
-            ),
+            (d) => c.copyWith(cooldown: d),
           ),
           _slider(
             'Ausencia mínima para volver a contar',
@@ -590,15 +588,27 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             100,
             2000,
             50,
-            (d) => ScanFilterConfig(
-              confirmWindow: c.confirmWindow,
-              cooldown: c.cooldown,
+            // The suspicious limit can never be below the absence.
+            (d) => c.copyWith(
               rearmAbsence: d,
+              suspiciousRearmLimit: d > c.suspiciousRearmLimit
+                  ? d
+                  : c.suspiciousRearmLimit,
+            ),
+          ),
+          _slider(
+            'Límite de re-armado sospechoso',
+            c.suspiciousRearmLimit,
+            100,
+            3000,
+            50,
+            (d) => c.copyWith(
+              suspiciousRearmLimit: d < c.rearmAbsence ? c.rearmAbsence : d,
             ),
           ),
           TextButton(
             onPressed: () => _apply(const ScanFilterConfig()),
-            child: const Text('Restablecer (300 / 1500 / 500 ms)'),
+            child: const Text('Restablecer (300 / 1500 / 500 / 1000 ms)'),
           ),
           const Divider(),
           SwitchListTile(

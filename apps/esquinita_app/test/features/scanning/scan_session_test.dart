@@ -65,13 +65,86 @@ void main() {
     final csv = s.toCsv();
     expect(
       csv,
-      contains('confirm_ms=300 cooldown_ms=1500 rearm_ms=500 qr=off'),
+      contains(
+        'confirm_ms=300 cooldown_ms=1500 rearm_ms=500 '
+        'suspicious_ms=1000 qr=off',
+      ),
     );
     s.includeQr = true;
     expect(s.toCsv(), contains('qr=on'));
-    expect(csv, contains('n,code,units,source,at_utc,latency_ms'));
+    expect(
+      csv,
+      contains(
+        'n,code,units,source,at_utc,latency_ms,max_gap_ms,'
+        'after_suspicious_rearm',
+      ),
+    );
     expect(csv, contains('1,$a,1,camera,'));
-    expect(csv.trim().split('\n').last, endsWith(',200'));
+    expect(csv.trim().split('\n').last, endsWith(',200,200,0'));
+  });
+
+  group('max gap and suspicious re-arms', () {
+    test('max gap keeps growing after acceptance, per read', () {
+      final s = ScanSession();
+      frame(s, [a], 0);
+      frame(s, [a], 100); // accepted, gap 100
+      frame(s, [a], 450); // still visible, gap 350
+      frame(s, [a], 500);
+      expect(s.reads.single.maxGap, mono(350));
+      expect(s.maxGap(), mono(350));
+      expect(s.maxGap(b), isNull);
+    });
+
+    test('a new appearance does not touch the previous read', () {
+      final s = ScanSession();
+      hold(s, a, 0, 99); // read 1, gaps of 33
+      hold(s, a, 2000, 2363); // forgotten, read 2
+      frame(s, [a], 2763); // gap 400 in appearance 2
+      expect(s.reads, hasLength(2));
+      expect(s.reads.first.maxGap, mono(33));
+      expect(s.reads.last.maxGap, mono(400));
+    });
+
+    test('dropout while held still: suspicious + extra read', () {
+      final s = ScanSession();
+      hold(s, a, 0, 2013);
+      hold(s, a, 2613, 3000); // 600 ms dropout
+      expect(s.reads, hasLength(2));
+      expect(s.suspiciousRearms, 1);
+      expect(s.extraReads, 1);
+      expect(s.reads.last.afterSuspiciousRearm, isTrue);
+      final csv = s.toCsv();
+      expect(csv, contains('suspicious_rearms=1 extra_reads=1'));
+      expect(csv.trim().split('\n').last, endsWith(',1'));
+    });
+
+    test('suspicious re-arm without an extra read is still counted', () {
+      final s = ScanSession();
+      hold(s, a, 0, 99);
+      hold(s, a, 700, 900); // back after 601 ms, gone inside cooldown
+      expect(s.reads, hasLength(1));
+      expect(s.suspiciousRearms, 1);
+      expect(s.extraReads, 0);
+    });
+
+    test('long absence is neither suspicious nor extra', () {
+      final s = ScanSession();
+      hold(s, a, 0, 2013);
+      hold(s, a, 3500, 3600);
+      expect(s.reads, hasLength(2));
+      expect(s.suspiciousRearms, 0);
+      expect(s.extraReads, 0);
+    });
+
+    test('clear resets the counters', () {
+      final s = ScanSession();
+      hold(s, a, 0, 2013);
+      hold(s, a, 2613, 3000);
+      s.clear();
+      expect(s.suspiciousRearms, 0);
+      expect(s.extraReads, 0);
+      expect(s.maxGap(), isNull);
+    });
   });
 
   test('wall-clock jumps do not affect filtering or frame rate', () {

@@ -70,6 +70,16 @@ void main() {
     );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('× 3'),
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     expect(find.text('× 3'), findsOneWidget);
 
     await tester.enterText(
