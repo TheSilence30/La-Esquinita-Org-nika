@@ -8,15 +8,15 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [x] Flutter SDK (canal stable) — `flutter doctor` sin errores para Android y Windows (Flutter 3.47.9, Dart 3.13.7)
 - [x] Android Studio + Android SDK (SDK 36; NDK 28.2.13676358 instalado el 2026-11-04 para compilar `mobile_scanner`)
 - [x] Visual Studio (2026 Community) con "Desarrollo para el escritorio con C++" (para compilar Windows)
-- [ ] Docker Desktop (PostgreSQL local) — instalado (29.1.3) pero el motor no estaba iniciado; abrirlo antes del `docker-compose`
+- [x] Docker Desktop (PostgreSQL local): 29.1.3, motor funcionando (2026-11-09)
 - [x] Tablet Tab A11 con opciones de desarrollador y depuración USB activadas
 - [x] Claude Code instalado y abierto en la carpeta del repositorio
 
 ## Tareas de Claude Code
 
 - [x] Crear monorepo (pub workspace en la raíz; `dart_frog_cli` 1.2.14 instalado): `apps/esquinita_app` (`flutter create --platforms=android,windows`), `apps/server` (Dart Frog), `packages/esquinita_core`
-- [ ] Configurar análisis estático (`very_good_analysis` o `flutter_lints`), formato y CI básica (GitHub Actions: analyze + test) — **análisis y formato hechos** (`lints`/`flutter_lints`/`dart_frog_lint` + modo estricto); **falta la CI**
-- [ ] `docker-compose.yml` de desarrollo con PostgreSQL 16
+- [x] Configurar análisis estático (`very_good_analysis` o `flutter_lints`), formato y CI básica (GitHub Actions: analyze + test) — **análisis y formato hechos** (`lints`/`flutter_lints`/`dart_frog_lint` + modo estricto). **CI hecha el 2026-11-09** (`.github/workflows/ci.yml`): en cada push y PR, en `ubuntu-latest` con Flutter 3.47.9, revisa el formato y corre `analyze --fatal-infos` y las pruebas de core, servidor y app. El APK debug se compila solo en push a `main` y se publica como artefacto. Sin build de Windows. Primera ejecución en verde: run 42712624172 (core 29, servidor 1, app 29). `.gitattributes`: LF por defecto, CRLF para `.bat`/`.cmd`/`.ps1`, y binarios marcados (la normalización no cambió archivos).
+- [x] `docker-compose.yml` de desarrollo con PostgreSQL 16. Hecho el 2026-11-09: `postgres:16-alpine` (16.15), credenciales tomadas de `.env`, puerto solo en `127.0.0.1:5432`, volumen `pgdata` y chequeo de salud. Verificado: estado `healthy`, `select version()` y los datos persisten tras `down`/`up`. Uso: copiar `.env.example` a `.env` y ejecutar `docker compose up -d`.
 - [x] **Spike 1 — Escaneo**: pantalla de prueba con `mobile_scanner`, escaneo continuo, enfriamiento 1,5 s, confirmación en 2 cuadros, contador de lecturas. Medir tiempo por lectura en la Tab A11. Hecho el 2026-11-09: resultados y conclusiones en `docs/informes/fase-0.md`. El usuario decidió que no hace falta el video.
   - [x] Filtro `ScanFilter` en core (2 cuadros ≤ 300 ms, enfriamiento 1,5 s, re-armado tras 500 ms de ausencia; configurables) con pruebas
   - [x] Pantalla del spike con métricas, “× cantidad”, ingreso manual, CSV; layout adaptable (celular, tablet, PC) probado en 6 tamaños
@@ -70,7 +70,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Falta**
 
 - ~~Spike 1: prueba en dispositivo.~~ Hecho el 2026-11-09 (ver las corridas de abajo). El sonido usa el clic del sistema, que no suena si los sonidos de toque de Android están apagados; si no sirve, agregar un pitido propio.
-- CI con GitHub Actions (analyze + test) y `docker-compose.yml` con PostgreSQL 16. Antes hay que iniciar Docker Desktop.
+- ~~CI con GitHub Actions y `docker-compose.yml` con PostgreSQL 16.~~ Hecho el 2026-11-09 (rama `phase-0/ci-docker`).
 - Spikes 2 a 6, prototipo navegable y modelo de datos.
 - ~~Revisión del usuario y fusión de la rama a `main`.~~ Hecho el 2026-11-09.
 
@@ -92,4 +92,5 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 3. ~~Prueba del usuario en la tablet.~~ Hecho el 2026-11-09: corridas 1 y 2 y repeticiones del 3.2 (`191069706931` y `7750543400036`, 1 lectura cada uno).
 4. ~~Completar la tabla del informe y decidir los tiempos.~~ Hecho: se mantienen 300 / 1500 / 500 / 1000 ms. **Spike 1 marcado como hecho** (el video no hace falta, según el usuario).
 5. ~~Revisión del usuario y fusión a `main`.~~ Aprobado por el usuario el 2026-11-09; Claude hizo la fusión con `--no-ff`, a pedido del usuario.
-6. **Siguiente:** CI (GitHub Actions: analyze + test) y `docker-compose.yml` con PostgreSQL 16 (antes hay que iniciar Docker Desktop), y luego el Spike 3 (térmica Bluetooth).
+6. ~~CI y `docker-compose.yml`.~~ Hecho el 2026-11-09 en la rama `phase-0/ci-docker`, con PR abierto a `main` para revisión del usuario (no lo fusiona Claude). El job del APK correrá por primera vez después de la fusión.
+7. **Siguiente:** Spike 3 (térmica Éterma por Bluetooth en la tablet). Antes hace falta del usuario: la foto de la etiqueta o el manual de la Éterma (modelo exacto) y la impresora encendida y emparejada con la tablet.
