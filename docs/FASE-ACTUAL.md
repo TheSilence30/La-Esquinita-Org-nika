@@ -94,4 +94,5 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 5. ~~Revisión del usuario y fusión a `main`.~~ Aprobado por el usuario el 2026-11-09; Claude hizo la fusión con `--no-ff`, a pedido del usuario.
 6. ~~CI y `docker-compose.yml`.~~ Hecho el 2026-11-09 en la rama `phase-0/ci-docker`, con PR abierto a `main` para revisión del usuario (no lo fusiona Claude). El job del APK correrá por primera vez después de la fusión.
 7. ~~Fusión del PR #2~~ (2026-11-09). El primer build del APK en `main` salió en verde (run 42714969073).
-8. **Siguiente:** Spike 3 en la rama `phase-0/spike-printing`. La impresora ya está emparejada con la tablet (Bluetooth clásico SPP) y los datos de la autoprueba están arriba. Plan presentado; falta la aprobación del usuario.
+8. Spike 3 (rama `phase-0/spike-printing`): plan aprobado y código hecho el 2026-11-09 (`eb25b1d` núcleo ESC/POS, `0dffd69` transporte SPP, `5ece331` pantalla y ticket). Se confirmó Bluetooth clásico (SPP). Logo definitivo en blanco y negro en `docs/marca/logo-bn.png`. Primera impresión en la tablet: conexión en 552 ms, sin errores.
+9. **Siguiente:** el usuario sigue el protocolo del Spike 3 en `docs/informes/fase-0.md` y manda las fotos y el CSV. Claude elige la página de códigos y el bloque y pausa, completa los resultados y abre el PR (sin fusionarlo).
