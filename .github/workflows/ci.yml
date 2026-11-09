@@ -4,6 +4,10 @@ on:
   push:
   pull_request:
 
+# Least privilege for GITHUB_TOKEN: the jobs only read the repo.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
