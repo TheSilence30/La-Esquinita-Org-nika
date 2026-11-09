@@ -161,6 +161,18 @@ void main() {
     });
   });
 
+  test('frame rate ignores idle time between products', () {
+    final s = ScanSession();
+    // Two 1 s bursts at 25 fps with 20 s of nothing in between.
+    for (var t = 0; t <= 1000; t += 40) {
+      frame(s, [a], t);
+    }
+    for (var t = 21000; t <= 22000; t += 40) {
+      frame(s, [b], t);
+    }
+    expect(s.detectionFps, closeTo(25, 0.01));
+  });
+
   test('wall-clock jumps do not affect filtering or frame rate', () {
     final s = ScanSession();
     // Held still for 3 s at 25 fps while the UTC clock jumps 1 h back

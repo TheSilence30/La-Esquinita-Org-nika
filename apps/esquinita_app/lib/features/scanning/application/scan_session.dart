@@ -86,9 +86,12 @@ class ScanSession extends ChangeNotifier {
   final Map<String, Duration> _lastSeen = {};
   final Map<String, Duration?> _absence = {};
 
-  // Monotonic: frame rate must not be skewed by wall-clock jumps.
-  Duration? _firstFrameAt;
+  // Monotonic: frame rate must not be skewed by wall-clock jumps. Only
+  // intervals shorter than rearmAbsence count (a code stayed in view), so
+  // idle time between products does not dilute the rate.
   Duration? _lastFrameAt;
+  int _inViewIntervals = 0;
+  Duration _inViewTime = Duration.zero;
 
   int get totalUnits => _tally.values.fold(0, (a, b) => a + b);
 
@@ -111,7 +114,11 @@ class ScanSession extends ChangeNotifier {
   /// Returns the reads it accepted (usually 0 or 1).
   List<ScanRead> onFrame(List<String> codes, Duration elapsed, DateTime atUtc) {
     framesWithCodes++;
-    _firstFrameAt ??= elapsed;
+    final last = _lastFrameAt;
+    if (last != null && elapsed - last < config.rearmAbsence) {
+      _inViewIntervals++;
+      _inViewTime += elapsed - last;
+    }
     _lastFrameAt = elapsed;
     final accepted = <ScanRead>[];
     for (final code in codes.toSet()) {
@@ -193,18 +200,18 @@ class ScanSession extends ChangeNotifier {
     _openReads.clear();
     _lastSeen.clear();
     _absence.clear();
-    _firstFrameAt = null;
     _lastFrameAt = null;
+    _inViewIntervals = 0;
+    _inViewTime = Duration.zero;
     _filter.reset();
     notifyListeners();
   }
 
-  /// Frames with at least one code per second, while codes were in view.
+  /// Frames with at least one code per second, counting only the time a code
+  /// was in view.
   double? get detectionFps {
-    final first = _firstFrameAt, last = _lastFrameAt;
-    if (first == null || last == null || framesWithCodes < 2) return null;
-    final ms = (last - first).inMilliseconds;
-    return ms == 0 ? null : (framesWithCodes - 1) * 1000 / ms;
+    final us = _inViewTime.inMicroseconds;
+    return us == 0 ? null : _inViewIntervals * 1e6 / us;
   }
 
   /// Largest gap of any camera read, or of [code]'s reads when given.
