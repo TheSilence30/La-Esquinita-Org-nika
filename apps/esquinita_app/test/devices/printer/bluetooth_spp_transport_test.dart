@@ -1,4 +1,3 @@
-
 import 'package:esquinita_app/devices/printer/bluetooth_spp_transport.dart';
 import 'package:esquinita_app/devices/printer/printer_transport.dart';
 import 'package:flutter/services.dart';
