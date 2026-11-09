@@ -159,3 +159,4 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - **Aqp Print cerrada** mientras se prueba: puede ocupar la impresora.
 - **Fotos del papel** de cada impresión (tomadas con la tablet, para que Claude las lea desde la galería) y el **CSV** de la pantalla.
 - La foto de la etiqueta ya no hace falta: la autoprueba dio el modelo y el firmware.
+- **Docker no hace falta mañana**: el Spike 3 no usa el servidor ni la base. Hará falta en el **Spike 6** (drift + outbox contra el servidor local). El contenedor de PostgreSQL (`la-esquinita-org-nika-db-1`) quedó corriendo; se puede apagar con `docker compose down` sin perder datos (volumen `pgdata`) y volver a levantar con `docker compose up -d`.
