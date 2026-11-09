@@ -11,6 +11,7 @@ class ScanRead {
     required this.source,
     this.latency,
     this.afterSuspiciousRearm = false,
+    this.absence,
   });
 
   final String code;
@@ -23,6 +24,11 @@ class ScanRead {
 
   /// Accepted right after a suspicious re-arm: probably an extra read.
   final bool afterSuspiciousRearm;
+
+  /// How long the code was out of view before the appearance that produced
+  /// this read (camera only); null when it was first seen in this session.
+  /// Tells a detector dropout (~0.5–1 s) from a deliberate re-show (~2 s).
+  final Duration? absence;
 
   /// Largest gap between detections of this appearance (camera only). Keeps
   /// growing after acceptance while the code stays in view.
@@ -74,6 +80,12 @@ class ScanSession extends ChangeNotifier {
 
   /// The read of each code's current appearance, whose max gap is updated.
   final Map<String, ScanRead> _openReads = {};
+
+  // Kept here, not in the filter: the filter forgets codes after the
+  // suspicious limit, but the CSV needs every absence measured exactly.
+  final Map<String, Duration> _lastSeen = {};
+  final Map<String, Duration?> _absence = {};
+
   // Monotonic: frame rate must not be skewed by wall-clock jumps.
   Duration? _firstFrameAt;
   Duration? _lastFrameAt;
@@ -103,6 +115,13 @@ class ScanSession extends ChangeNotifier {
     _lastFrameAt = elapsed;
     final accepted = <ScanRead>[];
     for (final code in codes.toSet()) {
+      final prev = _lastSeen[code];
+      final away = prev == null ? null : elapsed - prev;
+      // Same rule as the filter: an absence ≥ rearmAbsence starts a new
+      // appearance.
+      if (away == null || away >= config.rearmAbsence) _absence[code] = away;
+      _lastSeen[code] = elapsed;
+
       final result = _filter.offer(code, elapsed);
       // A new appearance closes the previous read's gap tracking.
       if (result.gap == null || result.rearmed) _openReads.remove(code);
@@ -115,6 +134,7 @@ class ScanSession extends ChangeNotifier {
             ScanSource.camera,
             latency: result.latency,
             afterSuspiciousRearm: result.afterSuspiciousRearm,
+            absence: _absence[code],
           );
           if (read.afterSuspiciousRearm) extraReads++;
           _openReads[code] = read;
@@ -145,6 +165,7 @@ class ScanSession extends ChangeNotifier {
     ScanSource source, {
     Duration? latency,
     bool afterSuspiciousRearm = false,
+    Duration? absence,
   }) {
     final read = ScanRead(
       code: code,
@@ -153,6 +174,7 @@ class ScanSession extends ChangeNotifier {
       source: source,
       latency: latency,
       afterSuspiciousRearm: afterSuspiciousRearm,
+      absence: absence,
     );
     _reads.add(read);
     _tally[code] = (_tally[code] ?? 0) + _multiplier;
@@ -169,6 +191,8 @@ class ScanSession extends ChangeNotifier {
     suspiciousRearms = 0;
     extraReads = 0;
     _openReads.clear();
+    _lastSeen.clear();
+    _absence.clear();
     _firstFrameAt = null;
     _lastFrameAt = null;
     _filter.reset();
@@ -238,13 +262,13 @@ class ScanSession extends ChangeNotifier {
       )
       ..writeln(
         'n,code,units,source,at_utc,latency_ms,max_gap_ms,'
-        'after_suspicious_rearm',
+        'after_suspicious_rearm,absence_ms',
       );
     for (final (i, r) in _reads.indexed) {
       buffer.writeln(
         '${i + 1},${_csvField(r.code)},${r.units},${r.source.name},'
         '${r.at.toIso8601String()},${ms(r.latency)},${ms(r.maxGap)},'
-        '${r.afterSuspiciousRearm ? 1 : 0}',
+        '${r.afterSuspiciousRearm ? 1 : 0},${ms(r.absence)}',
       );
     }
     return buffer.toString();

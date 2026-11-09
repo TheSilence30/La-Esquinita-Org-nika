@@ -76,11 +76,14 @@ void main() {
       csv,
       contains(
         'n,code,units,source,at_utc,latency_ms,max_gap_ms,'
-        'after_suspicious_rearm',
+        'after_suspicious_rearm,absence_ms',
       ),
     );
     expect(csv, contains('1,$a,1,camera,'));
-    expect(csv.trim().split('\n').last, endsWith(',200,200,0'));
+    expect(
+      csv.trim().split('\n').last,
+      endsWith(',200,200,0,'),
+    ); // b: first sighting
   });
 
   group('max gap and suspicious re-arms', () {
@@ -115,7 +118,7 @@ void main() {
       expect(s.reads.last.afterSuspiciousRearm, isTrue);
       final csv = s.toCsv();
       expect(csv, contains('suspicious_rearms=1 extra_reads=1'));
-      expect(csv.trim().split('\n').last, endsWith(',1'));
+      expect(csv.trim().split('\n').last, endsWith(',1,600'));
     });
 
     test('suspicious re-arm without an extra read is still counted', () {
@@ -134,6 +137,17 @@ void main() {
       expect(s.reads, hasLength(2));
       expect(s.suspiciousRearms, 0);
       expect(s.extraReads, 0);
+    });
+
+    test('absence before each read is measured exactly', () {
+      final s = ScanSession();
+      hold(s, a, 0, 99); // first sighting: no absence
+      hold(s, a, 2000, 2100); // 1901 ms away (filter forgot it)
+      hold(s, a, 4100, 4200); // ~2 s re-show, as in step 3.3
+      expect(
+        [for (final r in s.reads) r.absence],
+        [null, mono(2000 - 99), mono(4100 - 2099)],
+      );
     });
 
     test('clear resets the counters', () {
