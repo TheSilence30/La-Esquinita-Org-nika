@@ -74,6 +74,8 @@ Configuración: `confirm 300 / cooldown 1500 / rearm 500 / sospechoso 1000 ms`, 
 
 En toda la corrida: 0 re-armados sospechosos, 0 lecturas extra y hueco máximo de 387 ms (margen de 113 ms hasta los 500 ms del re-armado). El producto que en la corrida 1 dio 4 lecturas extra (`7750543400036`) **no se probó** en esta.
 
+**Repetición del 3.2** (2026-11-09 22:05 UTC, `qr=off`): `191069706931` quieto frente a la cámara. Hubo 640 cuadros con código a 29,3 cuadros/s, unos **22 s detectado sin cortes** (hueco máximo de 156 ms). Resultado: **1 lectura** y 638 repeticiones ignoradas; latencia de 23 ms. ✅ Un producto quieto cuenta una sola vez.
+
 | Métrica | Horizontal | Vertical |
 | --- | --- | --- |
 | Lecturas esperadas / obtenidas | | |

@@ -83,7 +83,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Faltaron: la línea "Pantalla:", la orientación, los 20 productos distintos y el paso 3.4.
 - Arreglos (2026-11-09): `977db78` agrega la columna `absence_ms`, `42af6c2` corrige los cuadros/s solo con el código a la vista, `dfd6734` agrega el selector **Paso de prueba** y la columna `step`, y el paso 3.3 del protocolo pasa a ~2 s.
 
-**Corrida 2 en tablet (2026-11-09)**: los pasos 3.3, 3.4 y QR salieron como se esperaba. 0 lecturas extra; latencia p50 66 ms / p95 191 ms. El detalle está en `docs/informes/fase-0.md`. Falta: repetir el 3.2 (solo ~0,6 s detectado), registrar las condiciones del 3.5, probar `7750543400036` quieto 10 s, la línea “Pantalla:” y las dos orientaciones.
+**Corrida 2 en tablet (2026-11-09)**: los pasos 3.3, 3.4 y QR salieron como se esperaba. 0 lecturas extra; latencia p50 66 ms / p95 191 ms. El detalle está en `docs/informes/fase-0.md`. Repetición del 3.2: ✅ 1 lectura en ~22 s detectado (`191069706931`, `qr=off`). Falta: registrar las condiciones del 3.5, probar `7750543400036` quieto 10 s, la línea “Pantalla:” y las dos orientaciones.
 
 **Siguiente paso exacto**
 
