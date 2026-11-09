@@ -46,8 +46,9 @@ class ScanSession extends ChangeNotifier {
 
   int framesWithCodes = 0;
   int ignoredRepeats = 0;
-  DateTime? _firstFrameAt;
-  DateTime? _lastFrameAt;
+  // Monotonic: frame rate must not be skewed by wall-clock jumps.
+  Duration? _firstFrameAt;
+  Duration? _lastFrameAt;
 
   int get totalUnits => _tally.values.fold(0, (a, b) => a + b);
 
@@ -64,18 +65,20 @@ class ScanSession extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Feeds one camera frame. Returns the reads it accepted (usually 0 or 1).
-  List<ScanRead> onFrame(List<String> codes, DateTime at) {
+  /// Feeds one camera frame. [elapsed] comes from a monotonic clock and drives
+  /// the filter; [atUtc] is only recorded as the wall-clock time of each read.
+  /// Returns the reads it accepted (usually 0 or 1).
+  List<ScanRead> onFrame(List<String> codes, Duration elapsed, DateTime atUtc) {
     framesWithCodes++;
-    _firstFrameAt ??= at;
-    _lastFrameAt = at;
+    _firstFrameAt ??= elapsed;
+    _lastFrameAt = elapsed;
     final accepted = <ScanRead>[];
     for (final code in codes.toSet()) {
-      final result = _filter.offer(code, at);
+      final result = _filter.offer(code, elapsed);
       switch (result.outcome) {
         case ScanOutcome.accepted:
           accepted.add(
-            _record(code, at, ScanSource.camera, latency: result.latency),
+            _record(code, atUtc, ScanSource.camera, latency: result.latency),
           );
         case ScanOutcome.stillVisible || ScanOutcome.coolingDown:
           ignoredRepeats++;
@@ -131,7 +134,7 @@ class ScanSession extends ChangeNotifier {
   double? get detectionFps {
     final first = _firstFrameAt, last = _lastFrameAt;
     if (first == null || last == null || framesWithCodes < 2) return null;
-    final ms = last.difference(first).inMilliseconds;
+    final ms = (last - first).inMilliseconds;
     return ms == 0 ? null : (framesWithCodes - 1) * 1000 / ms;
   }
 

@@ -1,8 +1,8 @@
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:test/test.dart';
 
-final t0 = DateTime.utc(2026, 11, 4, 12);
-DateTime ms(int millis) => t0.add(Duration(milliseconds: millis));
+/// Monotonic elapsed time, as a `Stopwatch` reports it.
+Duration ms(int millis) => Duration(milliseconds: millis);
 
 /// Feeds [code] every [everyMs] from [fromMs] to [toMs] (inclusive) and
 /// returns the timestamps (ms) of accepted reads.

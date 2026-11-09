@@ -13,7 +13,9 @@
 ///
 /// Each code is tracked independently: a different product is accepted as
 /// soon as it is confirmed. Timestamps are passed in, so the filter has no
-/// clock and is fully deterministic.
+/// clock and is fully deterministic. They must come from a **monotonic**
+/// clock (e.g. a `Stopwatch`): wall-clock time can jump (NTP, manual change,
+/// time zone) and would break the gap arithmetic.
 library;
 
 class ScanFilterConfig {
@@ -76,9 +78,9 @@ class ScanResult {
 class _CodeState {
   _CodeState(this.lastSeen) : appearedAt = lastSeen;
 
-  DateTime lastSeen;
-  DateTime appearedAt;
-  DateTime? lastAcceptedAt;
+  Duration lastSeen;
+  Duration appearedAt;
+  Duration? lastAcceptedAt;
   bool armed = true;
   bool confirmed = false;
 }
@@ -91,9 +93,9 @@ class ScanFilter {
   final ScanFilterConfig config;
   final Map<String, _CodeState> _states = {};
 
-  /// Feeds one detection of [code] observed at [at]. Timestamps must not go
-  /// backwards.
-  ScanResult offer(String code, DateTime at) {
+  /// Feeds one detection of [code] observed at [at], the elapsed time of a
+  /// monotonic clock. Timestamps must not go backwards.
+  ScanResult offer(String code, Duration at) {
     _prune(at);
     final state = _states[code];
     if (state == null) {
@@ -101,7 +103,7 @@ class ScanFilter {
       return ScanResult(code, ScanOutcome.awaitingConfirmation);
     }
 
-    final gap = at.difference(state.lastSeen);
+    final gap = at - state.lastSeen;
     if (gap >= config.rearmAbsence) {
       // The code left the view: this is a new appearance.
       state
@@ -120,7 +122,7 @@ class ScanFilter {
       return ScanResult(code, ScanOutcome.stillVisible);
     }
     final last = state.lastAcceptedAt;
-    if (last != null && at.difference(last) < config.cooldown) {
+    if (last != null && at - last < config.cooldown) {
       return ScanResult(code, ScanOutcome.coolingDown);
     }
 
@@ -130,7 +132,7 @@ class ScanFilter {
     return ScanResult(
       code,
       ScanOutcome.accepted,
-      latency: at.difference(state.appearedAt),
+      latency: at - state.appearedAt,
     );
   }
 
@@ -139,11 +141,11 @@ class ScanFilter {
 
   /// Drops codes that are out of view and past cooldown: they behave exactly
   /// like never-seen codes, so keeping them only costs memory.
-  void _prune(DateTime now) {
+  void _prune(Duration now) {
     _states.removeWhere((_, s) {
       final last = s.lastAcceptedAt;
-      return now.difference(s.lastSeen) >= config.rearmAbsence &&
-          (last == null || now.difference(last) >= config.cooldown);
+      return now - s.lastSeen >= config.rearmAbsence &&
+          (last == null || now - last >= config.cooldown);
     });
   }
 }

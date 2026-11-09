@@ -3,11 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 
 final t0 = DateTime.utc(2026, 11, 4, 12);
 DateTime ms(int m) => t0.add(Duration(milliseconds: m));
+Duration mono(int m) => Duration(milliseconds: m);
+
+/// One frame at [m] ms on both clocks (they agree unless a test says not).
+void frame(ScanSession s, List<String> codes, int m) =>
+    s.onFrame(codes, mono(m), ms(m));
 
 /// Holds [code] in view from [from] to [to] ms at ~30 fps.
 void hold(ScanSession s, String code, int from, int to) {
   for (var t = from; t <= to; t += 33) {
-    s.onFrame([code], ms(t));
+    frame(s, [code], t);
   }
 }
 
@@ -52,8 +57,8 @@ void main() {
   test('latency stats and CSV evidence', () {
     final s = ScanSession();
     hold(s, a, 0, 66); // accepted at 33 → latency 33 ms
-    s.onFrame([b], ms(1000));
-    s.onFrame([b], ms(1200)); // latency 200 ms
+    frame(s, [b], 1000);
+    frame(s, [b], 1200); // latency 200 ms
     expect(s.averageLatency, const Duration(microseconds: 116500));
     expect(s.latencyPercentile(50), const Duration(milliseconds: 33));
     expect(s.latencyPercentile(95), const Duration(milliseconds: 200));
@@ -62,6 +67,19 @@ void main() {
     expect(csv, contains('n,code,units,source,at_utc,latency_ms'));
     expect(csv, contains('1,$a,1,camera,'));
     expect(csv.trim().split('\n').last, endsWith(',200'));
+  });
+
+  test('wall-clock jumps do not affect filtering or frame rate', () {
+    final s = ScanSession();
+    // Held still for 3 s at 25 fps while the UTC clock jumps 1 h back
+    // halfway (NTP sync / manual change). Monotonic time keeps going.
+    for (var t = 0; t <= 3000; t += 40) {
+      final wall = t < 1500 ? ms(t) : ms(t).subtract(const Duration(hours: 1));
+      s.onFrame([a], mono(t), wall);
+    }
+    expect(s.reads, hasLength(1));
+    expect(s.reads.single.at, ms(40)); // read keeps its own UTC time
+    expect(s.detectionFps, closeTo(25, 0.01));
   });
 
   test('CSV quotes codes with commas or quotes', () {

@@ -7,6 +7,10 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 bool get isCameraScanSupported =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
+/// Monotonic clock shared by every camera view: the scan filter must not see
+/// wall-clock jumps (NTP sync, manual time change).
+final _monotonic = Stopwatch()..start();
+
 /// Retail formats only: fewer formats → faster ML Kit decoding.
 const retailFormats = [
   BarcodeFormat.ean13,
@@ -23,8 +27,10 @@ const retailFormats = [
 class CameraScanView extends StatefulWidget {
   const CameraScanView({super.key, required this.onCodes, this.overlay});
 
-  /// Called once per analyzed frame that contained at least one code.
-  final void Function(List<String> codes, DateTime at) onCodes;
+  /// Called once per analyzed frame that contained at least one code, with
+  /// the monotonic elapsed time (for filtering) and the UTC time (for logs).
+  final void Function(List<String> codes, Duration elapsed, DateTime atUtc)
+  onCodes;
 
   final Widget? overlay;
 
@@ -53,12 +59,13 @@ class CameraScanViewState extends State<CameraScanView> {
     return MobileScanner(
       controller: _controller,
       onDetect: (capture) {
-        final at = DateTime.now().toUtc();
+        final elapsed = _monotonic.elapsed;
+        final atUtc = DateTime.now().toUtc();
         final codes = [
           for (final b in capture.barcodes)
             if (b.rawValue case final v? when v.isNotEmpty) v,
         ];
-        if (codes.isNotEmpty) widget.onCodes(codes, at);
+        if (codes.isNotEmpty) widget.onCodes(codes, elapsed, atUtc);
       },
       errorBuilder: (context, error) => _CameraError(error),
       overlayBuilder: widget.overlay == null

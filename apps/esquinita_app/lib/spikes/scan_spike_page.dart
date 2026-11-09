@@ -46,8 +46,8 @@ class _ScanSpikePageState extends State<ScanSpikePage> {
     super.dispose();
   }
 
-  void _onCodes(List<String> codes, DateTime at) {
-    final accepted = _session.onFrame(codes, at);
+  void _onCodes(List<String> codes, Duration elapsed, DateTime atUtc) {
+    final accepted = _session.onFrame(codes, elapsed, atUtc);
     if (accepted.isNotEmpty) _feedback(accepted.last);
   }
 
@@ -184,7 +184,7 @@ class _CameraArea extends StatelessWidget {
 
   final bool supported;
   final GlobalKey<CameraScanViewState> cameraKey;
-  final void Function(List<String>, DateTime) onCodes;
+  final void Function(List<String>, Duration, DateTime) onCodes;
   final bool flash;
   final String? lastCode;
 
