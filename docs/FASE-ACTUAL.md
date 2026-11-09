@@ -76,8 +76,8 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Siguiente paso exacto**
 
-1. Aplicar los pendientes 1 (a, b, c) y 2 de arriba, con sus pruebas automáticas.
-2. Recompilar y reinstalar el APK en la tablet.
+1. ~~Aplicar los pendientes 1 (a, b, c) y 2 de arriba, con sus pruebas automáticas.~~ Hecho el 2026-11-09 (`33e46d5`, `94f79c6`, `b548cf9`). Pruebas: core 29, app 25 y servidor 1, todas en verde; `analyze` sin problemas.
+2. ~~Recompilar y reinstalar el APK en la tablet.~~ Hecho el 2026-11-09: APK debug instalado en la SM-X133 (R8YL60HT6CX); abre sin errores en el log. `adb` no está en el PATH: usar `%LOCALAPPDATA%\Android\Sdk\platform-toolsdb.exe`.
 3. Recién entonces, el usuario abre **La Esquinita › Spike 1** y sigue los pasos 2 a 7 del protocolo de `docs/informes/fase-0.md`, en horizontal y en vertical.
-4. El usuario pega en la conversación el CSV de **Copiar resultados (CSV)** y la línea “Pantalla:”. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
+4. El usuario pega en la conversación el CSV de **Copiar resultados (CSV)** (ahora incluye `max_gap_ms`, `suspicious_rearms` y `extra_reads`) y la línea “Pantalla:”. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
 5. Después: CI y `docker-compose.yml`, y luego el Spike 3 (térmica Bluetooth).
