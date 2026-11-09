@@ -17,7 +17,7 @@ Fases según `docs/ESPECIFICACION.md` §25. Cada fase termina con **aprobación 
 
 Decisiones abiertas (cerrar en Fase 0):
 
-1. RAM exacta de la Tab A11.
+1. ~~RAM exacta de la Tab A11.~~ **Cerrada (2026-11-04):** SM-X133, Android 16, 4 GB de RAM (3,8 GB visibles), pantalla 800×1340 px. Leído por `adb`.
 2. Transporte Bluetooth de la Éterma (clásico o BLE) y página de códigos.
 3. Formato de etiquetas: rollo térmico en la Éterma o hojas adhesivas A4 en la Epson L460.
 4. ¿La PC también vende offline en simultáneo con la tablet? (si sí, conflictos de stock posibles: se detectan y marcan).

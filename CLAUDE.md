@@ -19,7 +19,7 @@ Régimen tributario: **Nuevo RUS**. La V1 **no** integra SUNAT (Fase 8). La vent
 
 ## 2. Plataformas (por prioridad)
 
-1. **Tablet Android — principal y de mayor uso.** Samsung Galaxy Tab A11 (Android 15; RAM por confirmar, probablemente 4 GB). Táctil, escaneo con cámara, impresión Bluetooth en la térmica.
+1. **Tablet Android — principal y de mayor uso.** Samsung Galaxy Tab A11, modelo **SM-X133** (Android 16, 4 GB de RAM, pantalla 800×1340 px). Táctil, escaneo con cámara, impresión Bluetooth en la térmica.
 2. **PC Windows — administración y caja secundaria.** Teclado, mouse, lector USB tipo teclado, Epson L460 (A4) y la térmica por USB.
 3. Celulares Android: soportados con el layout de tablet adaptado.
 
@@ -95,7 +95,7 @@ Módulos: `auth`, `settings`, `catalog` (productos, categorías, marcas, unidade
 8. **Lotes y vencimientos**: si el producto controla lote, la venta descuenta por FEFO (primero en vencer) y la recepción exige lote/vencimiento.
 9. **Compras**: una compra pendiente **no** mueve stock; solo las **recepciones** (parciales o totales) generan entradas.
 10. **Nota de pedido** = documento interno no tributario, con leyenda clara; no descuenta stock (reserva opcional configurable); genera como máximo una venta.
-11. **Escaneo por contexto**: venta, inventario, compras, registro, conteo y ajuste tienen comportamientos propios.
+11. **Escaneo por contexto**: venta, inventario, compras, registro, conteo y ajuste tienen comportamientos propios. En **ventas el QR va desactivado**: la cámara solo decodifica códigos de tienda (EAN‑13/8, UPC‑A/E, Code128, Code39).
 12. **Unicidad**: código de barras (global, incluyendo presentaciones), código interno, `op_id` de sincronización, correlativos por serie.
 13. Precio o descuento fuera de lo permitido requiere permiso y queda auditado.
 14. Cada ítem de venta guarda precio y **costo del momento**.
