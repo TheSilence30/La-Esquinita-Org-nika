@@ -88,7 +88,7 @@ Según el usuario, los resultados en vertical fueron iguales a los de horizontal
 | Lecturas dobles accidentales | 0 (con QR apagado) | 0 (según el usuario) |
 | Tamaño en dp y densidad | 893×533 dp, 1,5x (240 dpi), tablet | 533×893 dp, 1,5x (240 dpi), tablet |
 
-La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** (captura por `adb` del 2026-11-09, 17:13 hora de Lima). Coincide con `adb shell wm size` / `wm density`: 800×1340 px y densidad 240. En vertical se deduce 533×893 dp; también es tablet porque `shortestSide` 533 ≥ 520, y eso lo cubren las pruebas automáticas.
+La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** (captura por `adb` del 2026-11-09, 17:13 hora de Lima). Coincide con `adb shell wm size` / `wm density`: 800×1340 px y densidad 240. En vertical, la app muestra **“Pantalla: tablet · 533×893 dp · 1.50x”** (captura por `adb`, 17:14), con el diseño apilado: la cámara arriba y el panel abajo, sin desbordes.
 
 **Conclusiones**
 
