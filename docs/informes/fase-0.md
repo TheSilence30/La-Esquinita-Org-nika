@@ -96,4 +96,6 @@ La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** 
 - **El QR va apagado en ventas.** Con el QR encendido, los envases que tienen QR y código de barras se leen dos veces (3.1, filas 16–17 y 20–21).
 - **Varios códigos en el encuadre se aceptan todos.** `793969324781` y `…750` se leyeron con 60 ms de diferencia y eran dos productos distintos (confirmado por el usuario). En el POS hay que tenerlo en cuenta: un producto vecino que entra en el encuadre se cobra.
 - **3.5:** el usuario probó un código pequeño, uno arrugado y un ambiente oscuro con linterna, y todos se leyeron. El CSV solo registra una de esas lecturas (`191069706931`, 46 ms).
-- **Falta el video del escaneo continuo** (protocolo, punto 4).
+- **Video del escaneo continuo** (protocolo, punto 4): el usuario decidió que no hace falta.
+
+**Estado: Spike 1 aprobado por el usuario el 2026-11-09.**
