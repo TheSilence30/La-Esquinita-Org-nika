@@ -24,7 +24,7 @@ Estado: **código listo · pendiente de prueba en dispositivo**.
   3. pasaron al menos **1,5 s** desde su última aceptación (enfriamiento).
 
   Los tres tiempos se configuran con `ScanFilterConfig`. Cada código se filtra por separado: un producto distinto entra en cuanto se confirma.
-- `apps/esquinita_app/lib/devices/scanner/camera_scan_view.dart`: `mobile_scanner` 7.5.0 con ML Kit **incluido en el APK** (sin Google Play), `DetectionSpeed.unrestricted` y solo formatos de tienda (EAN‑13/8, UPC‑A/E, Code128, Code39, QR).
+- `apps/esquinita_app/lib/devices/scanner/camera_scan_view.dart`: `mobile_scanner` 7.5.0 con ML Kit **incluido en el APK** (sin Google Play), `DetectionSpeed.unrestricted` y solo formatos de tienda (EAN‑13/8, UPC‑A/E, Code128, Code39). El QR se activa con el interruptor **“Incluir QR”** (apagado por defecto; en ventas va siempre desactivado).
 - `apps/esquinita_app/lib/spikes/scan_spike_page.dart`: pantalla del spike con:
   - lecturas, unidades, repetidas ignoradas, cuadros/s y latencia (promedio, p50, p95);
   - campo **“× cantidad”**, que se aplica a la siguiente lectura y vuelve a 1;

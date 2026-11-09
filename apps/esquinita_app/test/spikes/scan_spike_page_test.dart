@@ -1,8 +1,10 @@
 import 'package:esquinita_app/app/form_factor.dart';
 import 'package:esquinita_app/app/theme.dart';
+import 'package:esquinita_app/devices/scanner/camera_scan_view.dart';
 import 'package:esquinita_app/spikes/scan_spike_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 
 /// Logical (dp) sizes the spike must fit without overflow.
 const sizes = {
@@ -79,6 +81,40 @@ void main() {
     expect(find.text('× 4'), findsOneWidget);
     // Let the flash timer finish.
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('"Incluir QR" starts off and turns QR decoding on', (
+    tester,
+  ) async {
+    await pumpAt(tester, const Size(1005, 600));
+    await tester.tap(find.byTooltip('Ajustes del filtro'));
+    await tester.pumpAndSettle();
+    final qrSwitch = find.widgetWithText(SwitchListTile, 'Incluir QR');
+    await tester.scrollUntilVisible(
+      qrSwitch,
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byType(BottomSheet),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(tester.widget<SwitchListTile>(qrSwitch).value, isFalse);
+
+    await tester.tap(qrSwitch);
+    await tester.pumpAndSettle();
+    expect(tester.widget<SwitchListTile>(qrSwitch).value, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  test('QR is decoded only when asked for', () {
+    expect(
+      scanFormats(includeQr: false),
+      isNot(contains(BarcodeFormat.qrCode)),
+    );
+    expect(scanFormats(includeQr: true), contains(BarcodeFormat.qrCode));
+    expect(scanFormats(includeQr: false), contains(BarcodeFormat.ean13));
   });
 
   test('form factor resolution', () {

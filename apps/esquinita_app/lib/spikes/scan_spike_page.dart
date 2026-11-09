@@ -25,7 +25,9 @@ class ScanSpikePage extends StatefulWidget {
 
 class _ScanSpikePageState extends State<ScanSpikePage> {
   final _session = ScanSession();
-  final _cameraKey = GlobalKey<CameraScanViewState>();
+  // Replaced when the QR switch changes, so the camera restarts with the new
+  // formats.
+  var _cameraKey = GlobalKey<CameraScanViewState>();
   final _manualController = TextEditingController();
   final _manualFocus = FocusNode();
 
@@ -38,7 +40,24 @@ class _ScanSpikePageState extends State<ScanSpikePage> {
   bool get _camera => widget.cameraSupported ?? isCameraScanSupported;
 
   @override
+  void initState() {
+    super.initState();
+    _session.addListener(_onSessionChanged);
+  }
+
+  bool _includeQr = false;
+
+  void _onSessionChanged() {
+    if (_session.includeQr == _includeQr) return;
+    setState(() {
+      _includeQr = _session.includeQr;
+      _cameraKey = GlobalKey<CameraScanViewState>();
+    });
+  }
+
+  @override
   void dispose() {
+    _session.removeListener(_onSessionChanged);
     _flashTimer?.cancel();
     _session.dispose();
     _manualController.dispose();
@@ -134,6 +153,7 @@ class _ScanSpikePageState extends State<ScanSpikePage> {
             final camera = _CameraArea(
               supported: _camera,
               cameraKey: _cameraKey,
+              includeQr: _includeQr,
               onCodes: _onCodes,
               flash: _flash,
               lastCode: _lastCode,
@@ -177,6 +197,7 @@ class _CameraArea extends StatelessWidget {
   const _CameraArea({
     required this.supported,
     required this.cameraKey,
+    required this.includeQr,
     required this.onCodes,
     required this.flash,
     required this.lastCode,
@@ -184,6 +205,7 @@ class _CameraArea extends StatelessWidget {
 
   final bool supported;
   final GlobalKey<CameraScanViewState> cameraKey;
+  final bool includeQr;
   final void Function(List<String>, Duration, DateTime) onCodes;
   final bool flash;
   final String? lastCode;
@@ -209,7 +231,7 @@ class _CameraArea extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        CameraScanView(key: cameraKey, onCodes: onCodes),
+        CameraScanView(key: cameraKey, includeQr: includeQr, onCodes: onCodes),
         IgnorePointer(
           child: Center(
             child: FractionallySizedBox(
@@ -495,6 +517,7 @@ class _SettingsSheetState extends State<_SettingsSheet> {
   late var _config = widget.session.config;
   late var _vibrate = widget.vibrate;
   late var _sound = widget.sound;
+  late var _includeQr = widget.session.includeQr;
 
   void _apply(ScanFilterConfig config) {
     setState(() => _config = config);
@@ -578,6 +601,17 @@ class _SettingsSheetState extends State<_SettingsSheet> {
             child: const Text('Restablecer (300 / 1500 / 500 ms)'),
           ),
           const Divider(),
+          SwitchListTile(
+            title: const Text('Incluir QR'),
+            subtitle: const Text(
+              'Apagado en ventas: solo EAN/UPC/Code128/Code39',
+            ),
+            value: _includeQr,
+            onChanged: (v) {
+              setState(() => _includeQr = v);
+              widget.session.includeQr = v;
+            },
+          ),
           SwitchListTile(
             title: const Text('Vibrar al leer'),
             value: _vibrate,

@@ -63,7 +63,12 @@ void main() {
     expect(s.latencyPercentile(50), const Duration(milliseconds: 33));
     expect(s.latencyPercentile(95), const Duration(milliseconds: 200));
     final csv = s.toCsv();
-    expect(csv, contains('confirm_ms=300 cooldown_ms=1500 rearm_ms=500'));
+    expect(
+      csv,
+      contains('confirm_ms=300 cooldown_ms=1500 rearm_ms=500 qr=off'),
+    );
+    s.includeQr = true;
+    expect(s.toCsv(), contains('qr=on'));
     expect(csv, contains('n,code,units,source,at_utc,latency_ms'));
     expect(csv, contains('1,$a,1,camera,'));
     expect(csv.trim().split('\n').last, endsWith(',200'));

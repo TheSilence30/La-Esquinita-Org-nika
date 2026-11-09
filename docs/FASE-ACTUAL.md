@@ -62,7 +62,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 1. Correcciones de revisión:
    - [ ] (a) Registrar, en el CSV y en pantalla, el **hueco máximo entre detecciones** de cada código aceptado y los **re-armados falsos**.
-   - [ ] (b) Interruptor **“Incluir QR”**, apagado por defecto. Agregar a CLAUDE.md que en ventas el QR va desactivado.
+   - [x] (b) Interruptor **“Incluir QR”**, apagado por defecto. Agregar a CLAUDE.md que en ventas el QR va desactivado. Hecho: `scanFormats(includeQr:)`, la cámara se reinicia al cambiar el interruptor, el CSV anota `qr=on/off` y CLAUDE.md §6.11 lo registra.
    - [x] (c) **Reloj monotónico** para los tiempos del filtro (`ScanFilter`). `DateTime` UTC solo para registrar la hora de cada lectura. Hecho: `ScanFilter.offer` recibe `Duration` de un `Stopwatch` compartido; la sesión recibe ambos tiempos y los cuadros/s usan el monotónico. Prueba nueva: salto de 1 h del reloj UTC sin efecto.
 2. Umbral de tablet: clasificar por el lado más corto (`shortestSide`) con umbral de **520 dp** y agregar una prueba con **533×893 dp** (la Tab A11 en vertical queda por debajo de 550 dp).
    - [x] Ya aplicado en el commit `f74a095`: `FormFactor.resolve` usa `size.shortestSide >= 520`, y hay pruebas con 533×893 (clasificación y diseño en vertical y horizontal). Revisar al aplicar el punto 1.

@@ -11,7 +11,8 @@ bool get isCameraScanSupported =>
 /// wall-clock jumps (NTP sync, manual time change).
 final _monotonic = Stopwatch()..start();
 
-/// Retail formats only: fewer formats → faster ML Kit decoding.
+/// Retail formats only: fewer formats → faster ML Kit decoding. QR is off by
+/// default (in sales it stays off; see CLAUDE.md §6.11).
 const retailFormats = [
   BarcodeFormat.ean13,
   BarcodeFormat.ean8,
@@ -19,13 +20,26 @@ const retailFormats = [
   BarcodeFormat.upcE,
   BarcodeFormat.code128,
   BarcodeFormat.code39,
-  BarcodeFormat.qrCode,
+];
+
+List<BarcodeFormat> scanFormats({required bool includeQr}) => [
+  ...retailFormats,
+  if (includeQr) BarcodeFormat.qrCode,
 ];
 
 /// Live camera preview that reports every frame's decoded codes, unfiltered.
 /// De-duplication is the caller's job (see `ScanFilter` in esquinita_core).
 class CameraScanView extends StatefulWidget {
-  const CameraScanView({super.key, required this.onCodes, this.overlay});
+  const CameraScanView({
+    super.key,
+    required this.onCodes,
+    this.includeQr = false,
+    this.overlay,
+  });
+
+  /// Fixed for the life of the view (the controller takes the formats at
+  /// creation): give the view a new key to change it.
+  final bool includeQr;
 
   /// Called once per analyzed frame that contained at least one code, with
   /// the monotonic elapsed time (for filtering) and the UTC time (for logs).
@@ -39,8 +53,8 @@ class CameraScanView extends StatefulWidget {
 }
 
 class CameraScanViewState extends State<CameraScanView> {
-  final _controller = MobileScannerController(
-    formats: retailFormats,
+  late final _controller = MobileScannerController(
+    formats: scanFormats(includeQr: widget.includeQr),
     // Every frame, no plugin-side de-dup: our filter needs to see the code
     // keep appearing to know it is still in view.
     detectionSpeed: DetectionSpeed.unrestricted,

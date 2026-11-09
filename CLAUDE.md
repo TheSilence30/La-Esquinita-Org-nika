@@ -95,7 +95,7 @@ Módulos: `auth`, `settings`, `catalog` (productos, categorías, marcas, unidade
 8. **Lotes y vencimientos**: si el producto controla lote, la venta descuenta por FEFO (primero en vencer) y la recepción exige lote/vencimiento.
 9. **Compras**: una compra pendiente **no** mueve stock; solo las **recepciones** (parciales o totales) generan entradas.
 10. **Nota de pedido** = documento interno no tributario, con leyenda clara; no descuenta stock (reserva opcional configurable); genera como máximo una venta.
-11. **Escaneo por contexto**: venta, inventario, compras, registro, conteo y ajuste tienen comportamientos propios.
+11. **Escaneo por contexto**: venta, inventario, compras, registro, conteo y ajuste tienen comportamientos propios. En **ventas el QR va desactivado**: la cámara solo decodifica códigos de tienda (EAN‑13/8, UPC‑A/E, Code128, Code39).
 12. **Unicidad**: código de barras (global, incluyendo presentaciones), código interno, `op_id` de sincronización, correlativos por serie.
 13. Precio o descuento fuera de lo permitido requiere permiso y queda auditado.
 14. Cada ítem de venta guarda precio y **costo del momento**.

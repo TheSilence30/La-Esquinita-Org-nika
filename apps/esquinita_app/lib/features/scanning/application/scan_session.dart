@@ -44,6 +44,17 @@ class ScanSession extends ChangeNotifier {
   /// Units the next accepted read adds. Resets to 1 after use.
   int get multiplier => _multiplier;
 
+  bool _includeQr = false;
+
+  /// Whether the camera decodes QR codes. Off by default (sales use retail
+  /// barcodes only); recorded in the CSV.
+  bool get includeQr => _includeQr;
+  set includeQr(bool value) {
+    if (value == _includeQr) return;
+    _includeQr = value;
+    notifyListeners();
+  }
+
   int framesWithCodes = 0;
   int ignoredRepeats = 0;
   // Monotonic: frame rate must not be skewed by wall-clock jumps.
@@ -163,7 +174,8 @@ class ScanSession extends ChangeNotifier {
       ..writeln(
         '# confirm_ms=${config.confirmWindow.inMilliseconds} '
         'cooldown_ms=${config.cooldown.inMilliseconds} '
-        'rearm_ms=${config.rearmAbsence.inMilliseconds}',
+        'rearm_ms=${config.rearmAbsence.inMilliseconds} '
+        'qr=${_includeQr ? 'on' : 'off'}',
       )
       ..writeln(
         '# reads=${_reads.length} units=$totalUnits '
