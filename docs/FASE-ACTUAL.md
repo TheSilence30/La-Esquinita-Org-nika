@@ -8,7 +8,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [x] Flutter SDK (canal stable) — `flutter doctor` sin errores para Android y Windows (Flutter 3.47.9, Dart 3.13.7)
 - [x] Android Studio + Android SDK (SDK 36; NDK 28.2.13676358 instalado el 2026-11-04 para compilar `mobile_scanner`)
 - [x] Visual Studio (2026 Community) con "Desarrollo para el escritorio con C++" (para compilar Windows)
-- [ ] Docker Desktop (PostgreSQL local) — instalado (29.1.3) pero el motor no estaba iniciado; abrirlo antes del `docker-compose`
+- [x] Docker Desktop (PostgreSQL local): 29.1.3, motor funcionando (2026-11-09)
 - [x] Tablet Tab A11 con opciones de desarrollador y depuración USB activadas
 - [x] Claude Code instalado y abierto en la carpeta del repositorio
 
@@ -16,7 +16,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 
 - [x] Crear monorepo (pub workspace en la raíz; `dart_frog_cli` 1.2.14 instalado): `apps/esquinita_app` (`flutter create --platforms=android,windows`), `apps/server` (Dart Frog), `packages/esquinita_core`
 - [ ] Configurar análisis estático (`very_good_analysis` o `flutter_lints`), formato y CI básica (GitHub Actions: analyze + test) — **análisis y formato hechos** (`lints`/`flutter_lints`/`dart_frog_lint` + modo estricto); **falta la CI**
-- [ ] `docker-compose.yml` de desarrollo con PostgreSQL 16
+- [x] `docker-compose.yml` de desarrollo con PostgreSQL 16. Hecho el 2026-11-09: `postgres:16-alpine` (16.15), credenciales tomadas de `.env`, puerto solo en `127.0.0.1:5432`, volumen `pgdata` y chequeo de salud. Verificado: estado `healthy`, `select version()` y los datos persisten tras `down`/`up`. Uso: copiar `.env.example` a `.env` y ejecutar `docker compose up -d`.
 - [x] **Spike 1 — Escaneo**: pantalla de prueba con `mobile_scanner`, escaneo continuo, enfriamiento 1,5 s, confirmación en 2 cuadros, contador de lecturas. Medir tiempo por lectura en la Tab A11. Hecho el 2026-11-09: resultados y conclusiones en `docs/informes/fase-0.md`. El usuario decidió que no hace falta el video.
   - [x] Filtro `ScanFilter` en core (2 cuadros ≤ 300 ms, enfriamiento 1,5 s, re-armado tras 500 ms de ausencia; configurables) con pruebas
   - [x] Pantalla del spike con métricas, “× cantidad”, ingreso manual, CSV; layout adaptable (celular, tablet, PC) probado en 6 tamaños
