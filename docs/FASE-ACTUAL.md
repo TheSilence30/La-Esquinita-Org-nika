@@ -17,7 +17,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [x] Crear monorepo (pub workspace en la raíz; `dart_frog_cli` 1.2.14 instalado): `apps/esquinita_app` (`flutter create --platforms=android,windows`), `apps/server` (Dart Frog), `packages/esquinita_core`
 - [ ] Configurar análisis estático (`very_good_analysis` o `flutter_lints`), formato y CI básica (GitHub Actions: analyze + test) — **análisis y formato hechos** (`lints`/`flutter_lints`/`dart_frog_lint` + modo estricto); **falta la CI**
 - [ ] `docker-compose.yml` de desarrollo con PostgreSQL 16
-- [ ] **Spike 1 — Escaneo**: pantalla de prueba con `mobile_scanner`, escaneo continuo, enfriamiento 1,5 s, confirmación en 2 cuadros, contador de lecturas. Medir tiempo por lectura en la Tab A11
+- [x] **Spike 1 — Escaneo**: pantalla de prueba con `mobile_scanner`, escaneo continuo, enfriamiento 1,5 s, confirmación en 2 cuadros, contador de lecturas. Medir tiempo por lectura en la Tab A11. Hecho el 2026-11-09: resultados y conclusiones en `docs/informes/fase-0.md` (falta el video).
   - [x] Filtro `ScanFilter` en core (2 cuadros ≤ 300 ms, enfriamiento 1,5 s, re-armado tras 500 ms de ausencia; configurables) con pruebas
   - [x] Pantalla del spike con métricas, “× cantidad”, ingreso manual, CSV; layout adaptable (celular, tablet, PC) probado en 6 tamaños
   - [x] APK debug y build Windows compilan
@@ -89,6 +89,6 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 1. ~~Aplicar los pendientes 1 (a, b, c) y 2 de arriba, con sus pruebas automáticas.~~ Hecho el 2026-11-09 (`33e46d5`, `94f79c6`, `b548cf9`). Pruebas: core 29, app 25 y servidor 1, todas en verde; `analyze` sin problemas.
 2. ~~Recompilar y reinstalar el APK en la tablet.~~ Hecho el 2026-11-09: APK debug instalado en la SM-X133 (R8YL60HT6CX); abre sin errores en el log. `adb` no está en el PATH: usar `%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe`.
-3. Recién entonces, el usuario abre **La Esquinita › Spike 1** y sigue los pasos 2 a 7 del protocolo de `docs/informes/fase-0.md`, en horizontal y en vertical.
-4. El usuario pega en la conversación el CSV de **Copiar resultados (CSV)** (ahora incluye `max_gap_ms`, `suspicious_rearms` y `extra_reads`) y la línea “Pantalla:”. Claude completa la tabla “Resultados en dispositivo” del informe, ajusta los tiempos del filtro si hubo lecturas dobles o perdidas, y marca el Spike 1 como hecho.
-5. Después: CI y `docker-compose.yml`, y luego el Spike 3 (térmica Bluetooth).
+3. ~~Prueba del usuario en la tablet.~~ Hecho el 2026-11-09: corridas 1 y 2 y repeticiones del 3.2 (`191069706931` y `7750543400036`, 1 lectura cada uno).
+4. ~~Completar la tabla del informe y decidir los tiempos.~~ Hecho: se mantienen 300 / 1500 / 500 / 1000 ms. **Spike 1 marcado como hecho**; falta el video.
+5. **Siguiente:** que el usuario revise el informe del Spike 1. Después, CI (GitHub Actions: analyze + test) y `docker-compose.yml` con PostgreSQL 16 (antes hay que iniciar Docker Desktop), y luego el Spike 3 (térmica Bluetooth).

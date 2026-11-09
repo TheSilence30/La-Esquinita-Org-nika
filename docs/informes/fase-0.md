@@ -57,9 +57,7 @@ Estado: **código listo · pendiente de prueba en dispositivo**.
 
 ### Resultados en dispositivo
 
-_Pendiente: la tabla por orientación se completa cuando se confirme la orientación y se tenga la línea “Pantalla:”._
-
-#### Corrida 2 — 2026-11-09, Tab A11 (SM-X133), orientación sin confirmar
+#### Corrida 2 — 2026-11-09, Tab A11 (SM-X133), horizontal (vertical igual, según el usuario)
 
 Configuración: `confirm 300 / cooldown 1500 / rearm 500 / sospechoso 1000 ms`, `qr=on` en todos los pasos.
 
@@ -76,10 +74,26 @@ En toda la corrida: 0 re-armados sospechosos, 0 lecturas extra y hueco máximo d
 
 **Repetición del 3.2** (2026-11-09 22:05 UTC, `qr=off`): `191069706931` quieto frente a la cámara. Hubo 640 cuadros con código a 29,3 cuadros/s, unos **22 s detectado sin cortes** (hueco máximo de 156 ms). Resultado: **1 lectura** y 638 repeticiones ignoradas; latencia de 23 ms. ✅ Un producto quieto cuenta una sola vez.
 
+**Repetición del 3.2 con `7750543400036`** (el producto que dio 4 lecturas extra en la corrida 1; `qr=off`): quieto unos 11 s (310 cuadros a 27,6 cuadros/s). Resultado: **1 lectura** y 307 repeticiones ignoradas; latencia de 47 ms; hueco máximo de 195 ms (en la corrida 1 había sido de 486 ms). ✅
+
+#### Resumen
+
+Según el usuario, los resultados en vertical fueron iguales a los de horizontal; no hay un CSV aparte para vertical.
+
 | Métrica | Horizontal | Vertical |
 | --- | --- | --- |
-| Lecturas esperadas / obtenidas | | |
-| Latencia p50 / p95 | | |
-| Cuadros/s | | |
-| Lecturas dobles accidentales | | |
-| Tamaño en dp y densidad | | |
+| Lecturas esperadas / obtenidas | 3.1: 20 productos → 19 códigos de barras + 2 QR (`qr=on`); 3.2: 1/1 (dos productos); 3.3: 5/5; 3.4: +6/+6 | Iguales (según el usuario) |
+| Latencia p50 / p95 | 66 / 191 ms (3.1) | Iguales (según el usuario) |
+| Cuadros/s | 16,5–29,3 | Iguales (según el usuario) |
+| Lecturas dobles accidentales | 0 (con QR apagado) | 0 (según el usuario) |
+| Tamaño en dp y densidad | 893×533 dp, 1,5x (240 dpi), tablet | 533×893 dp, 1,5x (240 dpi), tablet |
+
+El tamaño se midió con `adb shell wm size` / `wm density` (800×1340 px, densidad 240), porque la línea “Pantalla:” no se copió. `FormFactor` clasifica esa pantalla como tablet (`shortestSide` 533 ≥ 520); eso lo cubren las pruebas automáticas.
+
+**Conclusiones**
+
+- **Se mantienen los tiempos del filtro** (300 / 1500 / 500 ms, límite sospechoso 1000 ms). `7750543400036` quieto dio 1 lectura, sin cortes que se acercaran a los 500 ms. Las 4 lecturas extra de la corrida 1 coinciden con mover el producto mientras se retiraba ~1 s, no con cortes del detector con el producto quieto.
+- **El QR va apagado en ventas.** Con el QR encendido, los envases que tienen QR y código de barras se leen dos veces (3.1, filas 16–17 y 20–21).
+- **Varios códigos en el encuadre se aceptan todos.** `793969324781` y `…750` se leyeron con 60 ms de diferencia y eran dos productos distintos (confirmado por el usuario). En el POS hay que tenerlo en cuenta: un producto vecino que entra en el encuadre se cobra.
+- **3.5:** el usuario probó un código pequeño, uno arrugado y un ambiente oscuro con linterna, y todos se leyeron. El CSV solo registra una de esas lecturas (`191069706931`, 46 ms).
+- **Falta el video del escaneo continuo** (protocolo, punto 4).
