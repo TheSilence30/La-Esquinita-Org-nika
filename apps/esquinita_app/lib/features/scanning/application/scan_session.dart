@@ -12,9 +12,13 @@ class ScanRead {
     this.latency,
     this.afterSuspiciousRearm = false,
     this.absence,
+    this.step = ScanSession.freeStep,
   });
 
   final String code;
+
+  /// Protocol step active when the read happened (docs/informes/fase-0.md).
+  final String step;
   final DateTime at;
   final int units;
   final ScanSource source;
@@ -42,6 +46,21 @@ class ScanSession extends ChangeNotifier {
     : _filter = ScanFilter(config);
 
   static const maxMultiplier = 999;
+
+  /// Test protocol steps (docs/informes/fase-0.md, step 3), plus free use.
+  static const freeStep = 'libre';
+  static const steps = ['3.1', '3.2', '3.3', '3.4', '3.5', freeStep];
+
+  String _step = freeStep;
+
+  /// Recorded on every read; kept across [clear].
+  String get step => _step;
+  set step(String value) {
+    if (!steps.contains(value)) throw ArgumentError.value(value, 'step');
+    if (value == _step) return;
+    _step = value;
+    notifyListeners();
+  }
 
   ScanFilter _filter;
   ScanFilterConfig get config => _filter.config;
@@ -182,6 +201,7 @@ class ScanSession extends ChangeNotifier {
       latency: latency,
       afterSuspiciousRearm: afterSuspiciousRearm,
       absence: absence,
+      step: _step,
     );
     _reads.add(read);
     _tally[code] = (_tally[code] ?? 0) + _multiplier;
@@ -269,13 +289,13 @@ class ScanSession extends ChangeNotifier {
       )
       ..writeln(
         'n,code,units,source,at_utc,latency_ms,max_gap_ms,'
-        'after_suspicious_rearm,absence_ms',
+        'after_suspicious_rearm,absence_ms,step',
       );
     for (final (i, r) in _reads.indexed) {
       buffer.writeln(
         '${i + 1},${_csvField(r.code)},${r.units},${r.source.name},'
         '${r.at.toIso8601String()},${ms(r.latency)},${ms(r.maxGap)},'
-        '${r.afterSuspiciousRearm ? 1 : 0},${ms(r.absence)}',
+        '${r.afterSuspiciousRearm ? 1 : 0},${ms(r.absence)},${r.step}',
       );
     }
     return buffer.toString();

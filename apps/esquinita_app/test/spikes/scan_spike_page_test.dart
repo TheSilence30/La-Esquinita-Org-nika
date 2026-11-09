@@ -61,7 +61,8 @@ void main() {
   }
 
   testWidgets('manual reads honor × cantidad and reset it', (tester) async {
-    await pumpAt(tester, const Size(1005, 600));
+    // Tall window: this checks the multiplier, not layout (see above).
+    await pumpAt(tester, const Size(1366, 1400));
     await tester.tap(find.text('×3'));
     await tester.pump();
     await tester.enterText(
@@ -70,16 +71,6 @@ void main() {
     );
     await tester.testTextInput.receiveAction(TextInputAction.done);
     await tester.pump();
-    await tester.scrollUntilVisible(
-      find.text('× 3'),
-      100,
-      scrollable: find
-          .descendant(
-            of: find.byType(ListView),
-            matching: find.byType(Scrollable),
-          )
-          .first,
-    );
     expect(find.text('× 3'), findsOneWidget);
 
     await tester.enterText(
@@ -115,6 +106,38 @@ void main() {
     await tester.tap(qrSwitch);
     await tester.pumpAndSettle();
     expect(tester.widget<SwitchListTile>(qrSwitch).value, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('"Paso de prueba" starts at Libre and can be changed', (
+    tester,
+  ) async {
+    await pumpAt(tester, const Size(533, 893)); // Tab A11 portrait
+    final field = find.widgetWithText(
+      DropdownButtonFormField<String>,
+      'Paso de prueba',
+    );
+    await tester.scrollUntilVisible(
+      field,
+      100,
+      scrollable: find
+          .descendant(
+            of: find.byType(ListView),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    expect(find.text('Libre'), findsOneWidget);
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.text('3.3 · Retirar ~2 s y volver a mostrar (×5)').last,
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.text('3.3 · Retirar ~2 s y volver a mostrar (×5)'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

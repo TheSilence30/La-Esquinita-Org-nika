@@ -82,7 +82,7 @@ void main() {
     expect(csv, contains('1,$a,1,camera,'));
     expect(
       csv.trim().split('\n').last,
-      endsWith(',200,200,0,'),
+      endsWith(',200,200,0,,libre'),
     ); // b: first sighting
   });
 
@@ -118,7 +118,7 @@ void main() {
       expect(s.reads.last.afterSuspiciousRearm, isTrue);
       final csv = s.toCsv();
       expect(csv, contains('suspicious_rearms=1 extra_reads=1'));
-      expect(csv.trim().split('\n').last, endsWith(',1,600'));
+      expect(csv.trim().split('\n').last, endsWith(',1,600,libre'));
     });
 
     test('suspicious re-arm without an extra read is still counted', () {
@@ -159,6 +159,21 @@ void main() {
       expect(s.extraReads, 0);
       expect(s.maxGap(), isNull);
     });
+  });
+
+  test('test step is recorded on each read and in the CSV', () {
+    final s = ScanSession();
+    expect(s.step, 'libre');
+    hold(s, a, 0, 99);
+    s.step = '3.3';
+    hold(s, a, 2000, 2100);
+    s.addManual(b, ms(3000));
+    expect([for (final r in s.reads) r.step], ['libre', '3.3', '3.3']);
+    final rows = s.toCsv().trim().split('\n');
+    expect(rows.last, endsWith(',3.3'));
+    expect(() => s.step = '9.9', throwsArgumentError);
+    s.clear();
+    expect(s.step, '3.3'); // the selector survives a reset
   });
 
   test('frame rate ignores idle time between products', () {

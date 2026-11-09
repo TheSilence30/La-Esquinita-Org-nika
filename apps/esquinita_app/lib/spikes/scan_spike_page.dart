@@ -280,6 +280,16 @@ class _CameraArea extends StatelessWidget {
   }
 }
 
+/// Protocol steps of docs/informes/fase-0.md (step 3).
+const _stepLabels = {
+  '3.1': '3.1 · 20 productos distintos',
+  '3.2': '3.2 · Producto quieto 10 s',
+  '3.3': '3.3 · Retirar ~2 s y volver a mostrar (×5)',
+  '3.4': '3.4 · × 6',
+  '3.5': '3.5 · Código pequeño o con poca luz',
+  ScanSession.freeStep: 'Libre',
+};
+
 class _Panel extends StatelessWidget {
   const _Panel({
     required this.session,
@@ -331,6 +341,21 @@ class _Panel extends StatelessWidget {
           '${size.width.round()}×${size.height.round()} dp · '
           '${MediaQuery.devicePixelRatioOf(context).toStringAsFixed(2)}x',
           style: Theme.of(context).textTheme.bodySmall,
+        ),
+        const SizedBox(height: 12),
+        DropdownButtonFormField<String>(
+          initialValue: session.step,
+          isExpanded: true,
+          decoration: const InputDecoration(
+            labelText: 'Paso de prueba',
+            border: OutlineInputBorder(),
+            isDense: true,
+          ),
+          items: [
+            for (final s in ScanSession.steps)
+              DropdownMenuItem(value: s, child: Text(_stepLabels[s]!)),
+          ],
+          onChanged: (s) => session.step = s!,
         ),
         const SizedBox(height: 12),
         _MultiplierRow(session: session),
