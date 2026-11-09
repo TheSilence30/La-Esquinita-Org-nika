@@ -88,7 +88,7 @@ Según el usuario, los resultados en vertical fueron iguales a los de horizontal
 | Lecturas dobles accidentales | 0 (con QR apagado) | 0 (según el usuario) |
 | Tamaño en dp y densidad | 893×533 dp, 1,5x (240 dpi), tablet | 533×893 dp, 1,5x (240 dpi), tablet |
 
-El tamaño se midió con `adb shell wm size` / `wm density` (800×1340 px, densidad 240), porque la línea “Pantalla:” no se copió. `FormFactor` clasifica esa pantalla como tablet (`shortestSide` 533 ≥ 520); eso lo cubren las pruebas automáticas.
+La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** (captura por `adb` del 2026-11-09, 17:13 hora de Lima). Coincide con `adb shell wm size` / `wm density`: 800×1340 px y densidad 240. En vertical se deduce 533×893 dp; también es tablet porque `shortestSide` 533 ≥ 520, y eso lo cubren las pruebas automáticas.
 
 **Conclusiones**
 
