@@ -99,3 +99,69 @@ La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** 
 - **Video del escaneo continuo** (protocolo, punto 4): el usuario decidió que no hace falta.
 
 **Estado: Spike 1 aprobado por el usuario el 2026-11-09.**
+
+## Spike 3 — Impresión térmica Bluetooth (Éterma, Tab A11)
+
+Rama `phase-0/spike-printing`.
+
+### Impresora (página de autoprueba, 2026-11-09)
+
+Éterma 58 mm portátil, sin cortador (se corta a mano con la barra dentada). Firmware `1.005PH5I` (2025/10/15). Tiene USB y Bluetooth `V2.1+V4.0`; la tablet la tiene emparejada como `Printer001-C9E2` (`C0:2B:F3:AB:C9:E2`) y solo ofrece el servicio **SPP (Bluetooth clásico)**. Velocidad de 70 mm/s, densidad 4 de 8, **página de códigos por defecto PC437** y memoria NV para imágenes. Se apaga sola a los 60 min.
+
+### Qué se construyó
+
+- `packages/esquinita_core/lib/src/printing/`: `PrintDocument` neutro (texto, fila de dos columnas, separador, imagen, avance) y `EscPosEncoder` para 58 mm (384 puntos, 32 columnas). El encoder:
+  - escribe `ESC @` y `ESC t n` al inicio;
+  - trae tablas para PC437, PC850, PC858 y WPC1252; una letra que falta en la página elegida se imprime sin tilde (`Á` → `A`);
+  - centra el logo y lo envía con `GS v 0` en franjas de 64 filas;
+  - `MonoBitmap` convierte a 1 bit con umbral o con difuminado Floyd–Steinberg.
+- `apps/esquinita_app/android/.../BtSppChannel.kt`: canal propio, **todo en un hilo de fondo**:
+  - lista los equipos emparejados y se conecta por RFCOMM/SPP, primero seguro y luego inseguro, con tiempo de espera;
+  - envía en **bloques con pausa configurable**;
+  - pide los permisos `BLUETOOTH_CONNECT` y `BLUETOOTH_SCAN` (Android 12+).
+- `lib/devices/printer/`:
+  - interfaz **`PrinterTransport`** (el ticket no depende del transporte) e implementación `BluetoothSppTransport`, con mensajes de error en español;
+  - `raster.dart`, que convierte con `dart:ui` el logo y el ticket completo a imagen.
+- `lib/features/printing/application/print_job_runner.dart`:
+  - un trabajo a la vez, y conecta cuando hace falta;
+  - si la impresora se apagó desde el último ticket y **no llegó nada**, reconecta y reenvía una vez;
+  - si llegó parte del ticket, **no lo reenvía** (saldría duplicado) y avisa que puede estar incompleto.
+- `lib/spikes/print_spike_page.dart` (**Spike 3 — Impresión térmica**):
+  - elige la impresora, el bloque (32 B a 4 KB), la pausa (0 a 100 ms) y la página de códigos;
+  - tres botones: **Página de códigos**, **Ticket como texto** y **Ticket como imagen**;
+  - registro de tiempos y botón **Copiar resultados (CSV)**.
+- Ticket de prueba (`test_ticket.dart`): logo en blanco y negro, nombre y dirección, leyenda “Constancia de venta – no es comprobante de pago”, 10 productos con tildes y ñ e importes `S/`, total, línea “áéíóú ÁÉÍÓÚ ñÑ üÜ ¿? ¡! °”, y líneas numeradas hasta **“Línea 40 de 40 – fin”**.
+- Logo: `docs/marca/logo-bn.png` (1774×887, versión definitiva en blanco y negro), reducido a `assets/branding/logo-ticket.png` (768 px) y a 320 puntos al imprimir.
+
+### Pruebas automáticas (ejecutadas)
+
+- Core: 48 en verde. Cubren los bytes de cada comando, las tablas de páginas de códigos, el ajuste a 32 columnas, las filas con importe a la derecha, las franjas de imagen centradas y el umbral y difuminado.
+- App: 60 en verde. Cubren el canal con mensajero simulado (argumentos y mensajes de error), `PrintJobRunner` (reconexión, no reenviar un ticket parcial, un trabajo a la vez, permisos), el ticket de exactamente 40 líneas, el render a imagen de 384 puntos y la pantalla sin desbordes en la tablet (horizontal y vertical) y en celular.
+
+### Primera prueba en la tablet (2026-11-09, Claude vía `adb`)
+
+- El diálogo de permisos apareció y se aceptó (`BLUETOOTH_CONNECT` y `BLUETOOTH_SCAN` quedaron `granted`, `USER_SET`).
+- **Página de códigos**: conexión en **552 ms**, 0,6 KB enviados en 40 ms (bloques de 256 B, pausa de 20 ms), sin errores. Falta la foto del papel para saber qué página imprime bien.
+
+### Protocolo de prueba (usuario)
+
+Abrir **La Esquinita › Spike 3 — Impresión térmica**, con Aqp Print cerrada (si no, puede ocupar la impresora). Después de cada impresión, sacar una foto del papel con la tablet.
+
+1. **Página de códigos**: ver cuál de las 4 secciones imprime bien todas las letras (sobre todo **ÁÍÓÚ**).
+2. Elegir esa página en **Página de códigos (texto)** y pulsar **Ticket como texto** (256 B / 20 ms). Revisar el logo, las tildes, la ñ, “S/” y que llegue hasta **“Línea 40 de 40 – fin”**.
+3. **Bloques y pausa** (el objetivo es lo más rápido que no corrompa). Con **Ticket como texto**, probar:
+   - 4096 B / 0 ms (todo de golpe);
+   - 1024 B / 0 ms;
+   - 512 B / 10 ms;
+   - 256 B / 20 ms.
+
+   Anotar la primera combinación que imprime el ticket completo y limpio, y repetirla dos veces.
+4. **Ticket como imagen** con esa combinación y con la siguiente más lenta: comparar la calidad y el tiempo con el ticket como texto.
+5. **Reconexión**:
+   - apagar la impresora y pulsar **Ticket como texto**: debe salir un mensaje claro y la app no debe congelarse;
+   - encenderla y pulsar de nuevo: debe imprimir.
+6. **Copiar resultados (CSV)** y pegarlo en la conversación, junto con las fotos.
+
+### Resultados en dispositivo
+
+_Pendiente._
