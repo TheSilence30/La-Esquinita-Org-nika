@@ -37,7 +37,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] Datos para tickets: RUC (si se mostrará), teléfono, WhatsApp, redes, mensaje final
 - [ ] Catálogo inicial en `docs/plantillas/catalogo_inicial.csv` (aunque sean 20 productos para empezar)
 - [ ] Usuarios iniciales y su rol
-- [ ] Foto de la etiqueta/manual de la Éterma (modelo exacto)
+- [x] Foto de la etiqueta/manual de la Éterma (modelo exacto): en su lugar se usó la **página de autoprueba** (2026-11-09). Firmware `1.005PH5I` (2025/10/15); USB y Bluetooth `V2.1+V4.0` (clásico SPP y BLE); `Printer001-C9E2` / `C0:2B:F3:AB:C9:E2`; 70 mm/s; densidad 4 de 8; **página de códigos por defecto PC437** (no tiene Á Í Ó Ú; probar `ESC t 2` = PC850); guarda imágenes en memoria (NV); sin cortador; apagado automático a los 60 min.
 - [x] RAM de la Tab A11 — 4 GB (SM-X133, Android 16, 800×1340 px)
 
 ## Criterio de salida
@@ -93,4 +93,5 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 4. ~~Completar la tabla del informe y decidir los tiempos.~~ Hecho: se mantienen 300 / 1500 / 500 / 1000 ms. **Spike 1 marcado como hecho** (el video no hace falta, según el usuario).
 5. ~~Revisión del usuario y fusión a `main`.~~ Aprobado por el usuario el 2026-11-09; Claude hizo la fusión con `--no-ff`, a pedido del usuario.
 6. ~~CI y `docker-compose.yml`.~~ Hecho el 2026-11-09 en la rama `phase-0/ci-docker`, con PR abierto a `main` para revisión del usuario (no lo fusiona Claude). El job del APK correrá por primera vez después de la fusión.
-7. **Siguiente:** Spike 3 (térmica Éterma por Bluetooth en la tablet). Antes hace falta del usuario: la foto de la etiqueta o el manual de la Éterma (modelo exacto) y la impresora encendida y emparejada con la tablet.
+7. ~~Fusión del PR #2~~ (2026-11-09). El primer build del APK en `main` salió en verde (run 42714969073).
+8. **Siguiente:** Spike 3 en la rama `phase-0/spike-printing`. La impresora ya está emparejada con la tablet (Bluetooth clásico SPP) y los datos de la autoprueba están arriba. Plan presentado; falta la aprobación del usuario.
