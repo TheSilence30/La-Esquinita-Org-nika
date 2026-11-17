@@ -28,7 +28,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
-- [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos)
+- [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — escrito el 2026-11-17 en la rama `phase-0/data-model`, **pendiente de aprobación del usuario** (incluye la propuesta de roles Dueño/Trabajador/Asistente para CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
 ## Datos del negocio (usuario)
@@ -245,3 +245,30 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 1. ~~El usuario ejecuta los comandos de administrador y activa el Modo de desarrollador.~~ Hecho.
 2. ~~Prueba en tablet y PC.~~ Hecha: tablet 63 operaciones y PC 3, todas con exactamente una fila en PostgreSQL, sin duplicados (detalle en el informe).
 3. ~~Claude completa los resultados y abre el PR.~~ PR abierto; falta que el usuario lo revise y lo fusione.
+
+### 2026-11-17 — Modelo de datos (rama `phase-0/data-model`)
+
+**Se hizo**
+
+- El PR #5 (Spike 6) fue fusionado por Claude, a pedido del usuario (`a0d1ea8`). El usuario confirmó que la pausa de 8 s fue el modo avión. PostgreSQL apagado con `docker compose down`.
+- `docs/modelo-datos.md`: tablas por módulo con columnas, claves e índices únicos; reglas de presentaciones, FEFO, caja, costo y saldos; qué vive en cada equipo; comandos de sync por operación; diagrama de relaciones (Mermaid).
+- Decisiones del usuario:
+  - costo por **promedio ponderado móvil**, calculado por el servidor en cada recepción, más `last_cost` como referencia;
+  - la deuda con el proveedor nace al recibir;
+  - lotes vencidos bloqueados, sin excepción;
+  - sin balanza: calculadora peso ↔ monto, y códigos internos con prefijo `29`;
+  - **una sola caja compartida**;
+  - al inicio un solo usuario, con roles Dueño/Trabajador/Asistente;
+  - la venta sin stock local se registra con aviso;
+  - devoluciones con `disposition` (`restock` / `defective` → merma);
+  - claves únicas con `NULL` resueltas.
+- Propuestas de Claude que el usuario debe aprobar:
+  - **la caja vive en un equipo designado** (por defecto la tablet), que es el único que abre y cierra;
+  - **mapeo de roles** y cambio de CLAUDE.md §9.
+
+**Siguiente paso exacto**
+
+1. El usuario revisa el PR del modelo de datos y aprueba o corrige (en especial §3.5 caja y §4 roles).
+2. Si aprueba los roles, Claude actualiza CLAUDE.md §9.
+3. Después: prototipo navegable (último entregable de la Fase 0).
+
