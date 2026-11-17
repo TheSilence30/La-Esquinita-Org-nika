@@ -61,8 +61,8 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
   String? _deviceError;
   bool _loadingDevices = true;
 
-  int _chunkSize = 256;
-  int _delayMs = 20;
+  int _chunkSize = const PrintSettings().chunkSize;
+  int _delayMs = const PrintSettings().chunkDelay.inMilliseconds;
   CodePage _codePage = CodePage.pc850;
   bool _ditherLogo = false;
   _Job? _running;

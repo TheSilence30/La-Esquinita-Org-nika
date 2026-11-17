@@ -2,12 +2,12 @@ import 'dart:typed_data';
 
 import '../../../devices/printer/printer_transport.dart';
 
-/// Pacing and timeouts for one printer. Defaults are a starting point; the
-/// Spike 3 measures what the Éterma really needs.
+/// Pacing and timeouts for one printer. Defaults measured on the Éterma in
+/// Spike 3 (2026-11-17): 4096 B / 10 ms printed text and image tickets clean.
 final class PrintSettings {
   const PrintSettings({
-    this.chunkSize = 256,
-    this.chunkDelay = const Duration(milliseconds: 20),
+    this.chunkSize = 4096,
+    this.chunkDelay = const Duration(milliseconds: 10),
     this.connectTimeout = const Duration(seconds: 8),
   });
 

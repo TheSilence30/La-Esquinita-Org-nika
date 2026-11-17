@@ -97,7 +97,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(t.sent, hasLength(1));
     expect(t.sent.single.sublist(0, 5), [0x1B, 0x40, 0x1B, 0x74, 2]);
-    expect(t.pacing.single, (256, const Duration(milliseconds: 20)));
+    // Defaults measured on the Éterma (Spike 3).
+    expect(t.pacing.single, (4096, const Duration(milliseconds: 10)));
     expect(find.textContaining('conexión 900 ms'), findsOneWidget);
   });
 
