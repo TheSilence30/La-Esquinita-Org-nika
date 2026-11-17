@@ -213,3 +213,40 @@ at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,reconnected,error
 ```
 
 **Estado: Spike 3 pendiente de aprobación del usuario.**
+
+## Spike 4 — Impresión térmica USB (Éterma, PC Windows)
+
+Rama `phase-0/spike-usb-printing`.
+
+### Cómo la ve Windows (2026-11-17)
+
+La Éterma conectada por cable aparece como **impresora USB estándar**: `Printer POS-58-P504A`, `USB\VID_0483&PID_5743`, con el controlador `usbprint.sys` de Windows (puerto virtual `USB009`). **No tiene cola de impresión** y no hace falta instalar un controlador: se le escriben los bytes ESC/POS directamente a través de la interfaz de dispositivo `GUID_DEVINTERFACE_USBPRINT`.
+
+### Qué se construyó
+
+- `lib/devices/printer/usb_printer_transport.dart`: `UsbPrinterTransport`, otra implementación de `PrinterTransport`.
+  - Busca la impresora **por su identificador de hardware** (`VID_0483&PID_5743`) en cada conexión, nunca por el puerto `USB009` ni por la ruta del dispositivo, que cambian al reconectar el cable.
+  - Envía por bloques con pausa (4096 B / 10 ms por defecto, igual que por Bluetooth).
+  - Si la escritura falla, informa cuántos bytes llegaron; los mensajes son los mismos que por Bluetooth.
+- `lib/devices/printer/win_usbprint.dart`: la implementación real con `win32` y `ffi` (SetupAPI, `CreateFile`, `WriteFile`). Cada llamada corre en un isolate aparte para no congelar la pantalla. **Es el único archivo que importa `win32`**, y solo se usa cuando la app corre en Windows. El APK y la CI en Linux compilan y pasan sin cambios.
+- La pantalla de impresión (**Spikes 3 y 4 — Impresión térmica**) usa USB en Windows y Bluetooth en Android, y preselecciona la Éterma por su identificador de hardware. `EscPosEncoder`, el ticket de prueba y `PrintJobRunner` no cambiaron.
+
+### Pruebas automáticas (ejecutadas)
+
+- App: 70 en verde (10 nuevas). Con un simulador de USB cubren: el identificador sacado de la ruta real del dispositivo, la lista sin repetidos, la conexión por identificador (sin distinguir mayúsculas), el envío en bloques de 4096 B, la impresora ausente o tomada por otro programa, la escritura sin conexión, el corte a mitad de ticket (con los bytes que llegaron) y **desconectar y reconectar el cable en otro puerto**: el ticket sale una sola vez por la ruta nueva, y si el cable sigue desconectado aparece un mensaje claro y la impresión funciona al volver a conectarlo.
+- Formato y `analyze --fatal-infos` sin problemas. El APK debug y el build de Windows compilan.
+- En la PC (Claude): la lista real encuentra `Printer POS-58-P504A | VID_0483&PID_5743`, y abrir y cerrar el dispositivo toma 12 ms. Todavía no se imprimió nada.
+
+### Protocolo de prueba (usuario, en la PC)
+
+Abrir **La Esquinita › Spikes 3 y 4 — Impresión térmica** (la barra superior debe decir **Impresión · USB**), con la Éterma conectada por cable y encendida.
+
+1. **Página de códigos** y **Ticket como texto** (PC850, 4096 B / 10 ms): revisar las tildes, la ñ, `S/` y que llegue hasta “Línea 40 de 40 – fin”.
+2. **Ticket como imagen** con 4096 / 10.
+3. **Cable**: desconectar el USB y pulsar **Ticket como texto** (debe salir un mensaje claro sin congelarse); conectarlo en **otro puerto USB** y pulsar de nuevo (debe imprimir una sola vez).
+4. **Apagar y encender** la impresora con el cable puesto y volver a imprimir.
+5. **Copiar resultados (CSV)** y pegarlo en la conversación, junto con las fotos.
+
+### Resultados en dispositivo
+
+_Pendiente._
