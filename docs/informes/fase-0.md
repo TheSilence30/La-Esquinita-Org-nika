@@ -247,6 +247,32 @@ Abrir **La Esquinita › Spikes 3 y 4 — Impresión térmica** (la barra superi
 4. **Apagar y encender** la impresora con el cable puesto y volver a imprimir.
 5. **Copiar resultados (CSV)** y pegarlo en la conversación, junto con las fotos.
 
-### Resultados en dispositivo
+### Resultados en dispositivo (2026-11-17, usuario en la PC)
 
-_Pendiente._
+Foto del ticket como texto en `Pictures/Spike4.jpg` de la PC (16:14 en Lima) y CSV de la pantalla:
+
+| Hora (UTC) | Prueba | Resultado |
+| --- | --- | --- |
+| 21:12:42 | Ticket como texto | ✅ 9010 B; conexión 23 ms; envío 162 ms |
+| 21:12:58 | Ticket como texto con el cable desconectado | ✅ mensaje `notPaired` (“revisa el cable”), 0 bytes, la app no se congeló |
+| 21:13:40 | Ticket como imagen, tras reconectar el cable | ✅ 55 552 B; la impresora se encontró sola (conexión 5 ms); envío 2,2 s |
+| 21:14:14 | Ticket como texto, tras apagar y encender la impresora | ✅ 9010 B; envío 177 ms; foto correcta |
+
+- **Papel** (foto de las 16:14): logo, leyenda, tildes, ñ y ü en minúscula y mayúscula, importes `S/` alineados y “Línea 40 de 40 – fin”. Igual que por Bluetooth.
+- **Cable**: el usuario lo desconectó y lo volvió a conectar. Salió el mensaje claro y luego imprimió sin reiniciar la app.
+- **Apagar y encender**: el ticket salió bien. En el CSV ese ticket aparece sin reconexión: Windows mantuvo válido el dispositivo abierto. No se sabe si es porque la Éterma sigue alimentada por el USB cuando está “apagada”. Sin efecto práctico: si el dispositivo se pierde, la reconexión por identificador ya está probada con el simulador y con el cable.
+- **Velocidad**: por USB, `send_ms` incluye la espera a que la impresora acepte cada bloque, por eso la imagen tarda 2,2 s (por Bluetooth, 136 ms solo de envío). 4096 B / 10 ms sirve igual en los dos transportes.
+- **Sin foto** del ticket como imagen por USB; el usuario no informó problemas. La página de códigos no se imprimió por USB (el ticket como texto ya cubre todas las letras).
+- Detalle cosmético: en el CSV, el error sin detalle técnico aparece como `null`.
+
+CSV:
+
+```csv
+at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,reconnected,error
+2026-11-17T21:12:42.871343Z,text,9010,23,162,4096,10,pc850,0,
+2026-11-17T21:12:58.363220Z,text,0,,,4096,10,pc850,0,"notPaired: null"
+2026-11-17T21:13:40.653306Z,image,55552,5,2180,4096,10,,0,
+2026-11-17T21:14:14.052704Z,text,9010,,177,4096,10,pc850,0,
+```
+
+**Estado: Spike 4 pendiente de aprobación del usuario (PR).**

@@ -24,7 +24,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
   - [ ] **Pendiente de prueba en dispositivo**: mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano
 - [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
-- [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; código hecho, falta la prueba con papel): imprimir el mismo ticket por USB
+- [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4**: PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox**: crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
@@ -196,6 +196,6 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Siguiente paso exacto**
 
-1. El usuario sigue el protocolo del Spike 4 en `docs/informes/fase-0.md` y pasa fotos y CSV.
-2. Claude completa los resultados y abre el PR (lo fusiona el usuario).
+1. ~~Prueba con papel del usuario.~~ Hecha: texto, imagen, cable desconectado/reconectado y apagar/encender, todo correcto (ver el informe).
+2. ~~Claude completa los resultados y abre el PR.~~ PR abierto; falta que el usuario lo revise y lo fusione.
 3. Después: Spike 5 (PDF A4 en la Epson L4160) o Spike 6 (drift + outbox), según decida el usuario.
