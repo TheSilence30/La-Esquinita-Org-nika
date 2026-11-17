@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app/theme.dart';
 import 'spikes/print_spike_page.dart';
 import 'spikes/scan_spike_page.dart';
+import 'spikes/sync_spike_page.dart';
 
 void main() => runApp(const EsquinitaApp());
 
@@ -46,6 +47,16 @@ class SpikesHomePage extends StatelessWidget {
             ),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PrintSpikePage()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.sync),
+            title: const Text('Spike 6 — Sincronización'),
+            subtitle: const Text(
+              'Operaciones sin conexión (drift + outbox) contra el servidor',
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SyncSpikePage()),
             ),
           ),
         ],
