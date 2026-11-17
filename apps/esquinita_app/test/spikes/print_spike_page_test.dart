@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:esquinita_app/app/theme.dart';
 import 'package:esquinita_app/devices/printer/printer_transport.dart';
+import 'package:esquinita_app/devices/printer/usb_printer_transport.dart';
 import 'package:esquinita_app/spikes/print_spike_page.dart';
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:flutter/material.dart';
@@ -82,6 +83,26 @@ void main() {
       expect(find.textContaining('Printer001-C9E2'), findsOneWidget);
     });
   }
+
+  testWidgets('on USB the Éterma is preselected by hardware id', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      FakeTransport(
+        devices: const [
+          PrinterDevice(name: 'Otra POS', address: 'VID_1234&PID_0001'),
+          PrinterDevice(
+            name: 'Printer POS-58-P504A',
+            address: etermaUsbHardwareId,
+          ),
+        ],
+      ),
+      const Size(1340, 800),
+    );
+    expect(find.textContaining('Printer POS-58-P504A'), findsOneWidget);
+    expect(find.textContaining('Otra POS'), findsNothing);
+  });
 
   testWidgets('prints the text ticket with the chosen pacing', (tester) async {
     final t = FakeTransport(

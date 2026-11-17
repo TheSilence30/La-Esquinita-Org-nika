@@ -1,22 +1,26 @@
 import 'dart:async';
 
 import 'package:esquinita_core/esquinita_core.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../devices/printer/bluetooth_spp_transport.dart';
 import '../devices/printer/printer_transport.dart';
 import '../devices/printer/raster.dart';
+import '../devices/printer/usb_printer_transport.dart';
+import '../devices/printer/win_usbprint.dart';
 import '../features/printing/application/print_job_runner.dart';
 import 'test_ticket.dart';
 
-/// Spike 3 (Fase 0): thermal printing on the Éterma over Bluetooth SPP.
+/// Spikes 3 and 4 (Fase 0): thermal printing on the Éterma, over Bluetooth
+/// SPP on Android and over USB on Windows.
 /// Measures which chunk size and pause print long tickets and the logo
 /// without corruption, and compares text vs. image tickets.
 class PrintSpikePage extends StatefulWidget {
   const PrintSpikePage({super.key, this.transport, this.loadLogo});
 
-  /// Overrides the Bluetooth transport (widget tests).
+  /// Overrides the platform transport (widget tests).
   final PrinterTransport? transport;
 
   /// Overrides logo loading (widget tests have no image codecs).
@@ -53,7 +57,11 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
   static const _logoWidth = 320;
 
   late final PrinterTransport _transport =
-      widget.transport ?? BluetoothSppTransport();
+      widget.transport ??
+      (defaultTargetPlatform == TargetPlatform.windows
+          ? UsbPrinterTransport(const WinUsbPrintApi())
+          : BluetoothSppTransport());
+  late final _link = _transport is UsbPrinterTransport ? 'USB' : 'Bluetooth';
   late final _runner = PrintJobRunner(_transport);
 
   List<PrinterDevice> _devices = const [];
@@ -101,11 +109,19 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
         _selected = devices.contains(_selected)
             ? _selected
             : devices
-                  .where((d) => d.name.startsWith('Printer001'))
+                  .where(
+                    (d) =>
+                        d.name.startsWith('Printer001') ||
+                        d.address == etermaUsbHardwareId,
+                  )
                   .followedBy(devices)
                   .firstOrNull;
         if (devices.isEmpty) {
-          _deviceError = 'No hay impresoras emparejadas. Emparéjala en Ajustes › Bluetooth.';
+          _deviceError = _link == 'USB'
+              ? 'No se encontró ninguna impresora USB. Conecta el cable y '
+                    'enciéndela.'
+              : 'No hay impresoras emparejadas. Emparéjala en Ajustes › '
+                    'Bluetooth.';
         }
       });
     } on PrinterException catch (e) {
@@ -182,7 +198,7 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
   Future<void> _copyCsv() async {
     String ms(Duration? d) => d?.inMilliseconds.toString() ?? '';
     final buffer = StringBuffer()
-      ..writeln('# Spike 3 — impresión Bluetooth (${_selected?.name ?? '-'})')
+      ..writeln('# Impresión térmica por $_link (${_selected?.name ?? '-'})')
       ..writeln(
         'at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,'
         'reconnected,error',
@@ -217,7 +233,7 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
     final busy = _running != null;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spike 3 · Impresión'),
+        title: Text('Impresión · $_link'),
         actions: [
           IconButton(
             tooltip: 'Actualizar impresoras',
@@ -244,7 +260,7 @@ class _PrintSpikePageState extends State<PrintSpikePage> {
                 initialValue: _selected,
                 isExpanded: true,
                 decoration: const InputDecoration(
-                  labelText: 'Impresora emparejada',
+                  labelText: 'Impresora',
                   border: OutlineInputBorder(),
                 ),
                 items: [
