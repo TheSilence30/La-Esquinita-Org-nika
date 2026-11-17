@@ -276,3 +276,97 @@ at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,reconnected,error
 ```
 
 **Estado: Spike 4 pendiente de aprobación del usuario (PR).**
+
+## Spike 6 — drift + outbox contra el servidor local
+
+Rama `phase-0/spike-drift-outbox`. Objetivo: crear operaciones sin conexión, cerrar la app, volver a abrirla y sincronizar con el servidor local **sin duplicados**. Solo subida (`/sync/push`); la bajada (`/sync/pull`), el login y el motor completo van en la Fase 1.
+
+### Qué se construyó
+
+- **Core:** `uuidV7()`; `SyncCommand` (`op_id`, `device_id`, `user_id`, `created_at`, `type`, `payload`) con lectura estricta del JSON; `PushStatus` (`applied | duplicate | rejected | conflict`); `PushResult`, que en un duplicado trae el veredicto original; y `SpikeOperation` (nota + importe en céntimos), la operación de prueba.
+- **Servidor** (Dart Frog + PostgreSQL 16):
+  - migración `20261117000001_sync_inbox.sql` (tablas `sync_inbox` y `spike_operations`), aplicada con **dbmate como servicio de Docker Compose**: `docker compose run --rm dbmate up`;
+  - `POST /sync/push` (hasta 100 comandos): cada comando, en **una sola transacción**, se reserva en `sync_inbox` con `INSERT … ON CONFLICT (op_id) DO NOTHING` y se aplica. Si el `op_id` ya existía, responde `duplicate` con el estado y el mensaje que se guardaron la primera vez. Los rechazos también se guardan, así un reenvío recibe la misma respuesta;
+  - `received_at` con la hora del servidor, además del `created_at` del dispositivo;
+  - escucha en `SERVER_HOST` (la IP privada de la PC) o, si no se define, solo en `127.0.0.1`; nunca en todas las interfaces.
+- **App** (drift):
+  - tablas `local_settings` (con `device_id` fijo), `outbox` y `spike_operations`;
+  - la operación local y su comando se guardan en **una sola transacción**;
+  - `SyncClient` envía en lotes, guarda cada veredicto y, si no hay respuesta, deja los comandos pendientes y cuenta el intento;
+  - `SyncScheduler` sincroniza al abrir, cada 30 s y con el botón; si falla, reintenta a los 5 s, 10 s, 20 s… hasta 5 min;
+  - pantalla **Spike 6 — Sincronización**: dirección del servidor, indicador *Sincronizado / Pendientes N / Error*, *Crear operación*, *Crear 30*, *Sincronizar*, *Reenviar todo* y **Envío lento** (1 operación por solicitud y 300 ms de pausa, para poder cortar la conexión a la mitad).
+- Solo para depuración en Android: se permite HTTP sin cifrar, porque el servidor de desarrollo no tiene TLS. El build de producción mantiene el bloqueo.
+
+### Pruebas automáticas (ejecutadas)
+
+- Core: 54 en verde.
+- Servidor: 10 en verde. Seis corren **contra PostgreSQL real** (base `esquinita_test` en local y servicio Postgres en la CI):
+  - aplicar una vez y reenvío = `duplicate`;
+  - rechazo guardado y devuelto igual;
+  - lote con un `op_id` repetido;
+  - **8 envíos simultáneos del mismo `op_id`: una sola fila, 7 `duplicate`, ningún error**;
+  - **reloj del dispositivo desfasado** (2020 y 2035): se guarda tal cual y `received_at` usa la hora del servidor.
+
+  Las otras cuatro son de la ruta: solo POST, entradas inválidas → 400 sin tocar la base, y una respuesta por comando.
+- App: 81 en verde. Cubren:
+  - la transacción atómica (si falla el comando, la operación local también se deshace);
+  - 3 operaciones sin conexión → cerrar y reabrir la base → siguen pendientes, con el mismo `device_id` → se sincronizan una vez;
+  - **respuesta perdida** → reenvío → `duplicate`, una sola aplicación;
+  - **30 operaciones con la conexión cortada a la mitad** → 15 aplicadas y 15 pendientes → la siguiente sincronización completa exactamente 30;
+  - *Reenviar todo*, respuesta del servidor que no corresponde a lo enviado, espera creciente entre reintentos, y la pantalla sin desbordes y con el indicador correcto.
+- Servidor real probado con `curl`: el primer envío da `applied` y el segundo `duplicate` con `original_status: applied`.
+- El APK debug compila. El build de Windows necesita activar el **Modo de desarrollador** (el plugin de SQLite requiere enlaces simbólicos).
+
+### Protocolo de prueba (usuario)
+
+Preparación (Claude): el servidor corre en la PC (`http://192.168.18.12:8080`), la Wi‑Fi de la tienda está marcada como red privada y el firewall deja pasar el puerto 8080 solo desde la red local.
+
+En la tablet, abrir **La Esquinita › Spike 6 — Sincronización**, escribir `http://192.168.18.12:8080` y pulsar **Guardar**.
+
+1. **Sin servidor** (Claude lo detiene): pulsar **Crear operación** 3 veces. El indicador debe decir *Error · pendientes 3*.
+2. **Cerrar la app** desde Recientes (deslizar hacia arriba) y volver a abrirla en *Spike 6*: debe seguir mostrando 3 pendientes.
+3. **Servidor encendido** (Claude lo levanta): pulsar **Sincronizar**. Debe decir *Sincronizado* y las 3 operaciones, *aplicada*.
+4. **Reenviar todo**: cada operación debe decir *respuesta: duplicado* y seguir *aplicada*.
+5. **Corte a la mitad:** activar **Envío lento**, pulsar **Crear 30** y **Sincronizar**, y a los 3–5 s activar el **modo avión**. Debe salir el error, con parte de las operaciones *aplicada* y el resto *pendiente*. Quitar el modo avión, esperar el Wi‑Fi y pulsar **Sincronizar**: debe decir *Sincronizado*.
+6. **En la PC**: repetir los pasos 1 a 4 con `http://192.168.18.12:8080` (el servidor solo escucha en esa dirección, no en `127.0.0.1`).
+7. Claude verifica en PostgreSQL que por cada equipo haya **exactamente** tantas filas como operaciones se crearon (33 de la tablet), sin duplicados.
+
+### Resultados en dispositivo (2026-11-17, usuario con la Tab A11 y la PC)
+
+Servidor en `http://192.168.18.12:8080`, en la PC. Red marcada como privada y regla del firewall solo para la subred local. Capturas en la tablet (`DCIM/Screenshots/Screenshot_20261117_1800*`–`1806*`) y en el escritorio de la PC (`Spike6-PT1` a `PT4`). Los conteos salen de consultas de Claude a PostgreSQL y al SQLite de cada equipo (en la tablet, copiado con `run-as`).
+
+**Tablet** (equipo `01a1ebb8-…`):
+
+| Paso | Resultado |
+| --- | --- |
+| 1. Sin servidor: 3 operaciones | ✅ *Error · pendientes 3*. La espera entre reintentos creció hasta 40 s |
+| 2. Cerrar y reabrir la app | ✅ siguen 3 pendientes, con los intentos fallidos guardados (6) |
+| 3. Servidor encendido | ✅ *Sincronizado*: las 3 llegaron a las 17:59:22 |
+| 4. Reenviar todo | ✅ las 3 respondieron *duplicado* y no se creó ninguna fila |
+| 5. Envío lento + modo avión | ✅ 1.ª tanda de 30, creada en modo avión: no salió nada; al quitarlo se sincronizaron solas (18:04:29–41). 2.ª tanda de 30: llegaron 21 (18:05:41–48), una operación falló 2 veces, y 8 s después llegaron las 9 restantes. El usuario confirmó que esa pausa fue el modo avión, activado a mitad del envío: es el corte a la mitad que pedía el protocolo |
+
+**PC** (equipo `01a1ebca-…`, app de Windows):
+
+| Paso | Resultado |
+| --- | --- |
+| 1–2. Sin servidor, cerrar y reabrir | ✅ *Error · pendientes 3*, y siguen pendientes al reabrir |
+| 3. Servidor encendido | ✅ *Sincronizado*, las 3 *aplicada* (18:18:12) |
+| 4. Reenviar todo | ✅ *respuesta: duplicado* en las 3 |
+
+**PostgreSQL** (verificado por Claude):
+
+| Equipo | Operaciones locales | Filas en `sync_inbox` | Filas en `spike_operations` | `op_id` distintos |
+| --- | --- | --- | --- | --- |
+| Tablet | 63 (3 + 30 + 30) | 63 | 63 | 63 |
+| PC | 3 | 3 | 3 | 3 |
+
+- Los 63 `op_id` de la tablet son **exactamente los mismos** en su SQLite y en el servidor: cero duplicados, cero perdidos. El protocolo esperaba 33 porque contaba una sola tanda de 30; el usuario pulsó *Crear 30* dos veces.
+- El servidor guardó su propia `received_at` y conservó el `created_at` de cada dispositivo.
+- Hay una fila más, de otro equipo: es la prueba hecha por Claude con `curl`.
+
+**Observaciones para la Fase 1**
+
+- En Windows, la base local queda en `Documents\esquinita.sqlite` (la carpeta por defecto de `drift_flutter`). Es una carpeta visible para el usuario y que OneDrive puede sincronizar: moverla a la carpeta de datos de la app.
+- Con el servidor apagado, el firewall descarta la conexión sin rechazarla, así que la app muestra "no respondió a tiempo" tras 10 s en lugar de "sin conexión".
+
+**Estado: Spike 6 pendiente de aprobación del usuario (PR).**
