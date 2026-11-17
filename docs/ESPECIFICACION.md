@@ -683,7 +683,7 @@ No presentar una nota de pedido como boleta o factura.
 
 Impresoras existentes:
 
-- Epson L460 A4.
+- Epson L4160 A4.
 - Éterma térmica de 58 mm.
 - Conexión por cable y Bluetooth.
 
