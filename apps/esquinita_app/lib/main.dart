@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app/theme.dart';
+import 'spikes/print_spike_page.dart';
 import 'spikes/scan_spike_page.dart';
 
 void main() => runApp(const EsquinitaApp());
@@ -35,6 +36,14 @@ class SpikesHomePage extends StatelessWidget {
             subtitle: const Text('Escaneo continuo, filtro de duplicados'),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const ScanSpikePage()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.print_outlined),
+            title: const Text('Spike 3 — Impresión térmica'),
+            subtitle: const Text('Éterma por Bluetooth: ticket, logo, tildes'),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const PrintSpikePage()),
             ),
           ),
         ],

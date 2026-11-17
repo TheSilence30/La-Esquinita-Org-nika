@@ -99,3 +99,117 @@ La app en horizontal muestra **“Pantalla: tablet · 893×533 dp · 1.50x”** 
 - **Video del escaneo continuo** (protocolo, punto 4): el usuario decidió que no hace falta.
 
 **Estado: Spike 1 aprobado por el usuario el 2026-11-09.**
+
+## Spike 3 — Impresión térmica Bluetooth (Éterma, Tab A11)
+
+Rama `phase-0/spike-printing`.
+
+### Impresora (página de autoprueba, 2026-11-09)
+
+Éterma 58 mm portátil, sin cortador (se corta a mano con la barra dentada). Firmware `1.005PH5I` (2025/10/15). Tiene USB y Bluetooth `V2.1+V4.0`; la tablet la tiene emparejada como `Printer001-C9E2` (`C0:2B:F3:AB:C9:E2`) y solo ofrece el servicio **SPP (Bluetooth clásico)**. Velocidad de 70 mm/s, densidad 4 de 8, **página de códigos por defecto PC437** y memoria NV para imágenes. Se apaga sola a los 60 min.
+
+### Qué se construyó
+
+- `packages/esquinita_core/lib/src/printing/`: `PrintDocument` neutro (texto, fila de dos columnas, separador, imagen, avance) y `EscPosEncoder` para 58 mm (384 puntos, 32 columnas). El encoder:
+  - escribe `ESC @` y `ESC t n` al inicio;
+  - trae tablas para PC437, PC850, PC858 y WPC1252; una letra que falta en la página elegida se imprime sin tilde (`Á` → `A`);
+  - centra el logo y lo envía con `GS v 0` en franjas de 64 filas;
+  - `MonoBitmap` convierte a 1 bit con umbral o con difuminado Floyd–Steinberg.
+- `apps/esquinita_app/android/.../BtSppChannel.kt`: canal propio, **todo en un hilo de fondo**:
+  - lista los equipos emparejados y se conecta por RFCOMM/SPP, primero seguro y luego inseguro, con tiempo de espera;
+  - envía en **bloques con pausa configurable**;
+  - pide los permisos `BLUETOOTH_CONNECT` y `BLUETOOTH_SCAN` (Android 12+).
+- `lib/devices/printer/`:
+  - interfaz **`PrinterTransport`** (el ticket no depende del transporte) e implementación `BluetoothSppTransport`, con mensajes de error en español;
+  - `raster.dart`, que convierte con `dart:ui` el logo y el ticket completo a imagen.
+- `lib/features/printing/application/print_job_runner.dart`:
+  - un trabajo a la vez, y conecta cuando hace falta;
+  - si la impresora se apagó desde el último ticket y **no llegó nada**, reconecta y reenvía una vez;
+  - si llegó parte del ticket, **no lo reenvía** (saldría duplicado) y avisa que puede estar incompleto.
+- `lib/spikes/print_spike_page.dart` (**Spike 3 — Impresión térmica**):
+  - elige la impresora, el bloque (32 B a 4 KB), la pausa (0 a 100 ms) y la página de códigos;
+  - tres botones: **Página de códigos**, **Ticket como texto** y **Ticket como imagen**;
+  - registro de tiempos y botón **Copiar resultados (CSV)**.
+- Ticket de prueba (`test_ticket.dart`): logo en blanco y negro, nombre y dirección, leyenda “Constancia de venta – no es comprobante de pago”, 10 productos con tildes y ñ e importes `S/`, total, línea “áéíóú ÁÉÍÓÚ ñÑ üÜ ¿? ¡! °”, y líneas numeradas hasta **“Línea 40 de 40 – fin”**.
+- Logo: `docs/marca/logo-bn.png` (1774×887, versión definitiva en blanco y negro), reducido a `assets/branding/logo-ticket.png` (768 px) y a 320 puntos al imprimir.
+
+### Pruebas automáticas (ejecutadas)
+
+- Core: 48 en verde. Cubren los bytes de cada comando, las tablas de páginas de códigos, el ajuste a 32 columnas, las filas con importe a la derecha, las franjas de imagen centradas y el umbral y difuminado.
+- App: 60 en verde. Cubren el canal con mensajero simulado (argumentos y mensajes de error), `PrintJobRunner` (reconexión, no reenviar un ticket parcial, un trabajo a la vez, permisos), el ticket de exactamente 40 líneas, el render a imagen de 384 puntos y la pantalla sin desbordes en la tablet (horizontal y vertical) y en celular.
+
+### Primera prueba en la tablet (2026-11-09, Claude vía `adb`)
+
+- El diálogo de permisos apareció y se aceptó (`BLUETOOTH_CONNECT` y `BLUETOOTH_SCAN` quedaron `granted`, `USER_SET`).
+- **Página de códigos**: conexión en **552 ms**, 0,6 KB enviados en 40 ms (bloques de 256 B, pausa de 20 ms), sin errores. Falta la foto del papel para saber qué página imprime bien.
+
+### Protocolo de prueba (usuario)
+
+Abrir **La Esquinita › Spike 3 — Impresión térmica**, con Aqp Print cerrada (si no, puede ocupar la impresora). Después de cada impresión, sacar una foto del papel con la tablet.
+
+1. **Página de códigos**: ver cuál de las 4 secciones imprime bien todas las letras (sobre todo **ÁÍÓÚ**).
+2. Elegir esa página en **Página de códigos (texto)** y pulsar **Ticket como texto** (256 B / 20 ms). Revisar el logo, las tildes, la ñ, “S/” y que llegue hasta **“Línea 40 de 40 – fin”**.
+3. **Bloques y pausa** (el objetivo es lo más rápido que no corrompa). Con **Ticket como texto**, probar:
+   - 4096 B / 0 ms (todo de golpe);
+   - 1024 B / 0 ms;
+   - 512 B / 10 ms;
+   - 256 B / 20 ms.
+
+   Anotar la primera combinación que imprime el ticket completo y limpio, y repetirla dos veces.
+4. **Ticket como imagen** con esa combinación y con la siguiente más lenta: comparar la calidad y el tiempo con el ticket como texto.
+5. **Reconexión**:
+   - apagar la impresora y pulsar **Ticket como texto**: debe salir un mensaje claro y la app no debe congelarse;
+   - encenderla y pulsar de nuevo: debe imprimir.
+6. **Copiar resultados (CSV)** y pegarlo en la conversación, junto con las fotos.
+
+### Resultados en dispositivo (2026-11-17, usuario con la Tab A11 y la Éterma)
+
+Fotos en la tablet (`Download/Quick Share/20261117_142137.jpg`, `20261117_142102.jpg`, `20261117_152031 (2).jpg`) y CSV de la pantalla, pegado en la conversación (copiado abajo).
+
+**Página de códigos** (foto de la hoja de prueba):
+
+| Página | ÁÉÍÓÚ | ñÑ üÜ ¿¡ ° S/ |
+| --- | --- | --- |
+| PC437 (`ESC t 0`) | ❌ salen sin tilde (`AEIOU`), como se esperaba | ✅ |
+| **PC850 (`ESC t 2`)** | ✅ | ✅ |
+| PC858 (`ESC t 19`) | ✅ | ✅ |
+| WPC1252 (`ESC t 16`) | ✅ | ✅ |
+
+Decisión: **PC850** (ya era el valor por defecto).
+
+**Envío por bloques** (`send_ms` mide el tiempo de escritura en el socket, no el de impresión):
+
+| Trabajo | Bytes | 256 B / 20 ms | 1024 / 20 | 4096 / 20 | **4096 / 10** | 4096 / 50 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ticket como texto | 9010 | 716 ms | 166 ms | 41 ms | **22 ms** (2 veces) | — |
+| Ticket como imagen | 55 552 | 4487 ms | — | 264 ms | **136 ms** | 655 ms |
+
+- Con **4096 B / 10 ms** el usuario confirmó que el texto y la imagen salen completos y limpios. Desde ahora es el valor por defecto (`PrintSettings`).
+- Ticket como texto (foto de las 15:19): salen bien el logo, la leyenda, las tildes, la ñ y la ü en minúscula y mayúscula, y los importes `S/` alineados; llega hasta "Línea 40 de 40 – fin".
+- Ticket como imagen (foto de las 14:20, con 256/20): salen bien el logo y el texto. "Línea 37" y "Cliente: …" salieron con un pequeño recorte horizontal; el usuario lo dio por aceptable. **No se investigó la causa**; vigilarlo si se usa el ticket como imagen en producción.
+- Conexión: 2,0 s la primera vez y 744–807 ms al reconectar.
+
+**Reconexión**: dos veces (`reconnected=1`) la impresora se había apagado y vuelto a encender después del último ticket; la app reconectó sola y el ticket salió una vez, sin duplicarse. **Sin probar en el dispositivo:** pulsar con la impresora todavía apagada (el mensaje de error). En el CSV no hay ninguna fila con error; solo lo cubren las pruebas automáticas.
+
+**Mejora para después (fuera del spike):** al partir las líneas largas, la unidad queda separada del número ("Villa Rica 250" / "g", "Oxapampa 1" / "kg"). Usar un espacio que no se parta entre la cantidad y la unidad.
+
+CSV:
+
+```csv
+at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,reconnected,error
+2026-11-17T19:20:30.968741Z,image,55552,2028,4487,256,20,,0,
+2026-11-17T19:21:02.738532Z,codePages,657,,41,256,20,,0,
+2026-11-17T19:21:28.186981Z,text,9010,,716,256,20,pc850,0,
+2026-11-17T20:17:11.269235Z,text,9010,744,717,256,20,pc850,1,
+2026-11-17T20:17:53.256127Z,text,9010,,716,256,20,pc850,0,
+2026-11-17T20:19:24.827406Z,text,9010,,41,4096,20,pc850,0,
+2026-11-17T20:19:41.408211Z,text,9010,,42,4096,20,pc850,0,
+2026-11-17T20:19:55.436648Z,text,9010,,166,1024,20,pc850,0,
+2026-11-17T20:20:46.870163Z,image,55552,,264,4096,20,,0,
+2026-11-17T20:21:00.517623Z,image,55552,,136,4096,10,,0,
+2026-11-17T20:21:25.018337Z,image,55552,,655,4096,50,,0,
+2026-11-17T20:22:38.987842Z,text,9010,,22,4096,10,pc850,0,
+2026-11-17T20:23:10.357702Z,text,9010,807,22,4096,10,pc850,1,
+```
+
+**Estado: Spike 3 pendiente de aprobación del usuario.**
