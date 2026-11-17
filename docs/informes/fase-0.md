@@ -331,6 +331,42 @@ En la tablet, abrir **La Esquinita › Spike 6 — Sincronización**, escribir `
 6. **En la PC**: repetir los pasos 1 a 4 con `http://192.168.18.12:8080` (el servidor solo escucha en esa dirección, no en `127.0.0.1`).
 7. Claude verifica en PostgreSQL que por cada equipo haya **exactamente** tantas filas como operaciones se crearon (33 de la tablet), sin duplicados.
 
-### Resultados en dispositivo
+### Resultados en dispositivo (2026-11-17, usuario con la Tab A11 y la PC)
 
-_Pendiente._
+Servidor en `http://192.168.18.12:8080`, en la PC. Red marcada como privada y regla del firewall solo para la subred local. Capturas en la tablet (`DCIM/Screenshots/Screenshot_20261117_1800*`–`1806*`) y en el escritorio de la PC (`Spike6-PT1` a `PT4`). Los conteos salen de consultas de Claude a PostgreSQL y al SQLite de cada equipo (en la tablet, copiado con `run-as`).
+
+**Tablet** (equipo `01a1ebb8-…`):
+
+| Paso | Resultado |
+| --- | --- |
+| 1. Sin servidor: 3 operaciones | ✅ *Error · pendientes 3*. La espera entre reintentos creció hasta 40 s |
+| 2. Cerrar y reabrir la app | ✅ siguen 3 pendientes, con los intentos fallidos guardados (6) |
+| 3. Servidor encendido | ✅ *Sincronizado*: las 3 llegaron a las 17:59:22 |
+| 4. Reenviar todo | ✅ las 3 respondieron *duplicado* y no se creó ninguna fila |
+| 5. Envío lento + modo avión | ✅ 1.ª tanda de 30, creada en modo avión: no salió nada; al quitarlo se sincronizaron solas (18:04:29–41). 2.ª tanda de 30: llegaron 21 (18:05:41–48), una operación falló 2 veces, y 8 s después llegaron las 9 restantes. El usuario no confirmó si el corte de esa tanda fue el modo avión o el Wi‑Fi |
+
+**PC** (equipo `01a1ebca-…`, app de Windows):
+
+| Paso | Resultado |
+| --- | --- |
+| 1–2. Sin servidor, cerrar y reabrir | ✅ *Error · pendientes 3*, y siguen pendientes al reabrir |
+| 3. Servidor encendido | ✅ *Sincronizado*, las 3 *aplicada* (18:18:12) |
+| 4. Reenviar todo | ✅ *respuesta: duplicado* en las 3 |
+
+**PostgreSQL** (verificado por Claude):
+
+| Equipo | Operaciones locales | Filas en `sync_inbox` | Filas en `spike_operations` | `op_id` distintos |
+| --- | --- | --- | --- | --- |
+| Tablet | 63 (3 + 30 + 30) | 63 | 63 | 63 |
+| PC | 3 | 3 | 3 | 3 |
+
+- Los 63 `op_id` de la tablet son **exactamente los mismos** en su SQLite y en el servidor: cero duplicados, cero perdidos. El protocolo esperaba 33 porque contaba una sola tanda de 30; el usuario pulsó *Crear 30* dos veces.
+- El servidor guardó su propia `received_at` y conservó el `created_at` de cada dispositivo.
+- Hay una fila más, de otro equipo: es la prueba hecha por Claude con `curl`.
+
+**Observaciones para la Fase 1**
+
+- En Windows, la base local queda en `Documents\esquinita.sqlite` (la carpeta por defecto de `drift_flutter`). Es una carpeta visible para el usuario y que OneDrive puede sincronizar: moverla a la carpeta de datos de la app.
+- Con el servidor apagado, el firewall descarta la conexión sin rechazarla, así que la app muestra "no respondió a tiempo" tras 10 s en lugar de "sin conexión".
+
+**Estado: Spike 6 pendiente de aprobación del usuario (PR).**

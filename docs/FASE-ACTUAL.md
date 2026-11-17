@@ -26,7 +26,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
-- [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; código hecho y probado, falta la prueba en tablet y PC): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
+- [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
 - [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
@@ -233,6 +233,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - [ ] Limitar el tamaño de las solicitudes en el servidor (hoy solo se limita la cantidad: 100 comandos).
 - [ ] Autenticación del servidor: hoy, mientras está encendido, cualquiera en la red local podría enviarle operaciones.
 - [ ] Sincronizar cada 30 s solo cuando haya operaciones pendientes, y espaciar el chequeo cuando no haya nada que enviar.
+- [ ] En Windows, mover la base local de `Documents` a la carpeta de datos de la app (hoy queda en `Documents\esquinita.sqlite`, visible y sincronizable por OneDrive).
 
 **Preparación de la prueba en hardware (2026-11-17)**
 
@@ -242,5 +243,5 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Siguiente paso exacto**
 
 1. ~~El usuario ejecuta los comandos de administrador y activa el Modo de desarrollador.~~ Hecho.
-2. Claude levanta el servidor en `192.168.18.12:8080`, instala el APK y el usuario sigue el protocolo del Spike 6 en `docs/informes/fase-0.md`.
-3. Claude verifica las filas en PostgreSQL, completa los resultados y abre el PR.
+2. ~~Prueba en tablet y PC.~~ Hecha: tablet 63 operaciones y PC 3, todas con exactamente una fila en PostgreSQL, sin duplicados (detalle en el informe).
+3. ~~Claude completa los resultados y abre el PR.~~ PR abierto; falta que el usuario lo revise y lo fusione.
