@@ -1,6 +1,6 @@
 # Modelo de datos inicial — La Esquinita Orgánika
 
-Estado: **propuesta para aprobación** (Fase 0, 2026-11-17). Fuente de requisitos: `docs/ESPECIFICACION.md`. Decisiones de arquitectura: ADR-0001 y ADR-0002.
+Estado: **aprobado por el usuario** (Fase 0, 2026-11-17). Fuente de requisitos: `docs/ESPECIFICACION.md`. Decisiones de arquitectura: ADR-0001 y ADR-0002.
 
 Este documento define tablas, columnas, claves, índices únicos y relaciones del servidor (PostgreSQL 16) y su réplica en cada dispositivo (SQLite con drift). Las migraciones de la Fase 1 se escriben a partir de aquí; cualquier cambio posterior se registra en este archivo.
 
@@ -215,7 +215,7 @@ Se actualiza solo dentro de la transacción que inserta el movimiento. Nunca se 
 | number | bigint | Correlativo de la serie |
 | customer_id | uuid FK → customers | nullable (público en general) |
 | cash_session_id | uuid FK → cash_sessions | nullable (§3.5) |
-| kind | text | `cash` \| `credit` |
+| kind | text | `cash` \| `credit`. `CHECK (kind <> 'credit' OR customer_id IS NOT NULL)`: **a crédito solo a clientes registrados** |
 | status | text | `completed` \| `voided` |
 | subtotal_cents, discount_cents, total_cents | bigint | |
 | order_note_id | uuid FK → order_notes | nullable; **UQ parcial** `WHERE order_note_id IS NOT NULL` (una nota → máximo una venta) |
@@ -401,11 +401,11 @@ Siempre se imprime con la leyenda “Documento interno – no válido como compr
 | pending_sales | int | De ellos, ventas (y cobros) |
 | reported_at | timestamptz | Hora del servidor del último informe |
 
-Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` junto a `commands`) y en un **latido** `POST /sync/heartbeat` cada 60 s mientras tiene conexión.
+Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` junto a `commands`) y, **solo mientras hay una caja abierta**, en un **latido** `POST /sync/heartbeat` cada 60 s. Con la caja cerrada no hay latido: basta con las sincronizaciones normales.
 
 **`document_series`**: `device_id` FK, `doc_type` `sale` \| `order_note` \| `barcode`, `next_number` bigint; PK `(device_id, doc_type)`. Cada dispositivo numera solo sus series, también sin conexión.
 
-**`settings`** (M): `key` text PK, `value` jsonb. Datos del negocio (`TODO(config)`), `sales.mixed_payments`, `order_notes.reserve_stock`, `inventory.expiry_warning_days`, `cash.backup_device_id` (equipo de caja de respaldo; por defecto la tablet), límites de descuento.
+**`settings`** (M): `key` text PK, `value` jsonb. Datos del negocio (`TODO(config)`), `sales.mixed_payments`, `order_notes.reserve_stock`, `inventory.expiry_warning_days`, `cash.backup_device_id` (equipo de caja de respaldo; por defecto la tablet).
 
 **`audit_log`** (solo servidor): `id` PK, `at`, `user_id`, `device_id`, `action` (`sales.void`, `sales.discount`, `catalog.change_price`, `inventory.adjust`, `cash.close`, …), `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `reason`, `authorized_by`, `op_id`. Lo escribe el servidor al aplicar cada comando, en la misma transacción.
 
@@ -499,6 +499,7 @@ La tienda tiene un solo cajón físico y **una sola sesión de caja abierta** a 
 
 **Estado de los equipos al cerrar**
 
+- Cada equipo informa sus pendientes en cada sincronización y, **solo mientras hay una caja abierta**, en un latido cada 60 s. Con la caja cerrada no hay latido: bastan las sincronizaciones normales.
 - La pantalla de cierre consulta `device_sync_status` y muestra, por equipo, **la última sincronización y sus operaciones pendientes**.
 - Si algún equipo informa **ventas o cobros sin enviar** (o no informa desde hace más de 2 min), avisa y **ofrece esperar**: la pantalla se actualiza sola hasta que los pendientes lleguen a 0.
 - Cerrar de todos modos exige escribir un motivo (`close_override_reason`), queda en `audit_log` y guarda la foto en `pending_at_close`.
@@ -538,7 +539,7 @@ Al inicio hay **un solo usuario** (Administrador). Los roles se definen **por vi
 | Rol | Vistas | Puede | No puede | Pantalla inicial |
 | --- | --- | --- | --- | --- |
 | **Administrador** | Todas | Todo: dashboard, reportes, costos y utilidad, catálogo y precios, compras, anulaciones, ajustes de stock, reabrir caja, usuarios, ajustes, resolver conflictos | — | Dashboard |
-| **Trabajo** | Vender, Escanear, Inventario (stock), Pedidos, Clientes, Caja del turno | Vender y cobrar, notas de pedido, consultar stock, conteos, **recibir compras sin ver costos**, alta de productos y clientes por escaneo, abrir y cerrar caja, gastos del cajón | Ver costos, utilidad o reportes; editar productos o precios; anular ventas; ajustes de stock; reabrir caja; usuarios y ajustes | Vender |
+| **Trabajo** | Vender, Escanear, Inventario (stock), Pedidos, Clientes, Caja del turno | Vender y cobrar, **descuentos con el % que se requiera**, ventas a crédito **solo a clientes registrados**, devoluciones, notas de pedido, consultar stock, conteos, **recibir compras sin ver costos**, alta de productos y clientes por escaneo, abrir y cerrar caja, gastos del cajón | Ver costos, utilidad o reportes; editar productos o precios; anular ventas; ajustes de stock; reabrir caja; usuarios y ajustes | Vender |
 
 - Una acción fuera del rol (anular, precio especial, descuento mayor) puede hacerse en el mismo equipo si un Administrador **autoriza con su PIN**; queda en `authorized_by` y en `audit_log`.
 - **Recibir compras sin ver costos:** la pantalla de recepción del rol Trabajo muestra productos, cantidades, lotes y vencimientos, pero no costos ni totales; los costos vienen de la compra creada por el Administrador.
@@ -550,8 +551,8 @@ Permisos iniciales:
 | --- | :---: | :---: |
 | `dashboard.view`, `reports.view`, `reports.profit` | ✔ | |
 | `sales.view`, `sales.create`, `order_notes.create` | ✔ | ✔ |
-| `sales.credit`, `sales.return` | ✔ | ✔ |
-| `sales.discount` (dentro del límite) | ✔ | ✔ |
+| `sales.credit` (solo a clientes registrados), `sales.return` | ✔ | ✔ |
+| `sales.discount` (cualquier %; queda auditado) | ✔ | ✔ |
 | `sales.change_price`, `sales.void` | ✔ | con PIN de Administrador |
 | `cash.view`, `cash.open`, `cash.close`, `cash.movement`, `cash.expense` | ✔ | ✔ |
 | `cash.reopen` | ✔ | |
@@ -622,7 +623,7 @@ Todos los comandos usan el sobre `SyncCommand` (`op_id`, `device_id`, `user_id`,
 | Gasto | `RecordExpense` | expenses, cash_movements (si sale del cajón) | Sí |
 | Cerrar caja | `CloseCash` | cash_sessions (cierre, arqueo, esperado del servidor, `pending_at_close`), audit_log | En línea desde cualquier equipo; sin conexión solo el equipo de respaldo |
 | Reabrir caja | `ReopenCash` | cash_session_events, audit_log | No (en línea, permiso `cash.reopen`) |
-| Estado del equipo | `POST /sync/heartbeat` y campo `status` del push | device_sync_status | — (solo con conexión) |
+| Estado del equipo | Campo `status` de cada push; `POST /sync/heartbeat` cada 60 s solo con caja abierta | device_sync_status | — (solo con conexión) |
 | Cliente nuevo | `CreateCustomer` | customers | Sí; documento repetido → `duplicate_customer_doc` |
 | Editar cliente / límite de crédito | `UpdateCustomer` | customers, audit_log | No |
 | Cobro a cliente | `RegisterCustomerPayment` | customer_payments(+allocations), customer_ledger, cash_movements | Sí |
@@ -708,9 +709,7 @@ Las columnas comunes (`op_id`, `device_id`, `user_id`, `occurred_at`) relacionan
 
 ## 8. Pendientes y decisiones abiertas
 
-- **Aprobación del usuario** de este modelo (los roles de §4 ya están aprobados y aplicados en CLAUDE.md §9).
 - Datos del negocio para `settings` y el seed (`TODO(config)`): RUC si se mostrará, teléfono, WhatsApp, mensaje del ticket.
-- Límites de descuento por rol (monto o porcentaje).
 - Ventana de ventas de otros equipos que baja cada dispositivo (propuesta: 30 días) para devoluciones.
 - Formato de etiquetas (rollo térmico o hojas A4), definido en el spike de etiquetas.
 - Módulo tributario (Fase 8): tablas propias, fuera de este modelo; `sales.physical_receipt_ref` queda como puente.

@@ -128,7 +128,7 @@ Leyendas obligatorias: nota de pedido "Documento interno – no válido como com
 
 ## 9. Roles
 
-Roles por vistas (aprobado el 2026-11-17): **Administrador** (ve y hace todo) y **Trabajo** (solo vender, escanear, stock, pedidos, clientes y caja del turno; recibe compras sin ver costos; no ve costos, utilidad ni reportes). Acciones fuera del rol, con PIN de Administrador. Detalle en `docs/modelo-datos.md` §4. Permisos con formato `modulo.accion` (ej. `sales.void`, `sales.discount`, `sales.change_price`, `inventory.adjust`, `cash.reopen`). Se verifican en el servidor **y** en el dispositivo (offline). Auditoría de ventas, anulaciones, descuentos, ajustes, compras, cambios de precio, pagos y cierres.
+Roles por vistas (aprobado el 2026-11-17): **Administrador** (ve y hace todo) y **Trabajo** (solo vender, escanear, stock, pedidos, clientes y caja del turno: abre y cierra caja, descuentos con el % que se requiera, crédito solo a clientes registrados, devoluciones; recibe compras sin ver costos; no ve costos, utilidad ni reportes). Acciones fuera del rol, con PIN de Administrador. Detalle en `docs/modelo-datos.md` §4. Permisos con formato `modulo.accion` (ej. `sales.void`, `sales.discount`, `sales.change_price`, `inventory.adjust`, `cash.reopen`). Se verifican en el servidor **y** en el dispositivo (offline). Auditoría de ventas, anulaciones, descuentos, ajustes, compras, cambios de precio, pagos y cierres.
 
 ## 10. Diseño
 

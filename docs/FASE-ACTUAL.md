@@ -28,7 +28,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
-- [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — escrito el 2026-11-17 en la rama `phase-0/data-model`, **pendiente de aprobación del usuario** (roles Administrador/Trabajo aplicados en CLAUDE.md §9)
+- [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
 ## Datos del negocio (usuario)
@@ -269,6 +269,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Siguiente paso exacto**
 
 1. ~~El usuario revisa el PR del modelo de datos.~~ Corrigió la caja (§3.5): con conexión, abrir/cerrar/arquear/reabrir desde **cualquier equipo**, con el servidor como árbitro y el esperado calculado en el servidor; cada equipo informa sus pendientes (push + latido) y el cierre los muestra y ofrece esperar; sin conexión, solo el **equipo de caja de respaldo** (tablet por defecto) abre y cierra. Roles: **Administrador** y **Trabajo**, por vistas.
-2. ~~Claude actualiza `docs/modelo-datos.md` y CLAUDE.md §9.~~ Hecho; falta que el usuario revise el cambio de §3.5 antes de fusionar el PR #6.
-3. Después: prototipo navegable (último entregable de la Fase 0).
+2. ~~Claude actualiza `docs/modelo-datos.md` y CLAUDE.md §9.~~ Hecho; el usuario aprobó §3.5 con un ajuste: el latido de 60 s solo mientras haya una caja abierta. Roles confirmados; Trabajo: abre y cierra caja, descuentos con el % que se requiera, crédito solo a clientes registrados, devoluciones.
+3. ~~Fusión del PR #6~~ (Claude, a pedido del usuario). **Modelo de datos aprobado.**
+4. **Siguiente:** prototipo navegable (último entregable de la Fase 0).
 
