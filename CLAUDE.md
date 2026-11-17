@@ -20,7 +20,7 @@ Régimen tributario: **Nuevo RUS**. La V1 **no** integra SUNAT (Fase 8). La vent
 ## 2. Plataformas (por prioridad)
 
 1. **Tablet Android — principal y de mayor uso.** Samsung Galaxy Tab A11, modelo **SM-X133** (Android 16, 4 GB de RAM, pantalla 800×1340 px). Táctil, escaneo con cámara, impresión Bluetooth en la térmica.
-2. **PC Windows — administración y caja secundaria.** Teclado, mouse, lector USB tipo teclado, Epson L460 (A4) y la térmica por USB.
+2. **PC Windows — administración y caja secundaria.** Teclado, mouse, lector USB tipo teclado, Epson L4160 (A4) y la térmica por USB.
 3. Celulares Android: soportados con el layout de tablet adaptado.
 
 Interfaces **independientes** por plataforma (tablet ≠ escritorio), mismas reglas de negocio y mismos datos.
@@ -37,7 +37,7 @@ Interfaces **independientes** por plataforma (tablet ≠ escritorio), mismas reg
 | Escaneo cámara | `mobile_scanner` (ML Kit en Android) |
 | Escaneo físico | Lector HID tipo teclado: `KeyboardListener` + detector de ráfaga |
 | Impresión térmica | Generación ESC/POS en Dart + transporte Bluetooth (Android) / USB (Windows). Paquetes concretos se eligen en el **spike de impresión de la Fase 0** |
-| Impresión A4/PDF | `pdf` + `printing` (diálogo del sistema → Epson L460) |
+| Impresión A4/PDF | `pdf` + `printing` (diálogo del sistema → Epson L4160) |
 | Códigos de barras | paquete `barcode` (generación de etiquetas) |
 | Servidor | **Dart Frog** + paquete `postgres` (v3), SQL explícito |
 | Base central | **PostgreSQL 16** |
@@ -119,7 +119,7 @@ Un `PrintDocument` neutro (en core) → renderizadores:
 | Salida | Uso | Notas |
 | --- | --- | --- |
 | ESC/POS 58 mm | Tickets, notas compactas, resúmenes | 384 puntos, 32 columnas, logo raster ≤ 384 px, página de códigos con tildes y ñ validada en el spike |
-| PDF A4 | Notas de pedido, reportes, documentos internos | Epson L460 vía diálogo del sistema |
+| PDF A4 | Notas de pedido, reportes (ventas mensuales, etc.), documentos internos | Epson L4160 vía diálogo del sistema |
 | Etiquetas | Producto, código, precio opcional | Formato a definir en Fase 0 (rollo térmico o hojas A4 adhesivas) |
 
 Impresora térmica: **Éterma 58 mm portátil**, Bluetooth + USB. Tratarla como ESC/POS genérica hasta validar en el spike (BT clásico vs BLE, página de códigos, imagen, avance/corte).

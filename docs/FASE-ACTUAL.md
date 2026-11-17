@@ -24,8 +24,8 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
   - [ ] **Pendiente de prueba en dispositivo**: mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano
 - [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
-- [ ] **Spike 4 — Térmica USB (Windows)**: imprimir el mismo ticket por USB
-- [ ] **Spike 5 — A4**: PDF de nota de pedido impreso en la Epson L460
+- [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
+- [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox**: crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
 - [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos)
@@ -182,3 +182,20 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 1. ~~El usuario revisa y aprueba el Spike 3.~~ Aprobado el 2026-11-17.
 2. ~~Claude abre el PR.~~ PR #3 abierto; falta que el usuario lo fusione.
 3. Spike 4: térmica por USB en Windows.
+
+### 2026-11-17 — Spike 4: térmica por USB en Windows (rama `phase-0/spike-usb-printing`)
+
+**Se hizo**
+
+- El PR #3 (Spike 3) fue fusionado por el usuario. Se creó la rama desde `main` (`6da77c6`).
+- La impresora A4 es la **Epson L4160**, no la L460: se corrigió en CLAUDE.md, PLAN.md y esta lista (`310cbc5`). Se usará también para los reportes de ventas mensuales. Después, con el visto bueno del usuario, también en `docs/ESPECIFICACION.md` y el ADR-0001.
+- Windows ve la Éterma como impresora USB estándar (`VID_0483&PID_5743`, `usbprint.sys`, sin cola).
+- Decisiones del usuario: usar `win32` + `ffi`; buscar siempre por el identificador de hardware y no por `USB009`; prueba de desconectar y reconectar con el simulador; `win32` solo en Windows.
+- Commits: `78865e1` transporte USB y pruebas, `9e96c00` implementación con `win32`, `e93c6f9` pantalla USB/Bluetooth según la plataforma.
+- Pruebas de la app: 70 en verde; `analyze` sin problemas; el APK y el build de Windows compilan. Lista y apertura reales verificadas en la PC.
+
+**Siguiente paso exacto**
+
+1. ~~Prueba con papel del usuario.~~ Hecha: texto, imagen, cable desconectado/reconectado y apagar/encender, todo correcto (ver el informe).
+2. ~~Claude completa los resultados y abre el PR.~~ PR abierto; falta que el usuario lo revise y lo fusione.
+3. El usuario pidió que Claude fusione el PR #4. Sigue el **Spike 6** (drift + outbox); el Spike 5 queda en espera.

@@ -4,7 +4,7 @@ Fases según `docs/ESPECIFICACION.md` §25. Cada fase termina con **aprobación 
 
 | Fase | Semanas | Alcance | Criterios de aceptación |
 | --- | --- | --- | --- |
-| **0. Planificación** | 1–2 | Revisión de requisitos y video, ADRs, modelo de datos, prototipo de pantallas clave (POS tablet, POS escritorio, alta por escaneo), **spikes en hardware real**: escaneo en Tab A11, impresión Éterma por Bluetooth (Android) y USB (Windows), Epson L460 vía PDF | Spikes con evidencia (fotos de tickets con tildes/ñ y logo, video de escaneo continuo); prototipo aprobado; modelo de datos aprobado |
+| **0. Planificación** | 1–2 | Revisión de requisitos y video, ADRs, modelo de datos, prototipo de pantallas clave (POS tablet, POS escritorio, alta por escaneo), **spikes en hardware real**: escaneo en Tab A11, impresión Éterma por Bluetooth (Android) y USB (Windows), Epson L4160 vía PDF | Spikes con evidencia (fotos de tickets con tildes/ñ y logo, video de escaneo continuo); prototipo aprobado; modelo de datos aprobado |
 | **1. Fundamentos** | 3–6 | Monorepo, `esquinita_core`, app Flutter con shells tablet/escritorio, tema, drift, servidor Dart Frog + Postgres + migraciones, login/roles/permisos/auditoría, configuración del negocio, **motor de sincronización** (outbox, pull, idempotencia, estado visible) | Usuario inicia sesión en tablet y PC; una operación de prueba creada offline en ambos equipos sincroniza sin duplicados tras reconectar y reiniciar la app; pruebas automáticas de sync en verde |
 | **2. Productos e inventario** | 7–10 | Catálogo, categorías, marcas, unidades, presentaciones con conversión, códigos múltiples, precios minorista/mayorista, imágenes, lotes, vencimientos, movimientos, ajustes, conteo físico por escaneo, alertas, importación desde plantilla | 50 productos reales cargados; conteo físico de 20 productos por escaneo con diferencias correctas; kardex cuadra |
 | **3. POS** | 11–14 | Carrito, escaneo continuo antiduplicados, búsqueda, cantidades/peso, descuentos con permiso, cliente, medios de pago, contado/crédito, notas de pedido, impresión 58 mm y A4, historial, devoluciones, anulaciones | Venta de 5 productos escaneados + cobro + ticket en < 30 s en la tablet; venta offline sincroniza una sola vez; ticket legible |
@@ -19,6 +19,6 @@ Decisiones abiertas (cerrar en Fase 0):
 
 1. ~~RAM exacta de la Tab A11.~~ **Cerrada (2026-11-04):** SM-X133, Android 16, 4 GB de RAM (3,8 GB visibles), pantalla 800×1340 px. Leído por `adb`.
 2. Transporte Bluetooth de la Éterma (clásico o BLE) y página de códigos.
-3. Formato de etiquetas: rollo térmico en la Éterma o hojas adhesivas A4 en la Epson L460.
+3. Formato de etiquetas: rollo térmico en la Éterma o hojas adhesivas A4 en la Epson L4160.
 4. ¿La PC también vende offline en simultáneo con la tablet? (si sí, conflictos de stock posibles: se detectan y marcan).
 5. Proveedor del VPS de producción.

@@ -40,8 +40,10 @@ class SpikesHomePage extends StatelessWidget {
           ),
           ListTile(
             leading: const Icon(Icons.print_outlined),
-            title: const Text('Spike 3 — Impresión térmica'),
-            subtitle: const Text('Éterma por Bluetooth: ticket, logo, tildes'),
+            title: const Text('Spikes 3 y 4 — Impresión térmica'),
+            subtitle: const Text(
+              'Éterma por Bluetooth (tablet) o USB (PC): ticket, logo, tildes',
+            ),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(builder: (_) => const PrintSpikePage()),
             ),

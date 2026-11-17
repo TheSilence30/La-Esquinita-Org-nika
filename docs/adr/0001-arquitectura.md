@@ -7,7 +7,7 @@ Fecha: 2026-11-04 · Estado: **aceptada**
 - Plataforma principal: tablet Android (Galaxy Tab A11). Secundaria: PC Windows.
 - Offline obligatorio en cada dispositivo, con sincronización (especificación §6).
 - Interfaces independientes por plataforma con reglas de negocio compartidas (§4.3).
-- Impresión térmica 58 mm por Bluetooth (Android) y USB (Windows); A4 en Epson L460.
+- Impresión térmica 58 mm por Bluetooth (Android) y USB (Windows); A4 en Epson L4160.
 - Un desarrollador asistido por Claude Code: el costo de mantenimiento pesa más que la popularidad.
 
 ## Opciones evaluadas
