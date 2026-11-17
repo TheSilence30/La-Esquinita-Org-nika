@@ -7,3 +7,5 @@ export 'src/printing/escpos_encoder.dart';
 export 'src/printing/mono_bitmap.dart';
 export 'src/printing/print_document.dart';
 export 'src/scanning/scan_filter.dart';
+export 'src/sync/sync_command.dart';
+export 'src/sync/uuid_v7.dart';
