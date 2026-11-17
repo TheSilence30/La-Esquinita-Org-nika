@@ -26,7 +26,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
-- [ ] **Spike 6 — drift + outbox**: crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
+- [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; código hecho y probado, falta la prueba en tablet y PC): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
 - [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
@@ -199,3 +199,36 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 1. ~~Prueba con papel del usuario.~~ Hecha: texto, imagen, cable desconectado/reconectado y apagar/encender, todo correcto (ver el informe).
 2. ~~Claude completa los resultados y abre el PR.~~ PR abierto; falta que el usuario lo revise y lo fusione.
 3. El usuario pidió que Claude fusione el PR #4. Sigue el **Spike 6** (drift + outbox); el Spike 5 queda en espera.
+
+### 2026-11-17 — Spike 6: drift + outbox (rama `phase-0/spike-drift-outbox`)
+
+**Se hizo**
+
+- El PR #4 (Spike 4) fue fusionado por Claude, a pedido del usuario (`31c3092`). El Spike 5 queda en espera.
+- Decisiones del usuario:
+  - dependencias aprobadas: `drift`, `drift_flutter`, `http`, `drift_dev`, `build_runner` y `postgres`;
+  - operación de prueba genérica (nota + importe en céntimos);
+  - `/sync/pull` en la Fase 1 y sin login en el spike;
+  - el servidor escucha solo en la red local y la regla del firewall es solo para redes privadas;
+  - reserva del `op_id` y aplicación en la misma transacción, con `ON CONFLICT DO NOTHING` y el resultado original guardado;
+  - prueba de concurrencia, y `received_at` con la hora del servidor, con prueba de reloj desfasado;
+  - prueba de 30 operaciones con modo avión a la mitad.
+- Commits:
+  - `866ea7d` core: UUID v7, `SyncCommand` y resultados;
+  - `9994165` servidor: `/sync/push`, migraciones con dbmate y Postgres en la CI;
+  - `5abcc12` app: outbox con drift, envío por lotes y reintentos;
+  - `b1ea94e` pantalla del Spike 6.
+- Pruebas: core 54, servidor 10 (6 contra PostgreSQL, también en la CI) y app 81, todas en verde. El APK compila. Servidor real verificado con `curl`.
+- Base `esquinita_test` creada en el contenedor local para las pruebas del servidor (`TEST_DATABASE_URL` en `.env.example`).
+
+**Bloqueos para la prueba en hardware (usuario)**
+
+- La Wi‑Fi `LA/ESQUINITA-2.4G` está marcada como **Pública**: hay que marcarla como **Privada** y crear la regla del firewall (comandos de administrador).
+- El build de Windows necesita el **Modo de desarrollador** de Windows.
+- La tablet tiene que estar conectada por USB para instalar el APK.
+
+**Siguiente paso exacto**
+
+1. El usuario ejecuta los comandos de administrador y activa el Modo de desarrollador.
+2. Claude levanta el servidor en `192.168.18.12:8080`, instala el APK y el usuario sigue el protocolo del Spike 6 en `docs/informes/fase-0.md`.
+3. Claude verifica las filas en PostgreSQL, completa los resultados y abre el PR.
