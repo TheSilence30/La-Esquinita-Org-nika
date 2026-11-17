@@ -343,7 +343,7 @@ Servidor en `http://192.168.18.12:8080`, en la PC. Red marcada como privada y re
 | 2. Cerrar y reabrir la app | ✅ siguen 3 pendientes, con los intentos fallidos guardados (6) |
 | 3. Servidor encendido | ✅ *Sincronizado*: las 3 llegaron a las 17:59:22 |
 | 4. Reenviar todo | ✅ las 3 respondieron *duplicado* y no se creó ninguna fila |
-| 5. Envío lento + modo avión | ✅ 1.ª tanda de 30, creada en modo avión: no salió nada; al quitarlo se sincronizaron solas (18:04:29–41). 2.ª tanda de 30: llegaron 21 (18:05:41–48), una operación falló 2 veces, y 8 s después llegaron las 9 restantes. El usuario no confirmó si el corte de esa tanda fue el modo avión o el Wi‑Fi |
+| 5. Envío lento + modo avión | ✅ 1.ª tanda de 30, creada en modo avión: no salió nada; al quitarlo se sincronizaron solas (18:04:29–41). 2.ª tanda de 30: llegaron 21 (18:05:41–48), una operación falló 2 veces, y 8 s después llegaron las 9 restantes. El usuario confirmó que esa pausa fue el modo avión, activado a mitad del envío: es el corte a la mitad que pedía el protocolo |
 
 **PC** (equipo `01a1ebca-…`, app de Windows):
 
