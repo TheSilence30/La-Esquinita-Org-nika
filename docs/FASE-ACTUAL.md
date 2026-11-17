@@ -23,7 +23,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
   - [x] APK debug y build Windows compilan
   - [ ] **Pendiente de prueba en dispositivo**: mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano
-- [ ] **Spike 3 — Térmica Bluetooth (Android)** (en curso, rama `phase-0/spike-printing`; falta la prueba con papel): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas
+- [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 4 — Térmica USB (Windows)**: imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4**: PDF de nota de pedido impreso en la Epson L460
 - [ ] **Spike 6 — drift + outbox**: crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
@@ -160,3 +160,25 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - **Fotos del papel** de cada impresión (tomadas con la tablet, para que Claude las lea desde la galería) y el **CSV** de la pantalla.
 - La foto de la etiqueta ya no hace falta: la autoprueba dio el modelo y el firmware.
 - **Docker no hace falta mañana**: el Spike 3 no usa el servidor ni la base. Hará falta en el **Spike 6** (drift + outbox contra el servidor local). El contenedor de PostgreSQL (`la-esquinita-org-nika-db-1`) quedó corriendo; se puede apagar con `docker compose down` sin perder datos (volumen `pgdata`) y volver a levantar con `docker compose up -d`.
+
+### 2026-11-17 — Spike 3: prueba con papel (rama `phase-0/spike-printing`, sin fusionar)
+
+**Se hizo**
+
+- El usuario imprimió en la Éterma desde la tablet: la página de códigos, el ticket como texto y como imagen, varias combinaciones de bloque y pausa, y dos reconexiones automáticas. Mandó las fotos por Quick Share (`Download/Quick Share`, no `DCIM/Camera`) y pegó el CSV (Samsung Notes no se puede leer por `adb`).
+- Página de códigos: **PC850** (también sirven PC858 y WPC1252; PC437 no tiene ÁÉÍÓÚ). Ya era el valor por defecto.
+- Envío: **4096 B / 10 ms** imprime texto e imagen completos y limpios (texto en 22 ms, imagen en 136 ms, frente a 716 ms y 4,5 s con 256/20). Ahora es el valor por defecto en `PrintSettings`, y la pantalla del spike lo toma de ahí.
+- Resultados completos y CSV en `docs/informes/fase-0.md` → *Resultados en dispositivo*.
+- Pruebas de la app: 60 en verde; formato y `analyze --fatal-infos` sin problemas.
+
+**Quedó sin probar o anotado**
+
+- El mensaje de error al pulsar con la impresora **todavía apagada** no se probó en el dispositivo (solo las pruebas automáticas).
+- Recorte pequeño en dos líneas del ticket como imagen (con 256/20). El usuario lo aceptó; no se investigó.
+- Para después: un espacio que no se parta entre la cantidad y la unidad ("250 g").
+
+**Siguiente paso exacto**
+
+1. El usuario revisa y aprueba el Spike 3.
+2. Claude abre el PR de `phase-0/spike-printing` a `main` (lo fusiona el usuario).
+3. Spike 4: térmica por USB en Windows.

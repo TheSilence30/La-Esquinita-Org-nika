@@ -162,6 +162,54 @@ Abrir **La Esquinita › Spike 3 — Impresión térmica**, con Aqp Print cerrad
    - encenderla y pulsar de nuevo: debe imprimir.
 6. **Copiar resultados (CSV)** y pegarlo en la conversación, junto con las fotos.
 
-### Resultados en dispositivo
+### Resultados en dispositivo (2026-11-17, usuario con la Tab A11 y la Éterma)
 
-_Pendiente._
+Fotos en la tablet (`Download/Quick Share/20261117_142137.jpg`, `20261117_142102.jpg`, `20261117_152031 (2).jpg`) y CSV de la pantalla, pegado en la conversación (copiado abajo).
+
+**Página de códigos** (foto de la hoja de prueba):
+
+| Página | ÁÉÍÓÚ | ñÑ üÜ ¿¡ ° S/ |
+| --- | --- | --- |
+| PC437 (`ESC t 0`) | ❌ salen sin tilde (`AEIOU`), como se esperaba | ✅ |
+| **PC850 (`ESC t 2`)** | ✅ | ✅ |
+| PC858 (`ESC t 19`) | ✅ | ✅ |
+| WPC1252 (`ESC t 16`) | ✅ | ✅ |
+
+Decisión: **PC850** (ya era el valor por defecto).
+
+**Envío por bloques** (`send_ms` mide el tiempo de escritura en el socket, no el de impresión):
+
+| Trabajo | Bytes | 256 B / 20 ms | 1024 / 20 | 4096 / 20 | **4096 / 10** | 4096 / 50 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Ticket como texto | 9010 | 716 ms | 166 ms | 41 ms | **22 ms** (2 veces) | — |
+| Ticket como imagen | 55 552 | 4487 ms | — | 264 ms | **136 ms** | 655 ms |
+
+- Con **4096 B / 10 ms** el usuario confirmó que el texto y la imagen salen completos y limpios. Desde ahora es el valor por defecto (`PrintSettings`).
+- Ticket como texto (foto de las 15:19): salen bien el logo, la leyenda, las tildes, la ñ y la ü en minúscula y mayúscula, y los importes `S/` alineados; llega hasta "Línea 40 de 40 – fin".
+- Ticket como imagen (foto de las 14:20, con 256/20): salen bien el logo y el texto. "Línea 37" y "Cliente: …" salieron con un pequeño recorte horizontal; el usuario lo dio por aceptable. **No se investigó la causa**; vigilarlo si se usa el ticket como imagen en producción.
+- Conexión: 2,0 s la primera vez y 744–807 ms al reconectar.
+
+**Reconexión**: dos veces (`reconnected=1`) la impresora se había apagado y vuelto a encender después del último ticket; la app reconectó sola y el ticket salió una vez, sin duplicarse. **Sin probar en el dispositivo:** pulsar con la impresora todavía apagada (el mensaje de error). En el CSV no hay ninguna fila con error; solo lo cubren las pruebas automáticas.
+
+**Mejora para después (fuera del spike):** al partir las líneas largas, la unidad queda separada del número ("Villa Rica 250" / "g", "Oxapampa 1" / "kg"). Usar un espacio que no se parta entre la cantidad y la unidad.
+
+CSV:
+
+```csv
+at_utc,job,bytes,connect_ms,send_ms,chunk,delay_ms,code_page,reconnected,error
+2026-11-17T19:20:30.968741Z,image,55552,2028,4487,256,20,,0,
+2026-11-17T19:21:02.738532Z,codePages,657,,41,256,20,,0,
+2026-11-17T19:21:28.186981Z,text,9010,,716,256,20,pc850,0,
+2026-11-17T20:17:11.269235Z,text,9010,744,717,256,20,pc850,1,
+2026-11-17T20:17:53.256127Z,text,9010,,716,256,20,pc850,0,
+2026-11-17T20:19:24.827406Z,text,9010,,41,4096,20,pc850,0,
+2026-11-17T20:19:41.408211Z,text,9010,,42,4096,20,pc850,0,
+2026-11-17T20:19:55.436648Z,text,9010,,166,1024,20,pc850,0,
+2026-11-17T20:20:46.870163Z,image,55552,,264,4096,20,,0,
+2026-11-17T20:21:00.517623Z,image,55552,,136,4096,10,,0,
+2026-11-17T20:21:25.018337Z,image,55552,,655,4096,50,,0,
+2026-11-17T20:22:38.987842Z,text,9010,,22,4096,10,pc850,0,
+2026-11-17T20:23:10.357702Z,text,9010,807,22,4096,10,pc850,1,
+```
+
+**Estado: Spike 3 pendiente de aprobación del usuario.**
