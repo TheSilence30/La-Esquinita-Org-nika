@@ -179,6 +179,6 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Siguiente paso exacto**
 
-1. El usuario revisa y aprueba el Spike 3.
-2. Claude abre el PR de `phase-0/spike-printing` a `main` (lo fusiona el usuario).
+1. ~~El usuario revisa y aprueba el Spike 3.~~ Aprobado el 2026-11-17.
+2. ~~Claude abre el PR.~~ PR #3 abierto; falta que el usuario lo fusione.
 3. Spike 4: térmica por USB en Windows.
