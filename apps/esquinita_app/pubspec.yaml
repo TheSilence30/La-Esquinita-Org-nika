@@ -13,6 +13,8 @@ dependencies:
   esquinita_core:
     path: ../../packages/esquinita_core
   mobile_scanner: ^7.5.0
+  win32: ^6.4.0
+  ffi: ^2.2.0
 
 dev_dependencies:
   flutter_test:

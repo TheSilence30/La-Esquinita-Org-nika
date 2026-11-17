@@ -2,6 +2,8 @@ import 'dart:typed_data';
 
 import 'package:esquinita_app/devices/printer/printer_transport.dart';
 import 'package:esquinita_app/devices/printer/usb_printer_transport.dart';
+import 'package:esquinita_app/devices/printer/win_usbprint.dart'
+    show hardwareIdOf;
 import 'package:esquinita_app/features/printing/application/print_job_runner.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -51,8 +53,9 @@ class FakeUsbApi implements UsbPrintApi {
 
   @override
   Future<int> write(int handle, Uint8List bytes) async {
-    if (!_live.contains(handle))
-      throw const UsbPrintException('WriteFile', 1167);
+    if (!_live.contains(handle)) {
+      throw const UsbPrintException('WriteFile', 1167); // device not connected
+    }
     final limit = failAfter;
     if (limit != null && received.length + bytes.length > limit) {
       final n = limit - received.length;
@@ -75,6 +78,18 @@ Uint8List ticket(int n) => Uint8List.fromList(List.generate(n, (i) => i % 251));
 
 void main() {
   const timeout = Duration(seconds: 8);
+
+  test('reads the hardware id from a Windows device path', () {
+    // Path as listed on the dev PC (2026-11-17).
+    expect(
+      hardwareIdOf(
+        r'\\?\usb#vid_0483&pid_5743#5&6542b1d&0&2#'
+        '{28d78fad-5a12-11d1-ae5b-0000f803a8c2}',
+      ),
+      etermaUsbHardwareId,
+    );
+    expect(hardwareIdOf(r'\\?\root#printer#0000'), isNull);
+  });
 
   test('lists printers once per hardware id, addressed by it', () async {
     final api = FakeUsbApi()..plug('usb#vid_0483&pid_5743#other');
