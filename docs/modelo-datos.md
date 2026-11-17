@@ -283,18 +283,24 @@ El reembolso: si `refund_mode = money`, un `cash_movement` (−) con `refund_met
 | Columna | Tipo | Notas |
 | --- | --- | --- |
 | id | uuid PK | |
-| host_device_id | uuid FK → devices | El **equipo de caja** que la abrió |
 | status | text | `open` \| `closed` |
 | opened_by, opened_at | | |
+| opened_device_id | uuid FK → devices | Equipo desde el que se abrió |
+| opened_offline | boolean | `true` si la abrió sin conexión el equipo de caja de respaldo |
 | opening_float_cents | bigint | Fondo inicial |
 | closed_by, closed_at | | nullable |
-| expected_cash_cents | bigint | nullable; foto del esperado al cerrar |
+| closed_device_id | uuid FK → devices | nullable |
+| closed_offline | boolean | |
+| expected_cash_cents | bigint | nullable; **calculado por el servidor** con los movimientos de todos los equipos |
+| device_expected_cash_cents | bigint | nullable; el esperado que mostró el equipo al cerrar sin conexión |
 | counted_cash_cents | bigint | nullable; arqueo |
-| difference_cents | bigint | nullable |
+| difference_cents | bigint | nullable; contado − esperado del servidor |
+| pending_at_close | jsonb | nullable; foto por equipo de última sincronización y pendientes al cerrar |
+| close_override_reason | text | nullable; motivo si se cerró con ventas sin enviar |
 | closing_notes | text | nullable |
 | UQ | | Índice único parcial `ON cash_sessions ((true)) WHERE status = 'open'`: **una sola sesión abierta** |
 
-**`cash_session_events`** (Op): `id` PK, `session_id` FK, `kind` `reopen` \| `late_movement`, `reason`, `authorized_by`. Un cierre nunca se edita: se reabre con permiso o se registra el movimiento tardío.
+**`cash_session_events`** (Op): `id` PK, `session_id` FK, `kind` `reopen` \| `late_movement` \| `merged_offline_session`, `reason`, `authorized_by`. Un cierre nunca se edita: se reabre con permiso o se registra el movimiento tardío.
 
 **`cash_movements`** (Op)
 
@@ -382,11 +388,24 @@ Siempre se imprime con la leyenda “Documento interno – no válido como compr
 | platform | text | `android` \| `windows` |
 | series_prefix | text UQ | `T1`, `P1`, … |
 | barcode_digit | int UQ | 0–9; dígito del equipo en los códigos generados (§3.6) |
-| last_push_at | timestamptz | nullable; último envío recibido (servidor) |
+
+**`device_sync_status`** (solo servidor; la consulta la pantalla de cierre de caja)
+
+| Columna | Tipo | Notas |
+| --- | --- | --- |
+| device_id | uuid PK, FK → devices | |
+| last_push_at | timestamptz | Último envío recibido |
+| last_pull_at | timestamptz | Última bajada |
+| last_heartbeat_at | timestamptz | Último latido |
+| pending_ops | int | Comandos pendientes que informó el equipo |
+| pending_sales | int | De ellos, ventas (y cobros) |
+| reported_at | timestamptz | Hora del servidor del último informe |
+
+Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` junto a `commands`) y en un **latido** `POST /sync/heartbeat` cada 60 s mientras tiene conexión.
 
 **`document_series`**: `device_id` FK, `doc_type` `sale` \| `order_note` \| `barcode`, `next_number` bigint; PK `(device_id, doc_type)`. Cada dispositivo numera solo sus series, también sin conexión.
 
-**`settings`** (M): `key` text PK, `value` jsonb. Datos del negocio (`TODO(config)`), `sales.mixed_payments`, `order_notes.reserve_stock`, `inventory.expiry_warning_days`, `cash.host_device_id`, límites de descuento.
+**`settings`** (M): `key` text PK, `value` jsonb. Datos del negocio (`TODO(config)`), `sales.mixed_payments`, `order_notes.reserve_stock`, `inventory.expiry_warning_days`, `cash.backup_device_id` (equipo de caja de respaldo; por defecto la tablet), límites de descuento.
 
 **`audit_log`** (solo servidor): `id` PK, `at`, `user_id`, `device_id`, `action` (`sales.void`, `sales.discount`, `catalog.change_price`, `inventory.adjust`, `cash.close`, …), `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `reason`, `authorized_by`, `op_id`. Lo escribe el servidor al aplicar cada comando, en la misma transacción.
 
@@ -401,7 +420,7 @@ Siempre se imprime con la leyenda “Documento interno – no válido como compr
 | Columna | Tipo | Notas |
 | --- | --- | --- |
 | id | uuid PK | |
-| type | text | `negative_stock` \| `duplicate_barcode` \| `duplicate_customer_doc` \| `stale_price` \| `closed_cash_session` \| `unassigned_cash_movement` |
+| type | text | `negative_stock` \| `duplicate_barcode` \| `duplicate_customer_doc` \| `stale_price` \| `closed_cash_session` \| `unassigned_cash_movement` \| `duplicate_cash_session` |
 | op_id | uuid FK → sync_inbox | Comando que lo generó |
 | entity_type, entity_id | | |
 | details | jsonb | |
@@ -460,21 +479,43 @@ Siempre se imprime con la leyenda “Documento interno – no válido como compr
 - El dispositivo recibe `product_costs` en la bajada y guarda en cada `sale_items.unit_cost_cents` **el promedio que conoce en ese momento**. Si estaba desactualizado, la utilidad de esa venta usa ese valor; no se reescribe.
 - Devoluciones `restock` vuelven al costo de la venta y **no** alteran el promedio. Mermas usan el costo del ítem vendido o el promedio vigente.
 
-### 3.5 Una sola caja compartida, sin conexión (propuesta)
+### 3.5 Una sola caja compartida, con PC y tablet a la vez
 
-La tienda tiene un solo cajón físico. La caja vive en **un equipo designado**, el **equipo de caja** (`settings.cash.host_device_id`; por defecto, la tablet).
+La tienda tiene un solo cajón físico y **una sola sesión de caja abierta** a la vez. PC y tablet trabajan al mismo tiempo sobre ella.
 
-| Acción | Dónde | ¿Sin conexión? |
+| Acción | Con conexión al servidor | Sin conexión |
 | --- | --- | --- |
-| Abrir caja (`OpenCash`), ingresos/egresos/retiros (`RecordCashMovement`), gastos del cajón (`RecordExpense`), arqueo y cierre (`CloseCash`) | **Solo en el equipo de caja** | Sí: es el único que abre y cierra, así que no hay dos sesiones en competencia |
-| Vender y cobrar | Cualquier equipo | Sí |
-| Reabrir caja (`ReopenCash`) | Equipo de caja, con permiso `cash.reopen` | No: requiere conexión y queda auditado |
-| Cambiar el equipo de caja | Dueño, con la caja cerrada | No |
+| Abrir caja (`OpenCash`) | **Cualquier equipo**, con permiso `cash.open` | Solo el **equipo de caja de respaldo** (`settings.cash.backup_device_id`; por defecto la tablet, configurable) |
+| Arqueo y cierre (`CloseCash`) | **Cualquier equipo**, con permiso `cash.close` | Solo el equipo de caja de respaldo |
+| Reabrir caja (`ReopenCash`) | Cualquier equipo, con permiso `cash.reopen` | No |
+| Ingresos, egresos, retiros (`RecordCashMovement`), gastos del cajón (`RecordExpense`) | Cualquier equipo, en la sesión abierta | Cualquier equipo que conozca la sesión abierta |
+| Vender y cobrar | Cualquier equipo | Cualquier equipo |
+| Cambiar el equipo de respaldo | Administrador, con la caja cerrada | No |
 
-- **Ventas en la PC:** el dinero en efectivo va al mismo cajón. El `cash_movement` lleva el `session_id` de la sesión abierta que la PC conoce por la bajada. Si la PC no la conoce (sin conexión cuando se abrió), lo envía con `session_id = NULL` y el servidor lo asigna a la sesión abierta en ese momento. Si no hay ninguna → conflicto `unassigned_cash_movement`.
-- **Cierre:** el equipo de caja calcula el esperado con sus movimientos y los de los otros equipos que ya bajó. **Avisa** si otro equipo tiene envíos atrasados (según `devices.last_push_at`) antes de cerrar.
-- **Movimiento que llega después del cierre:** el cierre no se modifica. Se registra `cash_session_events` (`late_movement`) y un conflicto `closed_cash_session`. El Dueño lo revisa y lo asigna a la siguiente sesión, que lo muestra como “ajuste por sincronización tardía”.
-- El servidor garantiza **una sola sesión abierta** con el índice único parcial de `cash_sessions`.
+**Con conexión: el servidor decide**
+
+- `OpenCash`, `CloseCash` y `ReopenCash` se envían **en línea** (no esperan en el `outbox`). El servidor los aplica uno a la vez (bloqueo de fila sobre la sesión abierta, dentro de la transacción) y el índice único parcial garantiza una sola sesión abierta. Si dos equipos intentan abrir a la vez, uno la abre y el otro recibe “La caja ya fue abierta por …” y pasa a usarla.
+- El **esperado** lo calcula el servidor con los `cash_movements` de **todos los equipos**: fondo inicial + Σ movimientos con medio `affects_cash_drawer = true`. Los demás medios se muestran aparte.
+
+**Estado de los equipos al cerrar**
+
+- La pantalla de cierre consulta `device_sync_status` y muestra, por equipo, **la última sincronización y sus operaciones pendientes**.
+- Si algún equipo informa **ventas o cobros sin enviar** (o no informa desde hace más de 2 min), avisa y **ofrece esperar**: la pantalla se actualiza sola hasta que los pendientes lleguen a 0.
+- Cerrar de todos modos exige escribir un motivo (`close_override_reason`), queda en `audit_log` y guarda la foto en `pending_at_close`.
+
+**Sin conexión: el equipo de caja de respaldo**
+
+- Solo ese equipo puede abrir o cerrar sin conexión; los comandos van a su `outbox`. En el cierre muestra un esperado **local** (sus movimientos + los de otros equipos que ya había bajado) y avisa que es provisional; se guarda en `device_expected_cash_cents`. Al llegar el comando, el servidor recalcula `expected_cash_cents` y la diferencia oficial.
+- Si al llegar su `OpenCash` ya hay otra sesión abierta (abierta en línea desde otro equipo), el servidor **no crea una segunda**: sus movimientos se asignan a la sesión abierta (es el mismo cajón), se registra `cash_session_events` (`merged_offline_session`) y un conflicto `duplicate_cash_session` para que el Administrador revise el fondo inicial.
+- Los demás equipos siguen vendiendo y cobrando sin conexión.
+
+**Efectivo cobrado sin conocer una caja abierta**
+
+- Si un equipo cobra en efectivo y no conoce ninguna sesión abierta, **avisa en pantalla** (“No hay una caja abierta conocida; el cobro se asignará al sincronizar”) y envía el `cash_movement` con `session_id = NULL`. El servidor lo asigna a la sesión abierta en ese momento; si no hay ninguna → conflicto `unassigned_cash_movement`.
+
+**Movimiento que llega después del cierre**
+
+- El cierre no se modifica. Se registra `cash_session_events` (`late_movement`) y un conflicto `closed_cash_session`. El Administrador lo revisa y lo asigna a la siguiente sesión, que lo muestra como “ajuste por sincronización tardía”.
 
 ### 3.6 Códigos de barras generados
 
@@ -490,19 +531,39 @@ La tienda tiene un solo cajón físico. La caja vive en **un equipo designado**,
 
 ---
 
-## 4. Roles (propuesta)
+## 4. Roles y vistas
 
-Al inicio hay **un solo usuario** (Dueño). El modelo de roles queda listo para tres roles de la tienda, con accesos y pantalla inicial distintos. Los roles son datos: se pueden ajustar sin migraciones.
+Al inicio hay **un solo usuario** (Administrador). Los roles se definen **por vistas**: cada rol ve solo los módulos de su trabajo. Son datos (`roles`, `role_permissions`): se ajustan sin migraciones. Aprobado por el usuario el 2026-11-17; reemplaza los cuatro roles iniciales de CLAUDE.md §9.
 
-| Rol de la tienda | Equivale a (CLAUDE.md §9) | Puede | No puede | Pantalla inicial |
+| Rol | Vistas | Puede | No puede | Pantalla inicial |
 | --- | --- | --- | --- | --- |
-| **Dueño** | Administrador + Supervisor | Todo: precios, anulaciones, ajustes de stock, reabrir caja, ver costos y utilidad, reportes, usuarios, resolver conflictos | — | Dashboard |
-| **Trabajador** | Cajero + Inventario | Vender (contado y crédito), descuentos dentro del límite, devoluciones, abrir/cerrar caja, gastos, cobrar, recibir compras, conteos, alta de productos y clientes | Anular ventas, cambiar precios, ajustes de stock, reabrir caja, ver costos/utilidad, usuarios | Vender |
-| **Asistente** | Cajero restringido | Vender al contado, notas de pedido, escanear, consultar precios y stock | Crédito, descuentos, devoluciones, caja (más allá de cobrar en la sesión abierta), compras, inventario | Vender |
+| **Administrador** | Todas | Todo: dashboard, reportes, costos y utilidad, catálogo y precios, compras, anulaciones, ajustes de stock, reabrir caja, usuarios, ajustes, resolver conflictos | — | Dashboard |
+| **Trabajo** | Vender, Escanear, Inventario (stock), Pedidos, Clientes, Caja del turno | Vender y cobrar, notas de pedido, consultar stock, conteos, **recibir compras sin ver costos**, alta de productos y clientes por escaneo, abrir y cerrar caja, gastos del cajón | Ver costos, utilidad o reportes; editar productos o precios; anular ventas; ajustes de stock; reabrir caja; usuarios y ajustes | Vender |
 
-**Cambio propuesto a CLAUDE.md §9** (pendiente de aprobación): reemplazar los roles iniciales “Administrador, Supervisor, Cajero, Inventario” por “Dueño, Trabajador, Asistente”, manteniendo el formato de permisos `modulo.accion`. Supervisor e Inventario podrían volver a crearse como datos si la tienda crece.
+- Una acción fuera del rol (anular, precio especial, descuento mayor) puede hacerse en el mismo equipo si un Administrador **autoriza con su PIN**; queda en `authorized_by` y en `audit_log`.
+- **Recibir compras sin ver costos:** la pantalla de recepción del rol Trabajo muestra productos, cantidades, lotes y vencimientos, pero no costos ni totales; los costos vienen de la compra creada por el Administrador.
+- Las vistas se derivan de permisos `*.view`; el resto, de permisos `modulo.accion`.
 
-Permisos iniciales: `sales.create`, `sales.credit`, `sales.discount`, `sales.change_price`, `sales.void`, `sales.return`, `order_notes.create`, `cash.open`, `cash.close`, `cash.reopen`, `cash.movement`, `cash.expense`, `catalog.create`, `catalog.edit`, `catalog.view_cost`, `inventory.view`, `inventory.adjust`, `inventory.count`, `purchases.manage`, `purchases.receive`, `customers.create`, `customers.edit`, `customers.credit_limit`, `customers.payment`, `reports.view`, `reports.profit`, `users.manage`, `settings.manage`, `sync.resolve_conflicts`.
+Permisos iniciales:
+
+| Permiso | Administrador | Trabajo |
+| --- | :---: | :---: |
+| `dashboard.view`, `reports.view`, `reports.profit` | ✔ | |
+| `sales.view`, `sales.create`, `order_notes.create` | ✔ | ✔ |
+| `sales.credit`, `sales.return` | ✔ | ✔ |
+| `sales.discount` (dentro del límite) | ✔ | ✔ |
+| `sales.change_price`, `sales.void` | ✔ | con PIN de Administrador |
+| `cash.view`, `cash.open`, `cash.close`, `cash.movement`, `cash.expense` | ✔ | ✔ |
+| `cash.reopen` | ✔ | |
+| `catalog.view`, `catalog.create` | ✔ | ✔ |
+| `catalog.edit`, `catalog.view_cost` | ✔ | |
+| `inventory.view`, `inventory.count` | ✔ | ✔ |
+| `inventory.adjust` | ✔ | con PIN de Administrador |
+| `purchases.receive` | ✔ | ✔ (sin costos) |
+| `purchases.manage` | ✔ | |
+| `customers.view`, `customers.create`, `customers.payment` | ✔ | ✔ |
+| `customers.edit`, `customers.credit_limit` | ✔ | |
+| `users.manage`, `settings.manage`, `sync.resolve_conflicts` | ✔ | |
 
 ---
 
@@ -525,7 +586,7 @@ Permisos iniciales: `sales.create`, `sales.credit`, `sales.discount`, `sales.cha
 | payment_methods, expense_categories | ✔ | ✔ réplica | Bajada |
 | cash_sessions | ✔ | ✔ sesión abierta + propias | Bajada |
 | cash_session_events | ✔ | ✔ propios | Locales |
-| cash_movements, expenses | ✔ | ✔ propios; el equipo de caja baja también los de otros equipos de la sesión abierta | Locales + bajada |
+| cash_movements, expenses | ✔ | ✔ propios + los de otros equipos en la sesión abierta (para el esperado provisional del equipo de respaldo) | Locales + bajada |
 | customers | ✔ | ✔ réplica | Bajada |
 | customer_ledger, customer_payments(+allocations) | ✔ | ✔ propios + saldo por cliente | Bajada de saldos |
 | order_notes(+items), stock_reservations | ✔ | ✔ propias + emitidas pendientes | Locales + bajada |
@@ -534,7 +595,7 @@ Permisos iniciales: `sales.create`, `sales.credit`, `sales.discount`, `sales.cha
 | devices | ✔ | ✔ réplica | Bajada |
 | document_series | ✔ | ✔ **solo las propias** | Las numera el propio equipo |
 | settings | ✔ | ✔ réplica | Bajada |
-| audit_log, refresh_tokens, sync_inbox, sync_conflicts, sync_log | ✔ | — | — |
+| audit_log, refresh_tokens, sync_inbox, sync_conflicts, sync_log, device_sync_status | ✔ | — | — |
 | outbox, sync_state, local_settings | — | ✔ | — |
 
 ---
@@ -556,11 +617,12 @@ Todos los comandos usan el sobre `SyncCommand` (`op_id`, `device_id`, `user_id`,
 | Crear / cancelar compra | `CreatePurchase` / `CancelPurchase` | purchases, purchase_items | No |
 | Recibir compra | `ReceivePurchase` | purchase_receipts, receipt_lines, lots, stock_movements, stock_balances, product_costs (servidor), supplier_ledger `charge`, purchases.status | Sí |
 | Pago a proveedor | `RegisterSupplierPayment` | supplier_payments(+allocations), supplier_ledger, cash_movements (si sale del cajón) | Sí |
-| Abrir caja | `OpenCash` | cash_sessions, cash_movements `opening_float` | Sí, solo el equipo de caja |
-| Ingreso/egreso/retiro | `RecordCashMovement` | cash_movements | Sí, solo el equipo de caja |
+| Abrir caja | `OpenCash` | cash_sessions, cash_movements `opening_float` | En línea desde cualquier equipo; sin conexión solo el equipo de respaldo |
+| Ingreso/egreso/retiro | `RecordCashMovement` | cash_movements | Sí, cualquier equipo que conozca la sesión abierta |
 | Gasto | `RecordExpense` | expenses, cash_movements (si sale del cajón) | Sí |
-| Cerrar caja | `CloseCash` | cash_sessions (cierre y arqueo) | Sí, solo el equipo de caja |
-| Reabrir caja | `ReopenCash` | cash_session_events, audit_log | No, con permiso `cash.reopen` |
+| Cerrar caja | `CloseCash` | cash_sessions (cierre, arqueo, esperado del servidor, `pending_at_close`), audit_log | En línea desde cualquier equipo; sin conexión solo el equipo de respaldo |
+| Reabrir caja | `ReopenCash` | cash_session_events, audit_log | No (en línea, permiso `cash.reopen`) |
+| Estado del equipo | `POST /sync/heartbeat` y campo `status` del push | device_sync_status | — (solo con conexión) |
 | Cliente nuevo | `CreateCustomer` | customers | Sí; documento repetido → `duplicate_customer_doc` |
 | Editar cliente / límite de crédito | `UpdateCustomer` | customers, audit_log | No |
 | Cobro a cliente | `RegisterCustomerPayment` | customer_payments(+allocations), customer_ledger, cash_movements | Sí |
@@ -616,7 +678,8 @@ erDiagram
     sale_returns ||--|{ sale_return_items : items
     sale_items ||--o{ sale_return_items : devuelve
 
-    devices ||--o{ cash_sessions : "equipo de caja"
+    devices ||--o{ cash_sessions : "abre / cierra"
+    devices ||--|| device_sync_status : informa
     cash_sessions ||--o{ cash_movements : movimientos
     cash_sessions ||--o{ cash_session_events : eventos
     payment_methods ||--o{ cash_movements : medio
@@ -645,7 +708,7 @@ Las columnas comunes (`op_id`, `device_id`, `user_id`, `occurred_at`) relacionan
 
 ## 8. Pendientes y decisiones abiertas
 
-- **Aprobación del usuario** de este modelo y del cambio de roles en CLAUDE.md §9 (§4).
+- **Aprobación del usuario** de este modelo (los roles de §4 ya están aprobados y aplicados en CLAUDE.md §9).
 - Datos del negocio para `settings` y el seed (`TODO(config)`): RUC si se mostrará, teléfono, WhatsApp, mensaje del ticket.
 - Límites de descuento por rol (monto o porcentaje).
 - Ventana de ventas de otros equipos que baja cada dispositivo (propuesta: 30 días) para devoluciones.
