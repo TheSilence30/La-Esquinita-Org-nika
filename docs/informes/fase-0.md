@@ -328,7 +328,7 @@ En la tablet, abrir **La Esquinita › Spike 6 — Sincronización**, escribir `
 3. **Servidor encendido** (Claude lo levanta): pulsar **Sincronizar**. Debe decir *Sincronizado* y las 3 operaciones, *aplicada*.
 4. **Reenviar todo**: cada operación debe decir *respuesta: duplicado* y seguir *aplicada*.
 5. **Corte a la mitad:** activar **Envío lento**, pulsar **Crear 30** y **Sincronizar**, y a los 3–5 s activar el **modo avión**. Debe salir el error, con parte de las operaciones *aplicada* y el resto *pendiente*. Quitar el modo avión, esperar el Wi‑Fi y pulsar **Sincronizar**: debe decir *Sincronizado*.
-6. **En la PC** (cuando el build de Windows funcione): repetir los pasos 1 a 4 con `http://127.0.0.1:8080`.
+6. **En la PC**: repetir los pasos 1 a 4 con `http://192.168.18.12:8080` (el servidor solo escucha en esa dirección, no en `127.0.0.1`).
 7. Claude verifica en PostgreSQL que por cada equipo haya **exactamente** tantas filas como operaciones se crearon (33 de la tablet), sin duplicados.
 
 ### Resultados en dispositivo

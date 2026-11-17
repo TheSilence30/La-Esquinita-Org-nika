@@ -227,8 +227,20 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - El build de Windows necesita el **Modo de desarrollador** de Windows.
 - La tablet tiene que estar conectada por USB para instalar el APK.
 
+**Tareas para la Fase 1 (pedidas por el usuario el 2026-11-17)**
+
+- [ ] Detectar al instante cuando vuelve la conexión y sincronizar en ese momento, sin esperar los 30 s.
+- [ ] Limitar el tamaño de las solicitudes en el servidor (hoy solo se limita la cantidad: 100 comandos).
+- [ ] Autenticación del servidor: hoy, mientras está encendido, cualquiera en la red local podría enviarle operaciones.
+- [ ] Sincronizar cada 30 s solo cuando haya operaciones pendientes, y espaciar el chequeo cuando no haya nada que enviar.
+
+**Preparación de la prueba en hardware (2026-11-17)**
+
+- El usuario marcó la Wi‑Fi como privada, creó la regla del firewall (TCP 8080, solo perfil privado y solo la subred local) y activó el Modo de desarrollador; el build de Windows ya compila.
+- APK instalado en la tablet (`192.168.18.15`). Desde la tablet, `GET /health` al servidor en `192.168.18.12:8080` respondió `ok`.
+
 **Siguiente paso exacto**
 
-1. El usuario ejecuta los comandos de administrador y activa el Modo de desarrollador.
+1. ~~El usuario ejecuta los comandos de administrador y activa el Modo de desarrollador.~~ Hecho.
 2. Claude levanta el servidor en `192.168.18.12:8080`, instala el APK y el usuario sigue el protocolo del Spike 6 en `docs/informes/fase-0.md`.
 3. Claude verifica las filas en PostgreSQL, completa los resultados y abre el PR.
