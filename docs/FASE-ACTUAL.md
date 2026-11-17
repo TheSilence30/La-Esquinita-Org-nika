@@ -25,7 +25,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano
 - [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
 - [ ] **Spike 4 — Térmica USB (Windows)**: imprimir el mismo ticket por USB
-- [ ] **Spike 5 — A4**: PDF de nota de pedido impreso en la Epson L460
+- [ ] **Spike 5 — A4**: PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox**: crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
 - [ ] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos)
