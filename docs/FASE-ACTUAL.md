@@ -321,3 +321,46 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Pendiente**
 
 - Elegir el paquete para XLSX en la Fase 6 (requiere aprobación de dependencia). El PDF usa `pdf` + `printing`, ya en el stack.
+
+### 2026-11-17 (cierre del día) — Prototipo: arreglos del carrito y del catálogo (rama `phase-0/prototype`, PR #8 abierto, sin fusionar)
+
+**Se arregló hoy** (commits `795bc9b` y `498cef8`, tras las capturas del usuario en la tablet)
+
+- **Nombres de productos** apretados, ilegibles o cortados en la cuadrícula de la tablet:
+  - las columnas se calculan según el ancho que deja el carrito (tarjetas de hasta 210 dp);
+  - el nombre ocupa hasta 3 líneas con letra de 15 px y termina en “…” si no cabe;
+  - el panel del carrito en horizontal ocupa el 38 % del ancho (entre 320 y 420 dp), en lugar de 400 dp fijos.
+- **Eliminar una línea:** botón rojo de papelera en cada línea del carrito, también en las de productos por peso, que antes no se podían quitar.
+- **Deslizar para quitar:** deslizar la línea hacia la izquierda la elimina.
+- **Vaciar venta:** botón con confirmación (“¿Vaciar la venta?”) en el celular, en la tablet (vertical y horizontal) y en la PC.
+- **Importe del botón Cobrar:** en el celular crecía con el total y tapaba el botón del carrito (desborde de 14 px). Ahora los dos botones comparten el ancho (2:3) y el importe se achica para caber.
+- También: los indicadores de caja y sincronización ya no se repiten en el Dashboard. La cabecera del carrito se adapta si no hay espacio.
+- Pruebas: app 115 en verde, incluida una nueva de eliminar, deslizar y vaciar a 360×640 y 893×533. `analyze` sin problemas.
+
+**Falta verificar en dispositivo**
+
+- **Tablet SM-X133:** el APK con estos arreglos quedó instalado, pero la tablet se bloqueó y Claude no pudo ver la pantalla. Falta revisar los nombres en vertical y en horizontal, y probar eliminar, deslizar y vaciar.
+- **Celular SM-A576B:** sigue con una versión anterior (sin los arreglos de hoy de la tarde). Hay que reinstalar y revisar el POS, la barra de cobro con totales grandes y el carrito.
+- **Sonido y vibración al escanear:** no se confirmó en ningún equipo con un escaneo real con la cámara. En el celular, el volumen multimedia estaba en 3/15.
+
+**Observaciones del usuario pendientes**
+
+- Ninguna sin atender. Todo lo que pidió hoy está hecho y falta que lo confirme en los equipos:
+  - precio por kg editable;
+  - sonido y vibración;
+  - interruptores;
+  - nombres legibles;
+  - eliminar, deslizar y vaciar.
+- Decisión del usuario: las **mejoras visuales generales** quedan para la versión final.
+
+**Siguiente paso exacto (mañana)**
+
+1. El usuario conecta la tablet (desbloqueada) y el celular. Claude instala el APK actual en los dos.
+2. El usuario revisa en la tablet (vertical y horizontal) y en el celular:
+   - nombres de productos;
+   - eliminar, deslizar y vaciar;
+   - botón Cobrar con un total grande;
+   - pitido y vibración al escanear un producto del catálogo de ejemplo (por ejemplo la quinua `7750543400036`) y un código desconocido.
+3. Claude atiende las observaciones, actualiza los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
+4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada**. Spikes 1, 3 y 6 y el modelo de datos ya están aprobados.
+5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.
