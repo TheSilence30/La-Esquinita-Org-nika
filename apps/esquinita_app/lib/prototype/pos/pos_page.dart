@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../app/form_factor.dart';
 import '../../app/theme.dart';
+import '../../devices/feedback/scan_feedback.dart';
 import '../../devices/scanner/camera_scan_view.dart';
 import '../checkout/checkout_view.dart';
 import '../demo_data.dart';
@@ -613,12 +616,27 @@ void _showSaleScanner(BuildContext context) {
                 for (final code in codes) {
                   if (!filter.offer(code, elapsed).isAccepted) continue;
                   final hit = store.findByBarcode(code);
-                  final msg = hit == null
-                      ? 'Código $code no registrado'
-                      : hit.product.byWeight
-                      ? '${hit.product.name} se vende por peso: tócalo en la lista para pesarlo'
-                      : store.addToCart(hit.product, hit.presentation, 1000) ??
-                            '${hit.product.name} agregado';
+                  final String? error;
+                  final String msg;
+                  if (hit == null) {
+                    error = msg = 'Código $code no registrado';
+                  } else if (hit.product.byWeight) {
+                    error = null;
+                    msg =
+                        '${hit.product.name} se vende por peso: tócalo en la lista para pesarlo';
+                  } else {
+                    error = store.addToCart(
+                      hit.product,
+                      hit.presentation,
+                      1000,
+                    );
+                    msg = error ?? '${hit.product.name} agregado';
+                  }
+                  unawaited(
+                    error == null
+                        ? ScanFeedback.success()
+                        : ScanFeedback.error(),
+                  );
                   ScaffoldMessenger.of(context)
                     ..hideCurrentSnackBar()
                     ..showSnackBar(
@@ -682,9 +700,11 @@ class _DesktopPosState extends State<_DesktopPos> {
     final hit = store.findByBarcode(_query);
     if (hit != null) {
       if (hit.product.byWeight) {
+        unawaited(ScanFeedback.success());
         await addProductFlow(context, hit.product);
       } else {
         final err = store.addToCart(hit.product, hit.presentation, 1000);
+        unawaited(err == null ? ScanFeedback.success() : ScanFeedback.error());
         if (err != null && mounted) {
           ScaffoldMessenger.of(context)
               .showSnackBar(SnackBar(content: Text(err)));
@@ -693,6 +713,7 @@ class _DesktopPosState extends State<_DesktopPos> {
     } else if (_results(store).firstOrNull case final p?) {
       await addProductFlow(context, p);
     } else if (_query.isNotEmpty && mounted) {
+      unawaited(ScanFeedback.error());
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('Sin resultados para "$_query"')));

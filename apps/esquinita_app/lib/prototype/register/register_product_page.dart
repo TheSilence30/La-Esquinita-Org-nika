@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/form_factor.dart';
 import '../../app/theme.dart';
+import '../../devices/feedback/scan_feedback.dart';
 import '../../devices/scanner/camera_scan_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
@@ -56,6 +59,7 @@ class _RegisterProductPageState extends State<RegisterProductPage> {
           onCameraCodes: (codes, elapsed) {
             for (final c in codes) {
               if (_filter.offer(c, elapsed).isAccepted) {
+                unawaited(ScanFeedback.success());
                 _useCode(c);
                 break;
               }
