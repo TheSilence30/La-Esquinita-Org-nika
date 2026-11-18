@@ -285,8 +285,8 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
     - XLSX: libro con hojas de resumen y detalle;
     - PDF: reporte A4 con KPIs y tablas;
   - **reporte consolidado con filtros y KPIs** (Fase 6).
-- Supuestos de Claude, a confirmar:
-  - en la V1 la carga CSV solo crea productos nuevos;
+- Supuestos de Claude, **confirmados por el usuario**:
+  - en la V1 la carga CSV solo crea productos nuevos. Los precios del CSV son datos iniciales del producto; un cambio masivo de precios no es una operación de negocio de la V1;
   - no se arma maqueta en el prototipo, solo documentación.
 - Modelo de datos: tabla `product_import_batches` y endpoint `POST /catalog/import`.
 - Guía de la plantilla: formato **Texto** para los códigos en Excel.
