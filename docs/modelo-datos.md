@@ -108,6 +108,8 @@ En SQL, dos `NULL` no se consideran iguales, así que una clave única con una c
 
 **`product_suppliers`**: `product_id` FK, `supplier_id` FK, `supplier_code` nullable, `last_cost_cents`; PK `(product_id, supplier_id)`.
 
+**`product_import_batches`** (solo servidor): `id` PK, `user_id`, `device_id`, `file_name`, `rows_total`, `rows_created`, `rows_failed`, `errors` jsonb (fila → motivo), `created_at`. Traza de cada carga masiva por CSV (ESPECIFICACION §29.2); los productos se crean con los mismos pasos que `CreateProduct`, en una transacción por producto.
+
 **`price_changes`** (Op, solo servidor): `id` PK, `presentation_id` FK, `old_retail_cents`, `new_retail_cents`, `old_wholesale_cents`, `new_wholesale_cents`, `reason`.
 
 ### 2.2 Inventario
@@ -612,6 +614,7 @@ Todos los comandos usan el sobre `SyncCommand` (`op_id`, `device_id`, `user_id`,
 | Devolución | `ReturnSale` | sale_returns, sale_return_items, stock_movements (`restock`), stock_losses (`defective`), cash_movements o customer_ledger | Sí, con permiso `sales.return` |
 | Nota de pedido | `CreateOrderNote` / `CancelOrderNote` | order_notes, order_note_items, stock_reservations | Sí |
 | Alta de producto (con código y presentaciones) | `CreateProduct` | products, product_presentations, barcodes, product_costs | Sí; código repetido → `duplicate_barcode` |
+| Carga masiva CSV (productos nuevos) | API directa `POST /catalog/import` (vista previa + confirmación) | products, product_presentations, barcodes, product_costs, lots, stock_movements `initial`, product_import_batches | No (PC con conexión) |
 | Editar producto, presentaciones o precios | `UpdateProduct` / `ChangePrice` | products, product_presentations, barcodes, price_changes, audit_log | No |
 | Ajuste de stock / merma | `AdjustStock` | stock_adjustments(+lines), stock_movements, stock_losses | Sí, con permiso `inventory.adjust` |
 | Conteo físico | `CloseInventoryCount` | inventory_counts(+lines), stock_movements `count` | Sí |
