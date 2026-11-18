@@ -7,16 +7,23 @@ import '../demo_store.dart';
 import '../widgets/common.dart';
 import '../widgets/keypad.dart';
 
-/// Grams to sell. Two directions: weight → price and amount → weight
-/// (docs/modelo-datos.md §3.1), with the presentation's price per kg.
-Future<int?> showWeightCalculator(
+/// Grams to sell and the price per kg to charge. Two directions: weight →
+/// price and amount → weight (docs/modelo-datos.md §3.1). The price per kg
+/// starts at the presentation's and can be changed for this sale.
+typedef WeightPick = ({int grams, int perKgCents});
+
+Future<WeightPick?> showWeightCalculator(
   BuildContext context,
   DemoProduct product, {
   int initialGrams = 0,
-}) => showAdaptiveSheet<int>(
+  int? initialPerKgCents,
+}) => showAdaptiveSheet<WeightPick>(
   context,
-  builder: (_) =>
-      WeightCalculator(product: product, initialGrams: initialGrams),
+  builder: (_) => WeightCalculator(
+    product: product,
+    initialGrams: initialGrams,
+    initialPerKgCents: initialPerKgCents,
+  ),
 );
 
 class WeightCalculator extends StatefulWidget {
@@ -24,10 +31,12 @@ class WeightCalculator extends StatefulWidget {
     super.key,
     required this.product,
     this.initialGrams = 0,
+    this.initialPerKgCents,
   });
 
   final DemoProduct product;
   final int initialGrams;
+  final int? initialPerKgCents;
 
   @override
   State<WeightCalculator> createState() => _WeightCalculatorState();
@@ -35,19 +44,50 @@ class WeightCalculator extends StatefulWidget {
 
 class _WeightCalculatorState extends State<WeightCalculator> {
   late int _grams = widget.initialGrams;
+  late int _perKgCents =
+      widget.initialPerKgCents ?? widget.product.base.retailCents;
   int _amountCents = 0;
   bool _byAmount = false;
 
-  Money get _perKg => Money(widget.product.base.retailCents);
+  /// The keypad edits the price per kg instead of the weight/amount.
+  bool _editingPrice = false;
 
-  int get _resultGrams =>
-      _byAmount ? weightForAmount(Money(_amountCents), _perKg).milli : _grams;
+  int get _defaultPerKg => widget.product.base.retailCents;
+  Money get _perKg => Money(_perKgCents);
+
+  int get _resultGrams => !_byAmount
+      ? _grams
+      : _perKgCents > 0
+      ? weightForAmount(Money(_amountCents), _perKg).milli
+      : 0;
 
   int get _resultCents => priceForWeight(Quantity(_resultGrams), _perKg).cents;
+
+  Widget _field({
+    required Key key,
+    required String label,
+    required String value,
+    required bool focused,
+    required VoidCallback onTap,
+    TextStyle? style,
+  }) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(8),
+    child: InputDecorator(
+      isFocused: focused,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      child: Text(value, key: key, style: style),
+    ),
+  );
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
+    final big = t.headlineSmall!.merge(tabular);
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       child: Column(
@@ -55,8 +95,7 @@ class _WeightCalculatorState extends State<WeightCalculator> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(widget.product.name, style: t.titleMedium),
-          Text('${soles(_perKg.cents)} por kg', style: t.bodyMedium),
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
           SegmentedButton<bool>(
             segments: const [
               ButtonSegment(
@@ -71,49 +110,73 @@ class _WeightCalculatorState extends State<WeightCalculator> {
               ),
             ],
             selected: {_byAmount},
-            onSelectionChanged: (s) => setState(() => _byAmount = s.single),
+            onSelectionChanged: (s) => setState(() {
+              _byAmount = s.single;
+              _editingPrice = false;
+            }),
           ),
           const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE6E0D0)),
-            ),
-            child: Column(
-              children: [
-                Text(
-                  _byAmount
-                      ? 'Monto que pide el cliente'
-                      : 'Peso en la balanza',
-                  style: t.labelLarge,
-                ),
-                Text(
-                  _byAmount ? soles(_amountCents) : '$_grams g',
+          Row(
+            children: [
+              Expanded(
+                child: _field(
                   key: const Key('calc-input'),
-                  style: t.headlineMedium!.merge(tabular),
+                  label: _byAmount ? 'Monto que pide' : 'Peso',
+                  value: _byAmount ? soles(_amountCents) : '$_grams g',
+                  focused: !_editingPrice,
+                  onTap: () => setState(() => _editingPrice = false),
+                  style: big,
                 ),
-                const Divider(),
-                Text(
-                  _byAmount
-                      ? 'Pesar $_resultGrams g  ·  cobrar ${soles(_resultCents)}'
-                      : 'Precio: ${soles(_resultCents)}',
-                  key: const Key('calc-result'),
-                  textAlign: TextAlign.center,
-                  style: t.titleMedium!
-                      .merge(tabular)
-                      .copyWith(color: EsquinitaColors.forest),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _field(
+                  key: const Key('calc-price'),
+                  label: 'Precio por kg',
+                  value: soles(_perKgCents),
+                  focused: _editingPrice,
+                  onTap: () => setState(() => _editingPrice = true),
+                  style: big.copyWith(
+                    color: _perKgCents == _defaultPerKg
+                        ? null
+                        : EsquinitaColors.wood,
+                  ),
                 ),
-              ],
+              ),
+            ],
+          ),
+          if (_perKgCents != _defaultPerKg)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => setState(() => _perKgCents = _defaultPerKg),
+                child: Text('Usar precio de lista (${soles(_defaultPerKg)})'),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: EsquinitaColors.leaf.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              _byAmount
+                  ? 'Pesar $_resultGrams g  ·  cobrar ${soles(_resultCents)}'
+                  : 'Precio: ${soles(_resultCents)}',
+              key: const Key('calc-result'),
+              textAlign: TextAlign.center,
+              style: t.titleMedium!
+                  .merge(tabular)
+                  .copyWith(color: EsquinitaColors.forest),
             ),
           ),
           const SizedBox(height: 8),
-          if (!_byAmount)
+          if (!_byAmount && !_editingPrice)
             Wrap(
               spacing: 8,
               children: [
-                for (final g in const [250, 500, 1000])
+                for (final g in const [250, 300, 500, 1000])
                   ActionChip(
                     label: Text(g == 1000 ? '1 kg' : '$g g'),
                     onPressed: () => setState(() => _grams = g),
@@ -122,19 +185,33 @@ class _WeightCalculatorState extends State<WeightCalculator> {
             ),
           const SizedBox(height: 8),
           NumberPad(
-            value: _byAmount ? _amountCents : _grams,
-            max: _byAmount ? 99999 : 50000,
+            value: _editingPrice
+                ? _perKgCents
+                : _byAmount
+                ? _amountCents
+                : _grams,
+            max: _editingPrice || _byAmount ? 99999 : 50000,
             compact: true,
-            onChanged: (v) =>
-                setState(() => _byAmount ? _amountCents = v : _grams = v),
+            onChanged: (v) => setState(() {
+              if (_editingPrice) {
+                _perKgCents = v;
+              } else if (_byAmount) {
+                _amountCents = v;
+              } else {
+                _grams = v;
+              }
+            }),
           ),
           const SizedBox(height: 12),
           FilledButton.icon(
             style: FilledButton.styleFrom(
               minimumSize: const Size.fromHeight(52),
             ),
-            onPressed: _resultGrams > 0
-                ? () => Navigator.pop(context, _resultGrams)
+            onPressed: _resultGrams > 0 && _perKgCents > 0
+                ? () => Navigator.pop<WeightPick>(context, (
+                    grams: _resultGrams,
+                    perKgCents: _perKgCents,
+                  ))
                 : null,
             icon: const Icon(Icons.add_shopping_cart),
             label: Text('Agregar $_resultGrams g · ${soles(_resultCents)}'),
@@ -275,9 +352,14 @@ Future<void> addProductFlow(BuildContext context, DemoProduct product) async {
   final messenger = ScaffoldMessenger.of(context);
   String? error;
   if (product.byWeight) {
-    final grams = await showWeightCalculator(context, product);
-    if (grams == null) return;
-    error = store.addToCart(product, product.base, grams);
+    final pick = await showWeightCalculator(context, product);
+    if (pick == null) return;
+    error = store.addToCart(
+      product,
+      product.base,
+      pick.grams,
+      perKgCents: pick.perKgCents,
+    );
   } else if (product.presentations.length > 1) {
     final picked = await showPresentationPicker(context, product);
     if (picked == null) return;

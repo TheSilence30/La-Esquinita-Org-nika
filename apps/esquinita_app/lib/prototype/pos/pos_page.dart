@@ -317,6 +317,8 @@ class _CartLineTile extends StatelessWidget {
                   spacing: 4,
                   runSpacing: 2,
                   children: [
+                    if (line.priceOverrideCents != null)
+                      const _Badge('Precio editado', EsquinitaColors.wood),
                     if (line.isWholesale)
                       const _Badge('Mayorista', EsquinitaColors.forest),
                     for (final take in line.lots)
@@ -343,8 +345,9 @@ class _CartLineTile extends StatelessWidget {
                   context,
                   p,
                   initialGrams: line.qtyMilli,
+                  initialPerKgCents: line.unitPriceCents,
                 );
-                if (g != null) store.setQty(line, g);
+                if (g != null) store.setWeight(line, g.grams, g.perKgCents);
               },
             )
           else ...[
@@ -880,6 +883,7 @@ class _DesktopCartTable extends StatelessWidget {
                     : l.presentation.name,
                 for (final take in l.lots)
                   '${take.lot.code} (vence ${_date(take.lot.expiresOn)})',
+                if (l.priceOverrideCents != null) 'precio editado',
                 if (l.stockWarning) 'sin stock local',
               ].join(' · ');
               return Padding(
@@ -923,8 +927,11 @@ class _DesktopCartTable extends StatelessWidget {
                                   context,
                                   l.product,
                                   initialGrams: l.qtyMilli,
+                                  initialPerKgCents: l.unitPriceCents,
                                 );
-                                if (g != null) store.setQty(l, g);
+                                if (g != null) {
+                                  store.setWeight(l, g.grams, g.perKgCents);
+                                }
                               },
                             )
                           else ...[

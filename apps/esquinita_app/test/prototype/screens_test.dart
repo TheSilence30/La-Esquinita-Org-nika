@@ -105,6 +105,34 @@ void main() {
         expect(store.sales.last.changeCents, 500);
       });
 
+      testWidgets('weight calculator: 300 g at a price per kg typed in', (
+        tester,
+      ) async {
+        final store = await pumpApp(tester, size);
+        await go(tester, '/vender');
+        await searchAndTap(tester, 'kion', 'Kion fresco (por kg)');
+        await tester.tap(find.text('300 g'));
+        await tester.pump();
+        expect(find.text('Precio: S/ 3.60'), findsOneWidget); // list S/ 12.00
+        await tester.tap(find.byKey(const Key('calc-price')));
+        await tester.pump();
+        for (var i = 0; i < 4; i++) {
+          await tester.tap(find.byIcon(Icons.backspace_outlined));
+          await tester.pump();
+        }
+        await pad(tester, '1000');
+        expect(find.text('S/ 10.00'), findsOneWidget);
+        expect(find.text('Precio: S/ 3.00'), findsOneWidget);
+        expect(find.textContaining('Usar precio de lista'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.textContaining('Agregar 300 g'));
+        await tester.pumpAndSettle();
+        final line = store.cart.single;
+        expect(line.qtyMilli, 300);
+        expect(line.priceOverrideCents, 1000);
+        expect(line.totalCents, 300);
+      });
+
       testWidgets('credit sale needs a registered customer, no payment', (
         tester,
       ) async {

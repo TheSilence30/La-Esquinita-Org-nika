@@ -55,6 +55,17 @@ void main() {
     expect(store.cart.single.totalCents, 500);
   });
 
+  test('weight line with a price per kg typed in the calculator', () {
+    final kion = p('kion');
+    store.addToCart(kion, kion.base, 300, perKgCents: 1000);
+    final line = store.cart.single;
+    expect(line.priceOverrideCents, 1000);
+    expect(line.totalCents, 300);
+    store.setWeight(line, 500, 1200); // back to the list price
+    expect(line.priceOverrideCents, isNull);
+    expect(line.totalCents, 600);
+  });
+
   test(
     'confirming moves stock, keeps the sale and only cash in the drawer',
     () {

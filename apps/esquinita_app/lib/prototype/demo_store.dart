@@ -39,8 +39,13 @@ class CartLine {
       presentation.wholesaleMinMilli != null &&
       qtyMilli >= presentation.wholesaleMinMilli!;
 
+  /// Price per kg typed in the weight calculator for this sale (Fase 3:
+  /// needs `sales.change_price` and is audited, CLAUDE.md §6.13).
+  int? priceOverrideCents;
+
   int get unitPriceCents =>
-      isWholesale ? presentation.wholesaleCents! : presentation.retailCents;
+      priceOverrideCents ??
+      (isWholesale ? presentation.wholesaleCents! : presentation.retailCents);
 
   int get totalCents => Money(unitPriceCents).times(Quantity(qtyMilli)).cents;
 
@@ -129,8 +134,9 @@ class DemoStore extends ChangeNotifier {
   String? addToCart(
     DemoProduct product,
     DemoPresentation presentation,
-    int qtyMilli,
-  ) {
+    int qtyMilli, {
+    int? perKgCents,
+  }) {
     if (product.tracksLots && product.lots.every((l) => l.isExpired(now))) {
       return 'Todos los lotes de ${product.name} están vencidos: no se puede vender.';
     }
@@ -143,6 +149,9 @@ class DemoStore extends ChangeNotifier {
               .firstOrNull;
     final line = existing ?? CartLine(product, presentation, 0);
     line.qtyMilli += qtyMilli;
+    if (perKgCents != null && perKgCents != presentation.retailCents) {
+      line.priceOverrideCents = perKgCents;
+    }
     if (existing == null) cart.add(line);
     _allocate(line);
     notifyListeners();
@@ -157,6 +166,14 @@ class DemoStore extends ChangeNotifier {
       _allocate(line);
     }
     notifyListeners();
+  }
+
+  /// Weight line edited in the calculator: new grams and price per kg.
+  void setWeight(CartLine line, int grams, int perKgCents) {
+    line.priceOverrideCents = perKgCents == line.presentation.retailCents
+        ? null
+        : perKgCents;
+    setQty(line, grams);
   }
 
   void clearCart() {
