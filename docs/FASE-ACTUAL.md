@@ -27,7 +27,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
-- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
+- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular), **pendiente de revisión del usuario en los equipos**
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
@@ -272,4 +272,28 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 2. ~~Claude actualiza `docs/modelo-datos.md` y CLAUDE.md §9.~~ Hecho; el usuario aprobó §3.5 con un ajuste: el latido de 60 s solo mientras haya una caja abierta. Roles confirmados; Trabajo: abre y cierra caja, descuentos con el % que se requiera, crédito solo a clientes registrados, devoluciones.
 3. ~~Fusión del PR #6~~ (Claude, a pedido del usuario). **Modelo de datos aprobado.**
 4. **Siguiente:** prototipo navegable (último entregable de la Fase 0).
+
+### 2026-11-17 — Prototipo navegable (rama `phase-0/prototype`)
+
+**Se hizo**
+
+- El PR #6 (modelo de datos) fue fusionado por Claude, a pedido del usuario (`ceecdf2`).
+- Decisiones del usuario:
+  - además de las 4 pantallas, incluir el cobro (efectivo con vuelto, Yape, Plin y pago mixto), el cierre de caja con el estado de cada equipo y la calculadora de peso;
+  - **layout de celular diseñado aparte** (360 dp, una mano), con pruebas a 360×640 y 360×800;
+  - crédito: **no** se simplifica el modelo de datos (el libro de cuentas, los abonos, el límite y los plazos llegan en la Fase 5). En el prototipo, el interruptor “Venta a crédito” exige un cliente registrado, no pide medio de pago y no suma a la caja.
+- Commits:
+  - `e35d302` core: calculadora de peso y EAN-13 interno;
+  - `8385d05` prototipo: navegación, pantallas, fuentes y logo;
+  - `031d73e` pruebas y arreglos de diseño;
+  - título de la ventana de Windows: “La Esquinita Orgánika”.
+- Dependencia nueva: `go_router` (ya prevista en el stack, CLAUDE.md §3).
+- Pruebas: core 60 y app 108, en verde. El APK y el build de Windows compilan; la app de Windows quedó abierta en la PC para revisión.
+- **Sin probar en dispositivo:** al terminar no había ninguna tablet ni celular conectados por USB.
+
+**Siguiente paso exacto**
+
+1. El usuario conecta la tablet (y un celular Android, si tiene); Claude instala el APK.
+2. El usuario recorre el prototipo en tablet, celular y PC y da sus observaciones.
+3. Claude ajusta, completa los resultados en el informe y abre el PR.
 
