@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../devices/feedback/scan_feedback.dart';
+
 import '../demo_store.dart';
 
 /// Touch "Más" tab.
@@ -54,6 +56,17 @@ class DemoSettingsPage extends StatelessWidget {
           subtitle: const Text('Ajuste sales.mixed_payments'),
           value: store.mixedPayments,
           onChanged: (v) => store.update(() => store.mixedPayments = v),
+        ),
+        SwitchListTile(
+          title: const Text('Sonido al escanear'),
+          subtitle: const Text('Pitido con el volumen multimedia'),
+          value: ScanFeedback.sound,
+          onChanged: (v) => store.update(() => ScanFeedback.sound = v),
+        ),
+        SwitchListTile(
+          title: const Text('Vibración al escanear'),
+          value: ScanFeedback.vibrate,
+          onChanged: (v) => store.update(() => ScanFeedback.vibrate = v),
         ),
         const ListTile(title: Text('Rol del usuario (vistas)')),
         RadioGroup<DemoRole>(

@@ -8,6 +8,11 @@ import 'package:flutter/services.dart';
 abstract final class ScanFeedback {
   static const channel = MethodChannel('pe.esquinita/feedback');
 
+  /// User switches. shortcut: in memory only (prototype); Fase 1 keeps them
+  /// in the device's local settings.
+  static bool sound = true;
+  static bool vibrate = true;
+
   /// Code read and recognized.
   static Future<void> success() => _play('success', SystemSoundType.click);
 
@@ -15,10 +20,14 @@ abstract final class ScanFeedback {
   static Future<void> error() => _play('error', SystemSoundType.alert);
 
   static Future<void> _play(String method, SystemSoundType fallback) async {
+    if (!sound && !vibrate) return;
     try {
       if (defaultTargetPlatform == TargetPlatform.android) {
-        await channel.invokeMethod<void>(method);
-      } else {
+        await channel.invokeMethod<void>(method, {
+          'sound': sound,
+          'vibrate': vibrate,
+        });
+      } else if (sound) {
         await SystemSound.play(fallback);
       }
     } on PlatformException catch (e) {

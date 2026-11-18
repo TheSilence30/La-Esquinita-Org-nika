@@ -7,19 +7,30 @@ void main() {
   test(
     'Android: success and error go to the native feedback channel',
     () async {
-      final calls = <String>[];
+      final calls = <(String, Object?)>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(ScanFeedback.channel, (call) async {
-            calls.add(call.method);
+            calls.add((call.method, call.arguments));
             return null;
           });
-      addTearDown(
-        () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(ScanFeedback.channel, null),
-      );
+      addTearDown(() {
+        ScanFeedback.sound = true;
+        ScanFeedback.vibrate = true;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(ScanFeedback.channel, null);
+      });
       await ScanFeedback.success();
       await ScanFeedback.error();
-      expect(calls, ['success', 'error']);
+      expect(calls.map((c) => c.$1), ['success', 'error']);
+      expect(calls.first.$2, {'sound': true, 'vibrate': true});
+
+      ScanFeedback.sound = false; // the user's switch
+      await ScanFeedback.success();
+      expect(calls.last.$2, {'sound': false, 'vibrate': true});
+
+      ScanFeedback.vibrate = false;
+      await ScanFeedback.success();
+      expect(calls, hasLength(3)); // both off: nothing is sent
     },
   );
 

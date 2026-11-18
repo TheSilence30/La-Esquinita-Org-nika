@@ -37,15 +37,17 @@ class FeedbackChannel(context: Context, messenger: BinaryMessenger) {
 
     init {
         channel.setMethodCallHandler { call, result ->
+            val sound = call.argument<Boolean>("sound") ?: true
+            val vibration = call.argument<Boolean>("vibrate") ?: true
             when (call.method) {
                 "success" -> {
-                    tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-                    vibrate(longArrayOf(0, 60))
+                    if (sound) tone?.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
+                    if (vibration) vibrate(longArrayOf(0, 60))
                     result.success(null)
                 }
                 "error" -> {
-                    tone?.startTone(ToneGenerator.TONE_PROP_NACK, 300)
-                    vibrate(longArrayOf(0, 90, 80, 90))
+                    if (sound) tone?.startTone(ToneGenerator.TONE_PROP_NACK, 300)
+                    if (vibration) vibrate(longArrayOf(0, 90, 80, 90))
                     result.success(null)
                 }
                 else -> result.notImplemented()
