@@ -48,10 +48,9 @@ void _goToCheckout(BuildContext context) {
 // Catalog (touch)
 
 class _Catalog extends StatefulWidget {
-  const _Catalog({required this.asList, this.columns = 3});
+  const _Catalog({required this.asList});
 
   final bool asList;
-  final int columns;
 
   @override
   State<_Catalog> createState() => _CatalogState();
@@ -115,11 +114,13 @@ class _CatalogState extends State<_Catalog> {
                 )
               : GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: widget.columns,
+                  // Columns follow the space left by the cart, so names get
+                  // a readable width on every tablet orientation.
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 210,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    mainAxisExtent: 128,
+                    mainAxisExtent: 150,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, i) => _ProductCard(products[i]),
@@ -186,9 +187,13 @@ class _ProductCard extends StatelessWidget {
             Expanded(
               child: Text(
                 product.name,
-                maxLines: 2,
+                maxLines: 3,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontSize: 15,
+                  height: 1.25,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
             Row(
@@ -283,7 +288,21 @@ class _CartList extends StatelessWidget {
     return ListView.separated(
       itemCount: store.cart.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
-      itemBuilder: (context, i) => _CartLineTile(store.cart[i]),
+      itemBuilder: (context, i) {
+        final line = store.cart[i];
+        return Dismissible(
+          key: ObjectKey(line),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            color: EsquinitaColors.red,
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 20),
+            child: const Icon(Icons.delete_outline, color: Colors.white),
+          ),
+          onDismissed: (_) => store.setQty(line, 0),
+          child: _CartLineTile(line),
+        );
+      },
     );
   }
 }
@@ -299,86 +318,146 @@ class _CartLineTile extends StatelessWidget {
     final t = Theme.of(context).textTheme;
     final p = line.product;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(12, 8, 4, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Text(
                   p.name,
                   style: t.bodyLarge!.copyWith(fontWeight: FontWeight.w600),
                 ),
-                Text(
-                  p.byWeight
-                      ? '${line.qtyMilli} g × ${soles(line.unitPriceCents)}/kg'
-                      : '${line.presentation.name} · ${soles(line.unitPriceCents)}',
-                  style: t.bodySmall!.merge(tabular),
+              ),
+              const SizedBox(width: 8),
+              Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: Text(
+                  soles(line.totalCents),
+                  style: t.titleMedium!.merge(tabular),
                 ),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 2,
-                  children: [
-                    if (line.priceOverrideCents != null)
-                      const _Badge('Precio editado', EsquinitaColors.wood),
-                    if (line.isWholesale)
-                      const _Badge('Mayorista', EsquinitaColors.forest),
-                    for (final take in line.lots)
-                      _Badge(
-                        '${take.lot.code} · vence ${_date(take.lot.expiresOn)} · ${Quantity(take.qtyMilli)}',
-                        EsquinitaColors.wood,
-                      ),
-                    if (line.stockWarning)
-                      const _Badge(
-                        'Sin stock local: se registra con aviso',
-                        EsquinitaColors.amber,
-                      ),
-                  ],
+              ),
+            ],
+          ),
+          Text(
+            p.byWeight
+                ? '${line.qtyMilli} g × ${soles(line.unitPriceCents)}/kg'
+                : '${line.presentation.name} · ${soles(line.unitPriceCents)} c/u',
+            style: t.bodySmall!.merge(tabular),
+          ),
+          Wrap(
+            spacing: 4,
+            runSpacing: 2,
+            children: [
+              if (line.priceOverrideCents != null)
+                const _Badge('Precio editado', EsquinitaColors.wood),
+              if (line.isWholesale)
+                const _Badge('Mayorista', EsquinitaColors.forest),
+              for (final take in line.lots)
+                _Badge(
+                  '${take.lot.code} · vence ${_date(take.lot.expiresOn)} · ${Quantity(take.qtyMilli)}',
+                  EsquinitaColors.wood,
+                ),
+              if (line.stockWarning)
+                const _Badge(
+                  'Sin stock local: se registra con aviso',
+                  EsquinitaColors.amber,
+                ),
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (p.byWeight)
+                TextButton.icon(
+                  onPressed: () async {
+                    final g = await showWeightCalculator(
+                      context,
+                      p,
+                      initialGrams: line.qtyMilli,
+                      initialPerKgCents: line.unitPriceCents,
+                    );
+                    if (g != null) store.setWeight(line, g.grams, g.perKgCents);
+                  },
+                  icon: const Icon(Icons.scale),
+                  label: const Text('Cambiar peso'),
+                )
+              else ...[
+                IconButton(
+                  tooltip: 'Quitar uno',
+                  icon: const Icon(Icons.remove_circle_outline),
+                  onPressed: () => store.setQty(line, line.qtyMilli - 1000),
+                ),
+                SizedBox(
+                  width: 36,
+                  child: Text(
+                    Quantity(line.qtyMilli).toString(),
+                    textAlign: TextAlign.center,
+                    style: t.titleMedium!.merge(tabular),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Agregar uno',
+                  icon: const Icon(Icons.add_circle_outline),
+                  onPressed: () => store.setQty(line, line.qtyMilli + 1000),
                 ),
               ],
-            ),
-          ),
-          if (p.byWeight)
-            IconButton(
-              tooltip: 'Cambiar peso',
-              icon: const Icon(Icons.scale),
-              onPressed: () async {
-                final g = await showWeightCalculator(
-                  context,
-                  p,
-                  initialGrams: line.qtyMilli,
-                  initialPerKgCents: line.unitPriceCents,
-                );
-                if (g != null) store.setWeight(line, g.grams, g.perKgCents);
-              },
-            )
-          else ...[
-            IconButton(
-              tooltip: 'Quitar uno',
-              icon: const Icon(Icons.remove_circle_outline),
-              onPressed: () => store.setQty(line, line.qtyMilli - 1000),
-            ),
-            Text(
-              Quantity(line.qtyMilli).toString(),
-              style: t.titleMedium!.merge(tabular),
-            ),
-            IconButton(
-              tooltip: 'Agregar uno',
-              icon: const Icon(Icons.add_circle_outline),
-              onPressed: () => store.setQty(line, line.qtyMilli + 1000),
-            ),
-          ],
-          SizedBox(
-            width: 84,
-            child: Text(
-              soles(line.totalCents),
-              textAlign: TextAlign.right,
-              style: t.titleSmall!.merge(tabular),
-            ),
+              IconButton(
+                tooltip: 'Eliminar producto',
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: EsquinitaColors.red,
+                ),
+                onPressed: () => store.setQty(line, 0),
+              ),
+            ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Empties the sale after a confirmation (it cannot be undone).
+class _ClearCartButton extends StatelessWidget {
+  const _ClearCartButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final store = DemoScope.of(context);
+    return TextButton.icon(
+      style: TextButton.styleFrom(foregroundColor: EsquinitaColors.red),
+      onPressed: store.cart.isEmpty
+          ? null
+          : () async {
+              final ok = await showDialog<bool>(
+                context: context,
+                builder: (dialog) => AlertDialog(
+                  title: const Text('¿Vaciar la venta?'),
+                  content: Text(
+                    'Se quitarán los ${store.cartItems} productos del carrito.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialog, false),
+                      child: const Text('Cancelar'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: EsquinitaColors.red,
+                      ),
+                      onPressed: () => Navigator.pop(dialog, true),
+                      child: const Text('Vaciar'),
+                    ),
+                  ],
+                ),
+              );
+              if (ok ?? false) store.clearCart();
+            },
+      icon: const Icon(Icons.remove_shopping_cart_outlined),
+      label: const Text('Vaciar venta'),
     );
   }
 }
@@ -407,24 +486,25 @@ class _CustomerButton extends StatelessWidget {
 }
 
 class _ChargeButton extends StatelessWidget {
-  const _ChargeButton({this.expand = true});
-
-  final bool expand;
+  const _ChargeButton();
 
   @override
   Widget build(BuildContext context) {
     final store = DemoScope.of(context);
-    final button = FilledButton(
+    return FilledButton(
       style: FilledButton.styleFrom(
         backgroundColor: EsquinitaColors.leaf,
         foregroundColor: Colors.white,
-        minimumSize: const Size(140, 56),
+        minimumSize: const Size.fromHeight(56),
         textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
       ),
       onPressed: store.cart.isEmpty ? null : () => _goToCheckout(context),
-      child: Text('Cobrar ${soles(store.cartTotalCents)}', style: tabular),
+      // Big totals shrink instead of pushing other buttons off screen.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text('Cobrar ${soles(store.cartTotalCents)}', style: tabular),
+      ),
     );
-    return expand ? SizedBox(width: double.infinity, child: button) : button;
   }
 }
 
@@ -438,19 +518,12 @@ class _TwoPanelPos extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final store = DemoScope.of(context);
     return Row(
       children: [
-        Expanded(
-          flex: 3,
-          child: _Catalog(
-            asList: false,
-            columns: MediaQuery.sizeOf(context).width >= 1200 ? 4 : 3,
-          ),
-        ),
+        const Expanded(flex: 3, child: _Catalog(asList: false)),
         const VerticalDivider(width: 1),
         SizedBox(
-          width: 400,
+          width: (MediaQuery.sizeOf(context).width * 0.38).clamp(320.0, 420.0),
           child: ColoredBox(
             color: Colors.white,
             child: Column(
@@ -459,17 +532,15 @@ class _TwoPanelPos extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
                   child: Row(
                     children: [
-                      Text(
-                        'Venta',
-                        style: Theme.of(context).textTheme.titleLarge,
+                      Expanded(
+                        child: Text(
+                          'Venta',
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.titleLarge,
+                        ),
                       ),
-                      const Spacer(),
                       if (camera) const _ScanButton(),
-                      IconButton(
-                        tooltip: 'Vaciar venta',
-                        onPressed: store.cart.isEmpty ? null : store.clearCart,
-                        icon: const Icon(Icons.delete_outline),
-                      ),
+                      const _ClearCartButton(),
                     ],
                   ),
                 ),
@@ -506,7 +577,7 @@ class _CompactPos extends StatelessWidget {
     final store = DemoScope.of(context);
     return Column(
       children: [
-        Expanded(child: _Catalog(asList: phone, columns: 3)),
+        Expanded(child: _Catalog(asList: phone)),
         Material(
           elevation: 8,
           color: Colors.white,
@@ -521,6 +592,7 @@ class _CompactPos extends StatelessWidget {
                     const SizedBox(width: 8),
                   ],
                   Expanded(
+                    flex: 2,
                     child: OutlinedButton(
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(0, 56),
@@ -535,7 +607,7 @@ class _CompactPos extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const _ChargeButton(expand: false),
+                  const Expanded(flex: 3, child: _ChargeButton()),
                 ],
               ),
             ),
@@ -564,10 +636,11 @@ void _showCartSheet(BuildContext context) => showModalBottomSheet<void>(
             children: [
               Text('Venta', style: Theme.of(context).textTheme.titleLarge),
               const Spacer(),
-              const Flexible(child: _CustomerButton()),
+              const _ClearCartButton(),
             ],
           ),
         ),
+        const Align(alignment: Alignment.centerLeft, child: _CustomerButton()),
         const Divider(height: 1),
         const Expanded(child: _CartList()),
         const Padding(padding: EdgeInsets.all(12), child: _ChargeButton()),
@@ -834,6 +907,10 @@ class _DesktopPosState extends State<_DesktopPos> {
                     ),
                   ),
                   const Spacer(),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: _ClearCartButton(),
+                  ),
                   const _ShortcutHelp(),
                   const SizedBox(height: 12),
                   const _ChargeButton(),

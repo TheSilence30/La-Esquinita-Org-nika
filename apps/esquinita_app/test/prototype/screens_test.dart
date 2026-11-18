@@ -217,6 +217,46 @@ void main() {
     });
   }
 
+  // Remove one line, swipe another away, then empty the sale (confirmed).
+  for (final size in const [Size(360, 640), Size(893, 533)]) {
+    testWidgets('cart $size: delete a line, swipe one, empty the sale', (
+      tester,
+    ) async {
+      final store = await pumpApp(tester, size);
+      await go(tester, '/vender');
+      for (final (q, name) in const [
+        ('panela', 'Panela granulada 1 kg'),
+        ('chía', 'Semillas de chía 500 g'),
+        ('avena', 'Avena integral 900 g'),
+      ]) {
+        await searchAndTap(tester, q, name);
+      }
+      expect(store.cart, hasLength(3));
+      if (size.width < 840) {
+        await tester.tap(find.text('3 ítems'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.byTooltip('Eliminar producto').first);
+      await tester.pumpAndSettle();
+      expect(store.cart, hasLength(2));
+
+      await tester.drag(
+        find.text('Semillas de chía 500 g').last,
+        const Offset(-500, 0),
+      );
+      await tester.pumpAndSettle();
+      expect(store.cart, hasLength(1));
+
+      await tester.tap(find.text('Vaciar venta'));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Vaciar la venta?'), findsOneWidget);
+      await tester.tap(find.text('Vaciar'));
+      await tester.pumpAndSettle();
+      expect(store.cart, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   // Tab A11 at 240 dpi: 533 × 893 dp (portrait) and 893 × 533 (landscape).
   for (final size in const [Size(533, 893), Size(893, 533)]) {
     testWidgets('tablet $size: screens fit; FEFO lot shown in the cart', (
