@@ -381,7 +381,7 @@ Rama `phase-0/prototype`. Pantallas **sin lógica real**: los datos viven en mem
 | --- | --- | --- | --- |
 | POS | Lista de productos con filas de 64 dp; barra inferior con carrito, escanear y **Cobrar** al alcance del pulgar | Vertical: cuadrícula + la misma barra. Horizontal (≥ 840 dp): catálogo y carrito en dos paneles | Buscador (F2, también para el lector USB + Enter), filas densas, atajos F2/F4/F9/F12/Esc |
 | Presentación | Hoja inferior: Unidad / Caja x12, precio minorista y mayorista | Diálogo | Diálogo |
-| Calculadora de peso | Hoja inferior a pantalla completa: *peso → precio* y *monto → peso*, teclado propio | Diálogo | Diálogo (también con teclado físico) |
+| Calculadora de peso | Hoja inferior a pantalla completa: *peso → precio* y *monto → peso*, teclado propio; **precio por kg editable** (por defecto el de la presentación) | Diálogo | Diálogo (también con teclado físico) |
 | Lotes | El carrito muestra el lote asignado por FEFO; los vencidos no se venden | Igual | Igual |
 | Cobro | Recibido, vuelto y montos rápidos **fijos sobre el teclado**; Yape/Plin con n.º de operación; pago mixto si el ajuste está activo; **venta a crédito solo con cliente registrado**, sin medio de pago y sin sumar a la caja | Pantalla completa | Diálogo; Enter confirma, Esc vuelve |
 | Venta registrada | Vista previa de la “Constancia de venta – no es comprobante de pago” | Igual | Diálogo |

@@ -293,7 +293,9 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Siguiente paso exacto**
 
-1. El usuario conecta la tablet (y un celular Android, si tiene); Claude instala el APK.
+1. ~~El usuario conecta un celular.~~ APK instalado en un Samsung **SM-A576B** (Android 16, 1080×2340, densidad 420 ≈ 411 dp de ancho); abre sin errores y pide el permiso de cámara. Falta la tablet.
+   - Pedido del usuario (2026-11-17): en la calculadora de peso, el **precio por kg** viene de la presentación pero **se puede cambiar** en el momento (ej. 300 g de kion al precio que diga). Hecho en `88e48b9`: campo *Precio por kg* editable, botón *Usar precio de lista*, y la línea del carrito queda marcada “Precio editado”. En la Fase 3 ese cambio requerirá el permiso `sales.change_price` y quedará auditado (CLAUDE.md §6.13).
+   - El usuario indicó que las mejoras visuales quedan para la versión final.
 2. El usuario recorre el prototipo en tablet, celular y PC y da sus observaciones.
 3. Claude ajusta, completa los resultados en el informe y abre el PR.
 
