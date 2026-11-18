@@ -2,10 +2,14 @@
 
 Ábrelo en Excel y reemplaza la fila de EJEMPLO (bórrala al final).
 
+**Para qué sirve:** sobre todo para los productos **sin código de barras** (granel, artesanales, frescos). Los que traen código en el empaque se registran más rápido **escaneándolos** con la cámara o el lector.
+
+**Antes de escribir códigos:** selecciona la columna `codigo_barras` (y `codigo_barras_presentacion`) y dale formato **Texto**. Si no, Excel los convierte en `7.75E+12` o les quita los ceros, y esas filas se rechazan.
+
 | Columna | Qué poner |
 | --- | --- |
 | nombre | Nombre como aparecerá en el ticket |
-| codigo_barras | El del empaque; vacío si no tiene (el sistema generará uno interno) |
+| codigo_barras | **Vacío si no tiene**: el sistema genera uno interno (empieza con 29) y luego puedes imprimir su etiqueta. Si tiene, el del empaque |
 | categoria | Orgánicos, Alimentos, Bebidas, Productos naturales, Suplementos, Otros o una nueva |
 | marca | Opcional |
 | unidad_base | unidad, kg, g, L, ml |
