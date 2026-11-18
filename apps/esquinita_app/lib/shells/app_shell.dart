@@ -1,0 +1,230 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import '../app/form_factor.dart';
+import '../app/theme.dart';
+import '../prototype/demo_store.dart';
+import '../prototype/widgets/common.dart';
+
+class NavItem {
+  const NavItem(this.label, this.icon, this.path, {this.adminOnly = false});
+
+  final String label;
+  final IconData icon;
+  final String path;
+
+  /// Hidden for the Trabajo role (roles by view, docs/modelo-datos.md §4).
+  final bool adminOnly;
+}
+
+/// Tablet and phone: bottom bar (CLAUDE.md §10).
+const touchNav = [
+  NavItem('Vender', Icons.shopping_basket_outlined, '/vender'),
+  NavItem('Escanear', Icons.qr_code_scanner, '/escanear'),
+  NavItem('Inventario', Icons.inventory_2_outlined, '/inventario'),
+  NavItem('Pedidos', Icons.receipt_long_outlined, '/pedidos'),
+  NavItem('Más', Icons.menu, '/mas'),
+];
+
+/// Routes reached from "Más" on touch devices.
+const _underMore = ['/mas', '/dashboard', '/caja', '/demo', '/spikes'];
+
+/// PC: side menu.
+const desktopNav = [
+  NavItem('Dashboard', Icons.dashboard_outlined, '/dashboard', adminOnly: true),
+  NavItem('Vender', Icons.shopping_basket_outlined, '/vender'),
+  NavItem('Productos', Icons.qr_code_2, '/escanear'),
+  NavItem('Inventario', Icons.inventory_2_outlined, '/inventario'),
+  NavItem('Compras', Icons.local_shipping_outlined, '/compras'),
+  NavItem('Pedidos', Icons.receipt_long_outlined, '/pedidos'),
+  NavItem('Clientes', Icons.people_outline, '/clientes'),
+  NavItem('Caja', Icons.point_of_sale, '/caja'),
+  NavItem('Reportes', Icons.bar_chart, '/reportes', adminOnly: true),
+  NavItem('Ajustes', Icons.settings_outlined, '/ajustes', adminOnly: true),
+  NavItem('Demostración', Icons.science_outlined, '/demo'),
+];
+
+/// Picks the tablet/phone or desktop shell (independent interfaces,
+/// CLAUDE.md §2) around the current page.
+class AppShell extends StatelessWidget {
+  const AppShell({super.key, required this.location, required this.child});
+
+  final String location;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => switch (FormFactor.of(context)) {
+    FormFactor.desktop => _DesktopShell(location: location, child: child),
+    final f => _TouchShell(
+      location: location,
+      phone: f == FormFactor.phone,
+      child: child,
+    ),
+  };
+}
+
+bool _matches(String location, String path) =>
+    location == path || location.startsWith('$path/');
+
+class _TouchShell extends StatelessWidget {
+  const _TouchShell({
+    required this.location,
+    required this.phone,
+    required this.child,
+  });
+
+  final String location;
+  final bool phone;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final index = _underMore.any((p) => _matches(location, p))
+        ? 4
+        : touchNav.indexWhere((n) => _matches(location, n.path));
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: phone ? 52 : 60,
+        titleSpacing: 12,
+        title: BrandLogo(height: phone ? 30 : 38, color: Colors.white),
+        actions: [
+          if (!phone) ...[
+            const CashChip(onDark: true),
+            const SizedBox(width: 8),
+          ],
+          const SyncChip(onDark: true),
+          const SizedBox(width: 12),
+        ],
+      ),
+      body: child,
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index < 0 ? 0 : index,
+        height: phone ? 64 : 72,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (i) => context.go(touchNav[i].path),
+        destinations: [
+          for (final n in touchNav)
+            NavigationDestination(icon: Icon(n.icon), label: n.label),
+        ],
+      ),
+    );
+  }
+}
+
+class _DesktopShell extends StatelessWidget {
+  const _DesktopShell({required this.location, required this.child});
+
+  final String location;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = DemoScope.of(context);
+    final items = [
+      for (final n in desktopNav)
+        if (!n.adminOnly || store.isAdmin) n,
+    ];
+    final current = items.where((n) => _matches(location, n.path)).firstOrNull;
+    return Scaffold(
+      body: Row(
+        children: [
+          Container(
+            width: 220,
+            color: EsquinitaColors.forest,
+            child: SafeArea(
+              child: Column(
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
+                    child: BrandLogo(height: 70, color: Colors.white),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        for (final n in items)
+                          _SideItem(
+                            item: n,
+                            selected: n == current,
+                            onTap: () => context.go(n.path),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text(
+                      'Usuario: ${store.role.label}',
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              children: [
+                Container(
+                  height: 56,
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFE6E0D0)),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Text(
+                        current?.label ?? '',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                      const Spacer(),
+                      const CashChip(),
+                      const SizedBox(width: 8),
+                      const SyncChip(),
+                    ],
+                  ),
+                ),
+                Expanded(child: child),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SideItem extends StatelessWidget {
+  const _SideItem({
+    required this.item,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+    child: Material(
+      color: selected
+          ? Colors.white.withValues(alpha: 0.16)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      child: ListTile(
+        dense: true,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        leading: Icon(item.icon, color: Colors.white),
+        title: Text(item.label, style: const TextStyle(color: Colors.white)),
+        onTap: onTap,
+      ),
+    ),
+  );
+}

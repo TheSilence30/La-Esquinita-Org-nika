@@ -5,7 +5,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Camera scanning is only available on Android (mobile_scanner has no
 /// Windows implementation; the PC uses a USB keyboard-wedge reader).
 bool get isCameraScanSupported =>
-    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    !debugDisableCameraScan &&
+    !kIsWeb &&
+    defaultTargetPlatform == TargetPlatform.android;
+
+/// Widget tests run as Android but have no camera plugin: they set this.
+bool debugDisableCameraScan = false;
 
 /// Monotonic clock shared by every camera view: the scan filter must not see
 /// wall-clock jumps (NTP sync, manual time change).

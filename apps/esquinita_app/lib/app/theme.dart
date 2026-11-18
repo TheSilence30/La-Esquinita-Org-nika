@@ -21,6 +21,7 @@ ThemeData buildTheme() {
   );
   return ThemeData(
     colorScheme: scheme,
+    fontFamily: 'Inter',
     scaffoldBackgroundColor: EsquinitaColors.cream,
     // Touch targets ≥ 48 dp everywhere, also on desktop.
     materialTapTargetSize: MaterialTapTargetSize.padded,
@@ -31,3 +32,12 @@ ThemeData buildTheme() {
     ),
   );
 }
+
+/// Amounts and quantities: tabular figures so columns of numbers line up.
+const tabular = TextStyle(fontFeatures: [FontFeature.tabularFigures()]);
+
+/// Brand wordmark only (CLAUDE.md §10): Fraunces.
+const brandStyle = TextStyle(
+  fontFamily: 'Fraunces',
+  fontWeight: FontWeight.w600,
+);
