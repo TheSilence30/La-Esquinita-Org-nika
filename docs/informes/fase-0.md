@@ -418,6 +418,27 @@ Rama `phase-0/prototype`. Pantallas **sin lógica real**: los datos viven en mem
 - Riverpod.
 - Golden tests.
 
-### Resultados en dispositivo
+### Resultados en dispositivo (2026-11-17)
 
-_Pendiente: revisión del usuario en la tablet, en la PC y, si hay, en un celular Android._
+| Equipo | Resultado |
+| --- | --- |
+| PC Windows | Build abierto en la PC del usuario. Barra de la ventana “La Esquinita Orgánika” (corregido: MSVC leía mal la “á” sin `/utf-8`). |
+| Celular Samsung **SM-A576B** (Android 16, 1080×2340, densidad 420 ≈ 411 dp) | Instalado; abre sin errores; permisos de cámara y vibración concedidos. El usuario lo usó: *“la lógica interna funciona bien”*. |
+| Tablet **SM-X133** (Tab A11) | Instalado; abre en el Dashboard (rol Administrador); POS en vertical con la cuadrícula de 3 columnas y la barra de cobro; permisos de cámara y vibración concedidos. |
+
+Pedidos del usuario durante la revisión (hechos):
+
+1. **Precio por kg editable** en la calculadora de peso. Ejemplo: 300 g de kion al precio que diga. La línea queda marcada “Precio editado”.
+2. **Sonido y vibración al escanear**, con un canal nativo que suena aunque los sonidos táctiles del sistema estén apagados. Un tono distinto para los códigos no registrados.
+3. **Interruptores** para apagar el sonido y la vibración.
+
+Ajustes de Claude al revisar las capturas de la tablet:
+
+- los indicadores de caja y sincronización salían repetidos en el Dashboard;
+- los nombres largos de producto se cortaban a mitad de línea en la cuadrícula: ahora van en 2 líneas con “…”.
+
+**Pendiente de prueba en dispositivo:** que el pitido y la vibración se oigan y se sientan al escanear con la cámara. El volumen multimedia del celular estaba en 3/15.
+
+Las mejoras visuales quedan para la versión final, por decisión del usuario.
+
+**Estado: prototipo pendiente de aprobación del usuario (PR).**

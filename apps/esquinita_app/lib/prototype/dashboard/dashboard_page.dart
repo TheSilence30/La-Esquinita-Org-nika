@@ -64,16 +64,8 @@ class DashboardPage extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text('Hoy', style: t.headlineSmall),
-                const CashChip(),
-                const SyncChip(),
-              ],
-            ),
+            // Cash and sync status live in the shell's top bar.
+            Text('Hoy', style: t.headlineSmall),
             const SizedBox(height: 12),
             GridView.count(
               crossAxisCount: cols,

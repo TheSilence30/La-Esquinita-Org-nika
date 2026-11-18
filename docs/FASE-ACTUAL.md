@@ -27,7 +27,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
-- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular), **pendiente de revisión del usuario en los equipos**
+- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **pendiente de aprobación del usuario (PR)**
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
@@ -297,8 +297,8 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
    - Pedido del usuario (2026-11-17): en la calculadora de peso, el **precio por kg** viene de la presentación pero **se puede cambiar** en el momento (ej. 300 g de kion al precio que diga). Hecho en `88e48b9`: campo *Precio por kg* editable, botón *Usar precio de lista*, y la línea del carrito queda marcada “Precio editado”. En la Fase 3 ese cambio requerirá el permiso `sales.change_price` y quedará auditado (CLAUDE.md §6.13).
    - El usuario indicó que las mejoras visuales quedan para la versión final.
    - Pedido del usuario: **sonido y vibración al escanear**, para darse cuenta sin mirar. Hecho con un canal nativo propio (`FeedbackChannel.kt`: `ToneGenerator` con el volumen multimedia + `Vibrator`, permiso `VIBRATE`), porque `SystemSound`/`HapticFeedback` no suenan si el usuario apagó los sonidos y vibraciones táctiles (ya visto en el Spike 1). Código reconocido: un pitido corto y una vibración; código no registrado o bloqueado: tono de error y doble vibración. En la PC se usa el sonido del sistema (los lectores USB suelen pitar solos). **Pendiente de prueba en dispositivo** (con el volumen multimedia del teléfono en 3/15 se oirá bajo).
-2. El usuario recorre el prototipo en tablet, celular y PC y da sus observaciones.
-3. Claude ajusta, completa los resultados en el informe y abre el PR.
+2. ~~Recorrido del usuario.~~ Instalado también en la tablet SM-X133. Observaciones atendidas (precio por kg editable, sonido y vibración, interruptores) y dos ajustes de legibilidad en la tablet. Resultados en `docs/informes/fase-0.md`.
+3. ~~PR del prototipo.~~ Abierto; falta la aprobación del usuario. Con eso se cumple el criterio de salida de la Fase 0 (Spikes 1, 3 y 6, prototipo y modelo de datos aprobados).
 
 ### 2026-11-17 — Carga masiva CSV y descargas (rama `docs/csv-import-reports`)
 

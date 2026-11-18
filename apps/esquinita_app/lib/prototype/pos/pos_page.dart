@@ -119,7 +119,7 @@ class _CatalogState extends State<_Catalog> {
                     crossAxisCount: widget.columns,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    mainAxisExtent: 118,
+                    mainAxisExtent: 128,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, i) => _ProductCard(products[i]),
@@ -186,7 +186,7 @@ class _ProductCard extends StatelessWidget {
             Expanded(
               child: Text(
                 product.name,
-                maxLines: 3,
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(fontWeight: FontWeight.w600),
               ),
