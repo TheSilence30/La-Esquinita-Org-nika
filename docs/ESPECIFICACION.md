@@ -1019,3 +1019,70 @@ Explica cualquier decisión que pueda afectar significativamente el sistema.
 Cuando la planificación esté aprobada, comienza el desarrollo por fases.
 
 Tu objetivo final es entregar un sistema funcional, profesional, confiable y personalizado para La Esquinita Orgánika, preparado para operar en PC Windows y Android, con sincronización, POS, inventario, compras, caja, clientes, impresión y crecimiento futuro.
+
+---
+
+# 29. CARGA MASIVA DE PRODUCTOS Y DESCARGAS (agregado por el cliente, 2026-11-17)
+
+## 29.1 Dos caminos para dar de alta productos
+
+- **Con código de barras del fabricante:** se registran **escaneando** con la cámara (tablet o celular) o el lector (PC), desde la pantalla “Registrar producto”.
+- **Sin código de barras** (granel, artesanales, frescos, productos propios): se cargan **en bloque desde una plantilla CSV**. El sistema les genera un código interno EAN-13 con prefijo `29` y permite imprimir sus etiquetas.
+
+## 29.2 Carga masiva desde CSV
+
+Plantilla: `docs/plantillas/catalogo_inicial.csv` (guía en `docs/plantillas/LEEME.md`).
+
+- Pensada sobre todo para productos **sin código**. La columna `codigo_barras` es opcional:
+  - **vacía** → el sistema genera el código interno `29…`;
+  - **con un código** → se valida igual que al escanear.
+- Validaciones por fila, con el motivo de cada error:
+  - código repetido dentro del archivo o ya registrado (el código es único en todo el sistema, incluidas las presentaciones);
+  - código dañado por Excel (notación científica `7.75E+12`, ceros a la izquierda perdidos);
+  - dígito verificador incorrecto en EAN-13/EAN-8/UPC;
+  - precios, factores de presentación y cantidades inválidos;
+  - lote y vencimiento obligatorios si el producto controla lotes.
+- **Vista previa** antes de guardar: productos nuevos, filas con error, códigos que se generarán. Nada se guarda hasta confirmar. Se puede descargar un CSV con los errores para corregir y volver a cargar.
+- Acepta separador `,` o `;`, decimal `.` o `,`, texto UTF-8 (con o sin BOM).
+- El stock inicial y los lotes entran como **movimientos de saldo inicial**, nunca editando el stock.
+- Al terminar ofrece **imprimir las etiquetas** de los códigos generados.
+- En la V1 la carga **solo crea productos nuevos**. Actualizar precios en bloque queda para después, porque cada cambio de precio exige permiso y auditoría.
+- Se hace **desde la PC, con conexión**: el servidor garantiza que los códigos no se repitan entre equipos. Queda registrada: quién, cuándo, archivo, filas cargadas y errores.
+
+## 29.3 Descargas
+
+Formatos y para qué sirve cada uno:
+
+| Formato | Vista | Uso |
+| --- | --- | --- |
+| **CSV** | Datos crudos, una fila por registro, sin formato | Para llevar a otros sistemas o analizar |
+| **XLSX** (Excel) | Libro con varias hojas y formato: *Resumen* (KPIs), *Ventas*, *Detalle por producto*, *Por día*, *Por medio de pago*, *Por categoría* | Para revisar y trabajar en Excel |
+| **PDF** (A4) | Reporte para leer o imprimir en la Epson L4160: encabezado con logo, filtros aplicados, KPIs, tablas resumidas y gráficos simples | Para archivar, imprimir o compartir |
+
+Qué se puede descargar:
+
+- ventas, por ticket y por producto vendido;
+- pagos por medio;
+- cierres de caja;
+- inventario y movimientos;
+- productos;
+- el dashboard;
+- el reporte consolidado.
+
+## 29.4 Reporte consolidado con filtros y KPIs
+
+- **Filtros:**
+  - rango de fechas o un día;
+  - equipo, usuario y medio de pago;
+  - venta a crédito sí/no;
+  - categoría, producto y cliente.
+- **KPIs:**
+  - **ventas:** total, número de tickets, ticket promedio, unidades vendidas;
+  - **por día y por hora;**
+  - **por medio de pago:** efectivo, digital y crédito;
+  - **productos:** los más vendidos por monto y por unidades, productos sin rotación, ventas por categoría;
+  - **utilidad bruta y margen**, con el costo guardado en cada venta;
+  - **comparación con el periodo anterior.**
+- Los calcula el **servidor** con los datos de todos los equipos. Sin conexión solo se muestran datos de este equipo, indicándolo.
+- Se diferencian siempre venta, ingreso de dinero, utilidad, deuda y gasto (§22).
+- **Solo el rol Administrador** ve reportes, KPIs, utilidad y descargas.

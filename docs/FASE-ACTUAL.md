@@ -273,3 +273,24 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 3. ~~Fusión del PR #6~~ (Claude, a pedido del usuario). **Modelo de datos aprobado.**
 4. **Siguiente:** prototipo navegable (último entregable de la Fase 0).
 
+### 2026-11-17 — Carga masiva CSV y descargas (rama `docs/csv-import-reports`)
+
+**Se hizo**
+
+- Interruptores de **sonido** y **vibración** al escanear en el prototipo (`19bca76`, rama `phase-0/prototype`), instalado en el celular.
+- Pedidos del usuario, agregados a la especificación como **§29** y al plan:
+  - **carga masiva de productos por CSV** (Fase 2), pensada sobre todo para productos **sin código de barras**. Los que tienen código se registran escaneando. Genera códigos `29…`, vista previa, errores por fila y etiquetas;
+  - **descargas en CSV, XLSX y PDF**, cada formato con su vista (Fase 6):
+    - CSV: datos crudos;
+    - XLSX: libro con hojas de resumen y detalle;
+    - PDF: reporte A4 con KPIs y tablas;
+  - **reporte consolidado con filtros y KPIs** (Fase 6).
+- Supuestos de Claude, **confirmados por el usuario**:
+  - en la V1 la carga CSV solo crea productos nuevos. Los precios del CSV son datos iniciales del producto; un cambio masivo de precios no es una operación de negocio de la V1;
+  - no se arma maqueta en el prototipo, solo documentación.
+- Modelo de datos: tabla `product_import_batches` y endpoint `POST /catalog/import`.
+- Guía de la plantilla: formato **Texto** para los códigos en Excel.
+
+**Pendiente**
+
+- Elegir el paquete para XLSX en la Fase 6 (requiere aprobación de dependencia). El PDF usa `pdf` + `printing`, ya en el stack.
