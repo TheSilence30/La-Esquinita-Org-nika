@@ -333,6 +333,7 @@ class _NewProductFormState extends State<_NewProductForm> {
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           initialValue: _category,
+          isExpanded: true,
           decoration: const InputDecoration(
             labelText: 'Categoría',
             border: OutlineInputBorder(),

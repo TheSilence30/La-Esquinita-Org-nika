@@ -542,6 +542,7 @@ class _CompactPos extends StatelessWidget {
 
 void _showCartSheet(BuildContext context) => showModalBottomSheet<void>(
   context: context,
+  useRootNavigator: true, // above the bottom bar
   isScrollControlled: true,
   useSafeArea: true,
   showDragHandle: true,
@@ -596,6 +597,7 @@ void _showSaleScanner(BuildContext context) {
   final filter = ScanFilter();
   showModalBottomSheet<void>(
     context: context,
+    useRootNavigator: true, // above the bottom bar
     isScrollControlled: true,
     useSafeArea: true,
     builder: (sheet) => SizedBox(
@@ -777,142 +779,7 @@ class _DesktopPosState extends State<_DesktopPos> {
                                   'Escanea con el lector o busca un producto (F2).',
                                 ),
                               )
-                            : SingleChildScrollView(
-                                child: DataTable(
-                                  headingRowHeight: 40,
-                                  dataRowMinHeight: 40,
-                                  dataRowMaxHeight: 64,
-                                  columns: const [
-                                    DataColumn(label: Text('Producto')),
-                                    DataColumn(label: Text('Presentación')),
-                                    DataColumn(
-                                      label: Text('Cant.'),
-                                      numeric: true,
-                                    ),
-                                    DataColumn(
-                                      label: Text('P. unit.'),
-                                      numeric: true,
-                                    ),
-                                    DataColumn(
-                                      label: Text('Importe'),
-                                      numeric: true,
-                                    ),
-                                    DataColumn(label: Text('')),
-                                  ],
-                                  rows: [
-                                    for (final l in store.cart)
-                                      DataRow(
-                                        cells: [
-                                          DataCell(
-                                            Column(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(l.product.name),
-                                                if (l.lots.isNotEmpty ||
-                                                    l.stockWarning)
-                                                  Text(
-                                                    [
-                                                      for (final take in l.lots)
-                                                        '${take.lot.code} (vence ${_date(take.lot.expiresOn)})',
-                                                      if (l.stockWarning)
-                                                        'sin stock local',
-                                                    ].join(' · '),
-                                                    style: t.bodySmall!
-                                                        .copyWith(
-                                                          color: EsquinitaColors
-                                                              .wood,
-                                                        ),
-                                                  ),
-                                              ],
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              l.isWholesale
-                                                  ? '${l.presentation.name} (mayorista)'
-                                                  : l.presentation.name,
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              l.product.byWeight
-                                                  ? '${l.qtyMilli} g'
-                                                  : Quantity(l.qtyMilli)
-                                                        .toString(),
-                                              style: tabular,
-                                            ),
-                                            onTap: l.product.byWeight
-                                                ? () async {
-                                                    final g =
-                                                        await showWeightCalculator(
-                                                          context,
-                                                          l.product,
-                                                          initialGrams:
-                                                              l.qtyMilli,
-                                                        );
-                                                    if (g != null) {
-                                                      store.setQty(l, g);
-                                                    }
-                                                  }
-                                                : null,
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              soles(l.unitPriceCents),
-                                              style: tabular,
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Text(
-                                              soles(l.totalCents),
-                                              style: tabular,
-                                            ),
-                                          ),
-                                          DataCell(
-                                            Row(
-                                              mainAxisSize: MainAxisSize.min,
-                                              children: [
-                                                if (!l.product.byWeight) ...[
-                                                  IconButton(
-                                                    tooltip: 'Quitar uno',
-                                                    icon: const Icon(
-                                                      Icons.remove,
-                                                    ),
-                                                    onPressed: () =>
-                                                        store.setQty(
-                                                          l,
-                                                          l.qtyMilli - 1000,
-                                                        ),
-                                                  ),
-                                                  IconButton(
-                                                    tooltip: 'Agregar uno',
-                                                    icon: const Icon(Icons.add),
-                                                    onPressed: () =>
-                                                        store.setQty(
-                                                          l,
-                                                          l.qtyMilli + 1000,
-                                                        ),
-                                                  ),
-                                                ],
-                                                IconButton(
-                                                  tooltip: 'Quitar línea',
-                                                  icon: const Icon(
-                                                    Icons.delete_outline,
-                                                  ),
-                                                  onPressed: () =>
-                                                      store.setQty(l, 0),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                  ],
-                                ),
-                              ),
+                            : _DesktopCartTable(store: store),
                       ),
                     ),
                   ],
@@ -966,4 +833,129 @@ class _ShortcutHelp extends StatelessWidget {
     'F2 buscar · F4 cliente · F9 nota de pedido · F12 cobrar · Esc cancelar',
     style: TextStyle(fontSize: 12, color: EsquinitaColors.wood),
   );
+}
+
+/// Dense cart rows: fixed numeric columns, flexible product name.
+class _DesktopCartTable extends StatelessWidget {
+  const _DesktopCartTable({required this.store});
+
+  final DemoStore store;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    Widget num(String s, double w, {TextStyle? style}) => SizedBox(
+      width: w,
+      child: Text(
+        s,
+        textAlign: TextAlign.right,
+        style: (style ?? t.bodyMedium!).merge(tabular),
+      ),
+    );
+    final header = t.labelMedium!.copyWith(color: EsquinitaColors.wood);
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 8, 6),
+          child: Row(
+            children: [
+              Expanded(child: Text('Producto', style: header)),
+              num('Cant.', 72, style: header),
+              num('P. unit.', 88, style: header),
+              num('Importe', 96, style: header),
+              const SizedBox(width: 148),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.separated(
+            itemCount: store.cart.length,
+            separatorBuilder: (_, _) => const Divider(height: 1),
+            itemBuilder: (context, i) {
+              final l = store.cart[i];
+              final notes = [
+                l.isWholesale
+                    ? '${l.presentation.name} (mayorista)'
+                    : l.presentation.name,
+                for (final take in l.lots)
+                  '${take.lot.code} (vence ${_date(take.lot.expiresOn)})',
+                if (l.stockWarning) 'sin stock local',
+              ].join(' · ');
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 8, 4),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(l.product.name, overflow: TextOverflow.ellipsis),
+                          Text(
+                            notes,
+                            overflow: TextOverflow.ellipsis,
+                            style: t.bodySmall!.copyWith(
+                              color: EsquinitaColors.wood,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    num(
+                      l.product.byWeight
+                          ? '${l.qtyMilli} g'
+                          : Quantity(l.qtyMilli).toString(),
+                      72,
+                    ),
+                    num(soles(l.unitPriceCents), 88),
+                    num(soles(l.totalCents), 96, style: t.titleSmall),
+                    SizedBox(
+                      width: 148,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (l.product.byWeight)
+                            IconButton(
+                              tooltip: 'Cambiar peso',
+                              icon: const Icon(Icons.scale),
+                              onPressed: () async {
+                                final g = await showWeightCalculator(
+                                  context,
+                                  l.product,
+                                  initialGrams: l.qtyMilli,
+                                );
+                                if (g != null) store.setQty(l, g);
+                              },
+                            )
+                          else ...[
+                            IconButton(
+                              tooltip: 'Quitar uno',
+                              icon: const Icon(Icons.remove),
+                              onPressed: () =>
+                                  store.setQty(l, l.qtyMilli - 1000),
+                            ),
+                            IconButton(
+                              tooltip: 'Agregar uno',
+                              icon: const Icon(Icons.add),
+                              onPressed: () =>
+                                  store.setQty(l, l.qtyMilli + 1000),
+                            ),
+                          ],
+                          IconButton(
+                            tooltip: 'Quitar línea',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () => store.setQty(l, 0),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
 }

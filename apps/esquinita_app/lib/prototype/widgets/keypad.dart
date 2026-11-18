@@ -14,6 +14,7 @@ Future<T?> showAdaptiveSheet<T>(
   if (narrow) {
     return showModalBottomSheet<T>(
       context: context,
+      useRootNavigator: true, // above the bottom bar
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,

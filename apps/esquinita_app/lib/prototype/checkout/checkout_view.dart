@@ -89,6 +89,11 @@ class _CheckoutViewState extends State<CheckoutView> {
     final problem = _draft.problem;
     final showPad =
         !_draft.credit && (_draft.isMixed || _part.method == PayMethod.cash);
+    // Phone/portrait: cash received, quick amounts and change sit right
+    // above the keypad (thumb zone), not at the bottom of a scroll.
+    final singleCash =
+        !_draft.credit && !_draft.isMixed && _part.method == PayMethod.cash;
+    final docked = singleCash && !wide;
     final details = ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -104,9 +109,11 @@ class _CheckoutViewState extends State<CheckoutView> {
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Venta a crédito'),
-          subtitle: const Text(
-            'Solo a clientes registrados. No pide medio de pago ni suma a la caja.',
-          ),
+          subtitle: wide
+              ? const Text(
+                  'Solo a clientes registrados. No pide medio de pago ni suma a la caja.',
+                )
+              : const Text('Solo clientes registrados'),
           value: _draft.credit,
           onChanged: (v) => setState(() => _draft.credit = v),
         ),
@@ -143,14 +150,15 @@ class _CheckoutViewState extends State<CheckoutView> {
               ],
             ),
             const SizedBox(height: 12),
-            _PartDetails(
-              part: _part,
-              editingTendered: _field == _Field.tendered,
-              onTapTendered: () => setState(() => _field = _Field.tendered),
-              onQuick: (c) => setState(() => _part.tenderedCents = c),
-              total: _draft.totalCents,
-              onReference: () => setState(() {}),
-            ),
+            if (!docked)
+              _PartDetails(
+                part: _part,
+                editingTendered: _field == _Field.tendered,
+                onTapTendered: () => setState(() => _field = _Field.tendered),
+                onQuick: (c) => setState(() => _part.tenderedCents = c),
+                total: _draft.totalCents,
+                onReference: () => setState(() {}),
+              ),
           ] else ...[
             Text('Pago mixto', style: t.labelLarge),
             for (var i = 0; i < _draft.parts.length; i++)
@@ -191,7 +199,7 @@ class _CheckoutViewState extends State<CheckoutView> {
                 label: const Text('Agregar otro medio (pago mixto)'),
               ),
             ),
-          if (_draft.changeCents > 0)
+          if (!docked && _draft.changeCents > 0)
             Container(
               margin: const EdgeInsets.only(top: 8),
               padding: const EdgeInsets.all(12),
@@ -303,10 +311,95 @@ class _CheckoutViewState extends State<CheckoutView> {
           : Column(
               children: [
                 Expanded(child: details),
+                if (docked)
+                  _DockedCash(
+                    part: _part,
+                    total: _draft.totalCents,
+                    onQuick: (c) => setState(() => _part.tenderedCents = c),
+                  ),
                 pad,
                 footer,
               ],
             ),
+    );
+  }
+}
+
+/// Phone layout: received | change on one line, quick amounts below.
+class _DockedCash extends StatelessWidget {
+  const _DockedCash({
+    required this.part,
+    required this.total,
+    required this.onQuick,
+  });
+
+  final PaymentPart part;
+  final int total;
+  final ValueChanged<int> onQuick;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: InputDecorator(
+                  isFocused: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Recibido',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  child: MoneyText(
+                    part.tenderedCents ?? 0,
+                    key: const Key('tendered'),
+                    style: t.titleLarge,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: InputDecorator(
+                  decoration: const InputDecoration(
+                    labelText: 'Vuelto',
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  child: MoneyText(
+                    part.changeCents > 0 ? part.changeCents : 0,
+                    key: const Key('change'),
+                    style: t.titleLarge!.copyWith(
+                      color: EsquinitaColors.forest,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            height: 44,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: [
+                for (final c in quickCashAmounts(total))
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      label: Text(c == total ? 'Exacto' : soles(c)),
+                      onPressed: () => onQuick(c),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
