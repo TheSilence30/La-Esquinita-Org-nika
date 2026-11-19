@@ -562,11 +562,13 @@ Permisos iniciales:
 | `catalog.edit`, `catalog.view_cost` | ✔ | |
 | `inventory.view`, `inventory.count` | ✔ | ✔ |
 | `inventory.adjust` | ✔ | con PIN de Administrador |
-| `purchases.receive` | ✔ | ✔ (sin costos) |
+| `purchases.receive` (incluye registrar lotes y vencimientos al recibir) | ✔ | ✔ (sin costos) |
 | `purchases.manage` | ✔ | |
 | `customers.view`, `customers.create`, `customers.payment` | ✔ | ✔ |
 | `customers.edit`, `customers.credit_limit` | ✔ | |
 | `users.manage`, `settings.manage`, `sync.resolve_conflicts` | ✔ | |
+
+Decisión del usuario (2026-11-19): Trabajo **sí** registra lotes y vencimientos al recibir mercadería, sin ver costos. Las salidas por merma y los conteos que dejan una diferencia son ajustes (`inventory.adjust`) y siguen siendo del Administrador: Trabajo puede anotar un conteo (`inventory.count`), pero la diferencia la aplica el Administrador o se aplica con su PIN.
 
 ---
 

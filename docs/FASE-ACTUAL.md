@@ -417,3 +417,36 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - Calendario y diálogos en español: `flutter_localizations` (del SDK de Flutter, sin paquetes nuevos de terceros), idioma `es_PE`.
   - shortcut: todo en memoria y sin auditoría; en la Fase 2 serán `stock_movements` y operaciones de sync reales. Ajustar stock solo con el rol Administrador (`inventory.adjust`).
   - Pruebas: app 148 en verde. Instalado en la tablet y el celular. **Pendiente de prueba en dispositivo.**
+
+### 2026-11-19 (cierre del día) — Prototipo: lotes e inventario (rama `phase-0/prototype`, PR #8 abierto, sin fusionar)
+
+**Hecho hoy** (resumen; el detalle está en la entrada de arriba)
+
+- Celular y tablet en horizontal sin barra verde; el celular en horizontal usa los dos paneles. Teclado de montos (soles enteros primero). Calculadora de peso con kg / g. El usuario confirmó todo esto en los dos equipos.
+- Escáner de venta a pantalla completa (cámara con marco + carrito en vivo) y avisos flotantes con semáforo en toda la app.
+- Arreglos tras la prueba del usuario:
+  - el escáner de venta perdía todas las lecturas (`Bad state: No element`);
+  - el formulario de registro se borraba al girar el equipo;
+  - inventario era solo de lectura.
+- **Lotes en cualquier producto:** código del empaque, vencimiento y cantidad. Se agregan al escanear un producto ya registrado ("Agregar lote nuevo") o desde Inventario. Si hay stock sin lote, la app pregunta si pasarlo al lote. En la venta: FEFO, con la opción de cambiar el lote desde la línea del carrito.
+- **Inventario:**
+  - búsqueda (nombre, código o lote) y filtros con contador (Agotados, Stock bajo, Por vencer, Vencidos);
+  - ficha por producto: stock local, vendible y mínimo editable; lotes con cambio de fecha; Entrada / Salida / Conteo con motivo; últimos movimientos (kardex, incluidas las ventas).
+- **Calendario y diálogos en español** (`flutter_localizations` del SDK, `es_PE`).
+- **Decisión del usuario (roles):** Trabajo **sí** registra lotes y vencimientos al recibir mercadería, sin ver costos. Las salidas por merma y los conteos con diferencia (`inventory.adjust`) siguen siendo solo del Administrador. Registrado en `docs/modelo-datos.md` §4. En el prototipo, Trabajo que toca un producto en Inventario ve el aviso "requiere Administrador" con el botón **Agregar lote**.
+- Pruebas: app 149 en verde; `analyze --fatal-infos` sin problemas.
+
+**Pendiente de prueba en dispositivo** (tablet SM-X133 y celular SM-A576B; el APK actual, sin el cambio de roles de esta noche, ya está instalado en los dos)
+
+1. **Escanear** → miel `7751234500017` → **Agregar lote nuevo** → LOT36, una fecha y 3 → Guardar.
+2. **Vender** → miel: tocar el lote en la línea del carrito y cambiarlo a LOT36.
+3. **Inventario** → filtro **Vencidos** → miel (lote L-2403) → Salida de L-2403 con motivo "Merma / vencido" → revisar *Últimos movimientos*.
+4. **Escáner de venta con la cámara real:** quinua `7750543400036` dos veces (🟢 ×1 y ×2 en el carrito) y un código no registrado (🔴 + **Registrar**). Es lo que falló hoy por el `Bad state: No element`; el registro de los dos equipos quedó limpio (`logcat -c`) para revisar si vuelve a fallar.
+
+**Siguiente paso exacto (mañana)**
+
+1. El usuario conecta la tablet y el celular. Claude instala el APK del último commit (incluye el cambio de roles).
+2. El usuario hace los 4 pasos de arriba en los dos equipos, en vertical y en horizontal. Si algo falla, Claude revisa `adb logcat -s flutter` y las capturas en `DCIM/Screenshots`.
+3. Claude atiende las observaciones, completa los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
+4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada** (Spikes 1, 3 y 6 y el modelo de datos ya están aprobados).
+5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.

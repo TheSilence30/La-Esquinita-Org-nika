@@ -388,6 +388,22 @@ void main() {
     });
   }
 
+  testWidgets('Trabajo: can receive a lot, cannot adjust stock', (
+    tester,
+  ) async {
+    final store = await pumpApp(tester, const Size(533, 893));
+    store.update(() => store.role = DemoRole.staff);
+    await go(tester, '/inventario');
+    await tester.tap(find.text('Quinua blanca orgánica 1 kg'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('notice-warn')), findsOneWidget);
+    expect(find.text('Entrada'), findsNothing); // no adjust sheet
+    await tester.tap(find.text('Agregar lote'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'Código de lote'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('register form keeps what was typed when rotating', (
     tester,
   ) async {

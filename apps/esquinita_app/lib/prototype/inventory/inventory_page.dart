@@ -35,13 +35,16 @@ enum StockFilter {
   };
 }
 
-/// Opens the stock sheet of [p] (Administrador: inventory.adjust).
+/// Opens the stock sheet of [p] (Administrador: inventory.adjust). Trabajo
+/// can still receive a new lot from here (user decision, 2026-11-19).
 void showProductStock(BuildContext context, DemoProduct p) {
   if (!DemoScope.read(context).isAdmin) {
     showNotice(
       context,
       'Ajustar stock requiere el rol Administrador.',
       level: NoticeLevel.warn,
+      actionLabel: 'Agregar lote',
+      onAction: () => showNewLot(context, p),
     );
     return;
   }
@@ -52,16 +55,10 @@ void showProductStock(BuildContext context, DemoProduct p) {
   );
 }
 
-/// Receives a new lot of [p]: code, expiry and quantity.
+/// Receives a new lot of [p]: code, expiry and quantity. Both roles:
+/// Trabajo receives goods without seeing costs (CLAUDE.md §9; the sheet
+/// shows no costs).
 Future<void> showNewLot(BuildContext context, DemoProduct p) async {
-  if (!DemoScope.read(context).isAdmin) {
-    showNotice(
-      context,
-      'Agregar lotes requiere el rol Administrador.',
-      level: NoticeLevel.warn,
-    );
-    return;
-  }
   await showAdaptiveSheet<void>(
     context,
     builder: (_) => NewLotSheet(product: p),
