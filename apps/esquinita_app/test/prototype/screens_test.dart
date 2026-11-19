@@ -79,7 +79,7 @@ void main() {
         expect(find.text('Peso → precio'), findsOneWidget);
         await tester.tap(find.text('Monto → peso'));
         await tester.pump();
-        await pad(tester, '500');
+        await pad(tester, '5'); // S/ 5.00: whole soles first
         expect(find.textContaining('Pesar 417 g'), findsOneWidget);
         expect(tester.takeException(), isNull);
         await tester.tap(find.textContaining('Agregar 417 g'));
@@ -120,7 +120,7 @@ void main() {
           await tester.tap(find.byIcon(Icons.backspace_outlined));
           await tester.pump();
         }
-        await pad(tester, '1000');
+        await pad(tester, '10');
         expect(find.text('S/ 10.00'), findsOneWidget);
         expect(find.text('Precio: S/ 3.00'), findsOneWidget);
         expect(find.textContaining('Usar precio de lista'), findsOneWidget);
@@ -256,6 +256,34 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  // SM-A576B sideways: 891 × 411 dp. No green bar; sync status still shown.
+  testWidgets('landscape phone: no top bar, sync visible, cash typed 30.5', (
+    tester,
+  ) async {
+    final store = await pumpApp(tester, const Size(891, 411));
+    for (final path in ['/vender', '/escanear', '/inventario', '/caja']) {
+      await go(tester, path);
+      expect(tester.takeException(), isNull, reason: path);
+      expect(find.byType(AppBar), findsNothing, reason: path);
+      expect(find.text('Sincronizado'), findsOneWidget, reason: path);
+    }
+    await go(tester, '/vender');
+    await searchAndTap(tester, 'panela', 'Panela granulada 1 kg');
+    await tester.tap(find.textContaining('Cobrar S/'));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBar), findsNothing);
+    expect(tester.takeException(), isNull); // keypad used to overflow 47 px
+    await pad(tester, '30.5');
+    expect(store.cart, isNotEmpty);
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('tendered')),
+        matching: find.text('S/ 30.50'),
+      ),
+      findsOneWidget,
+    );
+  });
 
   // Tab A11 at 240 dpi: 533 × 893 dp (portrait) and 893 × 533 (landscape).
   for (final size in const [Size(533, 893), Size(893, 533)]) {

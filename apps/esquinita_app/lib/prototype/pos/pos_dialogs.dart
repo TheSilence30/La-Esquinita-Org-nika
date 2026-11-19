@@ -190,6 +190,7 @@ class _WeightCalculatorState extends State<WeightCalculator> {
                 : _byAmount
                 ? _amountCents
                 : _grams,
+            money: _editingPrice || _byAmount,
             max: _editingPrice || _byAmount ? 99999 : 50000,
             compact: true,
             onChanged: (v) => setState(() {

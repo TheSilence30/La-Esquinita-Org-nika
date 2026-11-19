@@ -600,7 +600,7 @@ class _CompactPos extends StatelessWidget {
                       onPressed: () => _showCartSheet(context),
                       child: Text(
                         store.cart.isEmpty
-                            ? 'Carrito vacío'
+                            ? '0 ítems' // "Carrito vacío" was cut at 360 dp
                             : '${store.cartItems} ítems',
                         overflow: TextOverflow.ellipsis,
                       ),

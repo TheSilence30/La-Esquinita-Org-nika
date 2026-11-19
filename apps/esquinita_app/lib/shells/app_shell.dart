@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app/form_factor.dart';
@@ -82,31 +83,61 @@ class _TouchShell extends StatelessWidget {
     final index = _underMore.any((p) => _matches(location, p))
         ? 4
         : touchNav.indexWhere((n) => _matches(location, n.path));
+    // Phone in landscape: no green bar (height is scarce); the sync status
+    // moves to the bottom bar so it stays visible (CLAUDE.md §10).
+    final landscapePhone = FormFactor.isLandscapePhone(context);
+    final nav = NavigationBar(
+      selectedIndex: index < 0 ? 0 : index,
+      height: phone ? 64 : 72,
+      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+      onDestinationSelected: (i) => context.go(touchNav[i].path),
+      destinations: [
+        for (final n in touchNav)
+          NavigationDestination(icon: Icon(n.icon), label: n.label),
+      ],
+    );
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: phone ? 52 : 60,
-        titleSpacing: 12,
-        title: BrandLogo(height: phone ? 30 : 38, color: Colors.white),
-        actions: [
-          if (!phone) ...[
-            const CashChip(onDark: true),
-            const SizedBox(width: 8),
-          ],
-          const SyncChip(onDark: true),
-          const SizedBox(width: 12),
-        ],
-      ),
-      body: child,
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: index < 0 ? 0 : index,
-        height: phone ? 64 : 72,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        onDestinationSelected: (i) => context.go(touchNav[i].path),
-        destinations: [
-          for (final n in touchNav)
-            NavigationDestination(icon: Icon(n.icon), label: n.label),
-        ],
-      ),
+      appBar: landscapePhone
+          ? null
+          : AppBar(
+              toolbarHeight: phone ? 52 : 60,
+              titleSpacing: 12,
+              title: BrandLogo(height: phone ? 30 : 38, color: Colors.white),
+              actions: [
+                if (!phone) ...[
+                  const CashChip(onDark: true),
+                  const SizedBox(width: 8),
+                ],
+                const SyncChip(onDark: true),
+                const SizedBox(width: 12),
+              ],
+            ),
+      // Without the green bar, status-bar icons must be dark on cream.
+      body: landscapePhone
+          ? AnnotatedRegion(
+              value: SystemUiOverlayStyle.dark,
+              child: SafeArea(bottom: false, child: child),
+            )
+          : child,
+      bottomNavigationBar: landscapePhone
+          ? ColoredBox(
+              color:
+                  NavigationBarTheme.of(context).backgroundColor ??
+                  Theme.of(context).colorScheme.surfaceContainer,
+              child: SafeArea(
+                top: false,
+                child: Row(
+                  children: [
+                    Expanded(child: nav),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: SyncChip(),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          : nav,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/form_factor.dart';
 import '../../app/theme.dart';
 import '../checkout.dart';
 import '../demo_store.dart';
@@ -15,13 +16,25 @@ class CheckoutPage extends StatelessWidget {
   const CheckoutPage({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Cobrar')),
-    body: CheckoutView(
-      onDone: (sale) => context.go('/venta', extra: sale),
-      onCancel: () => context.pop(),
-    ),
-  );
+  Widget build(BuildContext context) {
+    // Landscape phone: no top bar; the footer already has "Volver".
+    final landscapePhone = FormFactor.isLandscapePhone(context);
+    return Scaffold(
+      appBar: landscapePhone ? null : AppBar(title: const Text('Cobrar')),
+      body: AnnotatedRegion(
+        value: landscapePhone
+            ? SystemUiOverlayStyle.dark
+            : SystemUiOverlayStyle.light,
+        child: SafeArea(
+          top: landscapePhone,
+          child: CheckoutView(
+            onDone: (sale) => context.go('/venta', extra: sale),
+            onCancel: () => context.pop(),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// PC: checkout as a keyboard-friendly dialog.
@@ -231,7 +244,8 @@ class _CheckoutViewState extends State<CheckoutView> {
             child: NumberPad(
               value: _editingValue,
               onChanged: _setEditing,
-              compact: !wide,
+              // Landscape phone is wide but only ~400 dp tall.
+              compact: !wide || MediaQuery.sizeOf(context).height < 600,
             ),
           )
         : const SizedBox.shrink();
