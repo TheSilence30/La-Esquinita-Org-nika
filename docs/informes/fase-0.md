@@ -441,4 +441,28 @@ Ajustes de Claude al revisar las capturas de la tablet:
 
 Las mejoras visuales quedan para la versión final, por decisión del usuario.
 
-**Estado: prototipo pendiente de aprobación del usuario (PR).**
+### Resultados en dispositivo (2026-11-18 y 2026-11-19)
+
+Pruebas guiadas en el celular **SM-A576B** y la tablet **SM-X133**, en vertical y en horizontal. El usuario las confirmó todas:
+
+- lote nuevo al escanear un producto ya registrado;
+- cambio de lote desde la línea del carrito;
+- límite de stock en el carrito;
+- botón Atrás.
+
+Pedidos del usuario en esta revisión (hechos, con pruebas automáticas):
+
+1. **El stock limita el carrito.** Al superar el stock local vendible aparece "Sin stock · ¿Agregar de todas formas?". *Sí* agrega con aviso ámbar; *No* rechaza ese código en rojo hasta terminar la venta (`docs/modelo-datos.md` §3.2).
+2. **Atrás de Android no cierra la app de golpe.** Vuelve a *Más* o al inicio, y en el inicio pregunta "¿Salir de la app?". Además, botón **←** en pantalla.
+3. **Editar producto** al mantener presionado en Inventario: datos, stock y lotes. **Asignar lote** reparte el stock sin lote entre lotes.
+4. **Mantener presionado en Vender** abre la ficha de stock del producto.
+5. **Dar de baja un lote** (vencido): lo que queda sale como merma y el lote se oculta. No se borra (CLAUDE.md §6.3).
+
+Pruebas automáticas: app 160 en verde; `analyze --fatal-infos` sin problemas.
+
+**Pendiente de prueba en dispositivo:**
+
+- el escáner de venta con la cámara real (el fallo `Bad state: No element` ya está corregido);
+- las dos últimas versiones en el celular.
+
+**Estado: prototipo aprobado por el usuario el 2026-11-19.**

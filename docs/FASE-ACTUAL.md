@@ -27,7 +27,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
-- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **pendiente de aprobación del usuario (PR)**
+- [x] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **aprobado por el usuario el 2026-11-19** (PR #8)
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
@@ -468,3 +468,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - Pruebas: app 157 en verde; `analyze --fatal-infos` sin problemas. Instalado en la **tablet**; el celular no estaba conectado. **Pendiente de prueba en dispositivo.**
 - Pedido del usuario: **borrar un lote vencido** para que ya no figure. Como **nada se borra** (CLAUDE.md §6.3), se hizo como **Dar de baja** (icono de papelera en cada lote de la ficha, con confirmación): lo que queda del lote sale como "Merma / vencido", el lote deja de aparecer (inventario, venta, Asignar lote) y su historial queda en *Últimos movimientos*. Su código no se puede reutilizar en ese producto. Si el lote estaba elegido en el carrito, la línea vuelve a FEFO automático.
   - Pruebas: app 160 en verde. Instalado en la tablet. **Pendiente de prueba en dispositivo.**
+- **El usuario aprobó el prototipo** ("Listo, ya está, aprobado"). Se fusiona el PR #8.
+- Pregunta del usuario: ¿*Cliente registrado* queda para después? Respuesta: el **módulo de clientes** (registro, crédito, abonos y cuentas por cobrar) es la **Fase 5**. La consulta automática de DNI/RUC (RENIEC/SUNAT) sí sería una **integración**, en la Fase 8 o como propuesta aparte.
+
+**Siguiente paso:** revisar con el usuario el estado de los spikes en la lista de arriba y cerrar la Fase 0. Luego, plan de la Fase 1 (fundamentos) para su aprobación antes de programar.
