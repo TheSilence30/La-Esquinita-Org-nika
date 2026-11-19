@@ -461,7 +461,14 @@ void main() {
       expect(find.byKey(const Key('notice-ok')), findsOneWidget);
       expect(find.text('Quinua blanca orgánica 1 kg ×1'), findsOneWidget);
       expect(find.text('Venta · 1 ítems'), findsOneWidget); // live cart
-      await scan('7750123400016');
+      // Almendras, 0 in stock: asks first; "Sí" adds it in amber.
+      final asked = scanner.handleSaleScan(scanner.context, '7750123400016');
+      await tester.pump();
+      expect(find.text('Sin stock'), findsOneWidget);
+      await tester.tap(find.text('Sí, agregar'));
+      await tester.pumpAndSettle();
+      await asked;
+      await tester.pump();
       expect(find.byKey(const Key('notice-warn')), findsOneWidget);
       await scan('999');
       expect(find.byKey(const Key('notice-error')), findsOneWidget);

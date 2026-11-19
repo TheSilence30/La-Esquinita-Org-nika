@@ -259,7 +259,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - sin balanza: calculadora peso ↔ monto, y códigos internos con prefijo `29`;
   - **una sola caja compartida**;
   - al inicio un solo usuario; roles por vistas, **Administrador** y **Trabajo** (corrección del usuario: reemplaza la idea de Dueño/Trabajador/Asistente);
-  - la venta sin stock local se registra con aviso;
+  - la venta sin stock local se registra con aviso; desde el 2026-11-19, solo después de responder **Sí** a "Sin stock · ¿Agregar de todas formas?" (ver `docs/modelo-datos.md` §3.2);
   - devoluciones con `disposition` (`restock` / `defective` → merma);
   - claves únicas con `NULL` resueltas.
 - Propuestas de Claude que el usuario debe aprobar:
@@ -450,3 +450,9 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 3. Claude atiende las observaciones, completa los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
 4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada** (Spikes 1, 3 y 6 y el modelo de datos ya están aprobados).
 5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.
+
+### 2026-11-19 (pruebas en dispositivo) — Stock limita el carrito
+
+- Prueba 1 (agregar lote al escanear): **el usuario confirmó que funciona** en el celular.
+- Observación del usuario: se podía escanear o vender más unidades que el stock (10 con 2 en stock). Decisión del usuario: al superar el stock local vendible, aviso "Sin stock · ¿Agregar de todas formas?". **Sí** sigue agregando (ámbar); **No** rechaza ese código (rojo) en cada lectura hasta terminar o vaciar la venta. Aplica al escaneo con cámara, al lector o la búsqueda, al tocar un producto, a **+** y a la calculadora de peso. La cámara se pausa mientras el diálogo está abierto. Bajar una cantidad siempre se permite.
+- Pruebas: app 150 en verde; `analyze --fatal-infos` sin problemas. Instalado en el celular; la tablet no estaba conectada. **Pendiente de prueba en dispositivo.**

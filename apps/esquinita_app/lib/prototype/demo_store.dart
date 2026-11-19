@@ -163,6 +163,30 @@ class DemoStore extends ChangeNotifier {
   DemoCustomer? cartCustomer;
 
   int get cartTotalCents => cart.fold(0, (s, l) => s + l.totalCents);
+
+  /// Per sale, the answer to "¿Agregar de todas formas?" for a product that
+  /// goes past its sellable local stock: true sells anyway (amber), false
+  /// keeps rejecting it (red) until the cart is emptied.
+  final _oversell = <DemoProduct, bool>{};
+
+  int _inCartMilli(DemoProduct p) =>
+      cart.where((l) => l.product == p).fold(0, (s, l) => s + l.baseQtyMilli);
+
+  /// Adding [addBaseMilli] of [p] goes past the sellable stock and nobody
+  /// has answered yet for this sale: the UI asks, then [decideOversell].
+  bool needsOversellAnswer(DemoProduct p, int addBaseMilli) =>
+      !_oversell.containsKey(p) && _wouldOversell(p, addBaseMilli);
+
+  void decideOversell(DemoProduct p, {required bool sell}) =>
+      _oversell[p] = sell;
+
+  bool _wouldOversell(DemoProduct p, int addBaseMilli) =>
+      _inCartMilli(p) + addBaseMilli > p.sellableStockMilli(now);
+
+  String? _oversellError(DemoProduct p, int addBaseMilli) =>
+      _wouldOversell(p, addBaseMilli) && _oversell[p] != true
+      ? 'Sin stock: ${p.name} (quedan ${Quantity(max(0, p.sellableStockMilli(now) - _inCartMilli(p)))})'
+      : null;
   int get cartItems => cart.length;
 
   /// Adds [qtyMilli] of [presentation]. Same presentation (not by weight)
@@ -178,6 +202,11 @@ class DemoStore extends ChangeNotifier {
         product.lots.every((l) => l.isExpired(now))) {
       return 'Todos los lotes de ${product.name} están vencidos: no se puede vender.';
     }
+    final over = _oversellError(
+      product,
+      qtyMilli * presentation.factorMilli ~/ 1000,
+    );
+    if (over != null) return over;
     final existing = product.byWeight
         ? null
         : cart
@@ -197,9 +226,9 @@ class DemoStore extends ChangeNotifier {
   }
 
   /// Sales scan, as a traffic light: green added; amber added but needs a
-  /// look (no local stock — still sold, docs/modelo-datos.md — or low
-  /// stock) or sold by weight (the caller opens the calculator); red not
-  /// registered or blocked (expired lots).
+  /// look (past the local stock and the user said "Sí", or low stock) or
+  /// sold by weight (the caller opens the calculator); red not registered,
+  /// blocked (expired lots) or past the stock without a "Sí".
   ScanOutcome scanForSale(String code) {
     final hit = findByBarcode(code);
     if (hit == null) {
@@ -228,9 +257,7 @@ class DemoStore extends ChangeNotifier {
         unknownCode: null,
       );
     }
-    final inCart = cart
-        .where((l) => l.product == p)
-        .fold(0, (s, l) => s + l.baseQtyMilli);
+    final inCart = _inCartMilli(p);
     final line = cart.firstWhere(
       (l) => l.product == p && l.presentation == hit.presentation,
     );
@@ -336,7 +363,14 @@ class DemoStore extends ChangeNotifier {
     return lot;
   }
 
-  void setQty(CartLine line, int qtyMilli) {
+  /// Returns an error message (past the stock without a "Sí") or null.
+  String? setQty(CartLine line, int qtyMilli) {
+    final more =
+        (qtyMilli - line.qtyMilli) * line.presentation.factorMilli ~/ 1000;
+    if (more > 0) {
+      final over = _oversellError(line.product, more);
+      if (over != null) return over;
+    }
     if (qtyMilli <= 0) {
       cart.remove(line);
     } else {
@@ -344,18 +378,24 @@ class DemoStore extends ChangeNotifier {
       _allocate(line);
     }
     notifyListeners();
+    return null;
   }
 
   /// Weight line edited in the calculator: new grams and price per kg.
-  void setWeight(CartLine line, int grams, int perKgCents) {
-    line.priceOverrideCents = perKgCents == line.presentation.retailCents
-        ? null
-        : perKgCents;
-    setQty(line, grams);
+  String? setWeight(CartLine line, int grams, int perKgCents) {
+    final error = setQty(line, grams);
+    if (error == null) {
+      line.priceOverrideCents = perKgCents == line.presentation.retailCents
+          ? null
+          : perKgCents;
+      notifyListeners();
+    }
+    return error;
   }
 
   void clearCart() {
     cart.clear();
+    _oversell.clear();
     cartCustomer = null;
     notifyListeners();
   }
@@ -463,6 +503,7 @@ class DemoStore extends ChangeNotifier {
     }
     sales.add(sale);
     cart.clear();
+    _oversell.clear();
     cartCustomer = null;
     devices.first.lastSync = now;
     notifyListeners();

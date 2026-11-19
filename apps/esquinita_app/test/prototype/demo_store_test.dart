@@ -19,6 +19,7 @@ void main() {
       expect(cafe.totalStockMilli, 23000);
       store.adjustStock(cafe, -30000, reason: 'Ajuste');
       expect(cafe.totalStockMilli, 0);
+      store.decideOversell(cafe, sell: true);
       expect(
         store.scanForSale('7752345600018').message,
         endsWith('sin stock local'),
@@ -121,7 +122,8 @@ void main() {
       expect(store.cart.single.qtyMilli, 2000);
     });
 
-    test('amber: no local stock (still added) or low stock', () {
+    test('amber: no local stock (added after "Sí") or low stock', () {
+      store.decideOversell(p('almendras'), sell: true);
       final none = store.scanForSale('7750123400016'); // almendras, 0
       expect(none.level, NoticeLevel.warn);
       expect(none.message, endsWith('sin stock local'));
@@ -158,13 +160,49 @@ void main() {
     expect(line.stockWarning, isFalse);
   });
 
-  test('selling beyond local stock is allowed with a warning', () {
-    final miel = p('miel');
-    store.addToCart(miel, miel.base, 20000); // 13 sellable
+  test('selling beyond local stock only after "Sí", with a warning', () {
+    final miel = p('miel'); // 13 sellable
+    expect(store.needsOversellAnswer(miel, 20000), isTrue);
+    store.decideOversell(miel, sell: true);
+    expect(store.needsOversellAnswer(miel, 20000), isFalse);
+    expect(store.addToCart(miel, miel.base, 20000), isNull);
     expect(store.cart.single.stockWarning, isTrue);
     final almendras = p('almendras'); // 0 in stock
+    store.decideOversell(almendras, sell: true);
     store.addToCart(almendras, almendras.base, 1000);
     expect(store.cart.last.stockWarning, isTrue);
+  });
+
+  test('stock limits scans, + and boxes; "No" keeps rejecting', () {
+    final maca = p('maca'); // 4 in stock
+    for (var i = 0; i < 4; i++) {
+      expect(
+        store.scanForSale('7755678900011').level,
+        isNot(NoticeLevel.error),
+      );
+    }
+    expect(store.needsOversellAnswer(maca, 1000), isTrue);
+    expect(store.scanForSale('7755678900011').level, NoticeLevel.error);
+    final line = store.cart.single;
+    expect(line.qtyMilli, 4000);
+    expect(store.setQty(line, 5000), contains('Sin stock'));
+    expect(line.qtyMilli, 4000);
+    store.decideOversell(maca, sell: false);
+    expect(store.needsOversellAnswer(maca, 1000), isFalse);
+    final r = store.scanForSale('7755678900011');
+    expect(r.level, NoticeLevel.error);
+    expect(r.message, 'Sin stock: ${maca.name} (quedan 0)');
+    expect(store.setQty(line, 3000), isNull); // lowering is always allowed
+    // A box of 12 quinua with 46 in stock: 4 boxes fit, the 5th does not.
+    final quinua = p('quinua');
+    final caja = quinua.presentations[1];
+    for (var i = 0; i < 3; i++) {
+      expect(store.addToCart(quinua, caja, 1000), isNull);
+    }
+    expect(store.needsOversellAnswer(quinua, caja.factorMilli), isTrue);
+    // A new sale forgets the answers.
+    store.clearCart();
+    expect(store.needsOversellAnswer(maca, 5000), isTrue);
   });
 
   test('a product whose lots are all expired cannot be sold', () {

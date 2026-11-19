@@ -394,7 +394,14 @@ class _CartLineTile extends StatelessWidget {
                       initialGrams: line.qtyMilli,
                       initialPerKgCents: line.unitPriceCents,
                     );
-                    if (g != null) store.setWeight(line, g.grams, g.perKgCents);
+                    if (g != null && context.mounted) {
+                      await changeLineQty(
+                        context,
+                        line,
+                        g.grams,
+                        perKgCents: g.perKgCents,
+                      );
+                    }
                   },
                   icon: const Icon(Icons.scale),
                   label: const Text('Cambiar peso'),
@@ -416,7 +423,8 @@ class _CartLineTile extends StatelessWidget {
                 IconButton(
                   tooltip: 'Agregar uno',
                   icon: const Icon(Icons.add_circle_outline),
-                  onPressed: () => store.setQty(line, line.qtyMilli + 1000),
+                  onPressed: () =>
+                      changeLineQty(context, line, line.qtyMilli + 1000),
                 ),
               ],
               IconButton(
@@ -774,14 +782,14 @@ class SaleScannerPage extends StatefulWidget {
 class SaleScannerPageState extends State<SaleScannerPage> {
   final _filter = ScanFilter();
 
-  /// The weight calculator is open: ignore the camera meanwhile.
-  bool _weighing = false;
+  /// A dialog (weight calculator, "Sin stock") is open: ignore the camera.
+  bool _paused = false;
 
   /// Camera frames. Public for tests. Each code goes through the filter
   /// exactly once per frame: a lazy `where` here re-ran it, the second call
   /// hit the cooldown and every accepted read was lost ("No element").
   Future<void> onCameraCodes(List<String> codes, Duration elapsed) async {
-    if (_weighing) return;
+    if (_paused) return;
     final accepted = [
       for (final c in codes)
         if (_filter.offer(c, elapsed).isAccepted) c,
@@ -793,6 +801,13 @@ class SaleScannerPageState extends State<SaleScannerPage> {
   /// Public for tests (no camera there).
   Future<void> handleSaleScan(BuildContext context, String code) async {
     final store = DemoScope.read(context);
+    final hit = store.findByBarcode(code);
+    if (hit != null && !hit.product.byWeight) {
+      _paused = true; // the camera keeps reading behind the dialog
+      await askOversell(context, hit.product, hit.presentation.factorMilli);
+      _paused = false;
+      if (!context.mounted) return;
+    }
     final r = store.scanForSale(code);
     unawaited(
       r.level == NoticeLevel.error
@@ -812,9 +827,12 @@ class SaleScannerPageState extends State<SaleScannerPage> {
     );
     final weigh = r.weigh;
     if (weigh == null) return;
-    _weighing = true;
+    _paused = true;
     final pick = await showWeightCalculator(context, weigh);
-    _weighing = false;
+    if (pick != null && context.mounted) {
+      await askOversell(context, weigh, pick.grams);
+    }
+    _paused = false;
     if (pick == null || !context.mounted) return;
     final error = store.addToCart(
       weigh,
@@ -957,6 +975,8 @@ class _DesktopPosState extends State<_DesktopPos> {
       await addProductFlow(context, hit.product);
     } else if (hit != null) {
       // Same traffic light as the camera scanner.
+      await askOversell(context, hit.product, hit.presentation.factorMilli);
+      if (!mounted) return;
       final r = store.scanForSale(_query);
       unawaited(
         r.level == NoticeLevel.error
@@ -1209,8 +1229,13 @@ class _DesktopCartTable extends StatelessWidget {
                                   initialGrams: l.qtyMilli,
                                   initialPerKgCents: l.unitPriceCents,
                                 );
-                                if (g != null) {
-                                  store.setWeight(l, g.grams, g.perKgCents);
+                                if (g != null && context.mounted) {
+                                  await changeLineQty(
+                                    context,
+                                    l,
+                                    g.grams,
+                                    perKgCents: g.perKgCents,
+                                  );
                                 }
                               },
                             )
@@ -1225,7 +1250,7 @@ class _DesktopCartTable extends StatelessWidget {
                               tooltip: 'Agregar uno',
                               icon: const Icon(Icons.add),
                               onPressed: () =>
-                                  store.setQty(l, l.qtyMilli + 1000),
+                                  changeLineQty(context, l, l.qtyMilli + 1000),
                             ),
                           ],
                           IconButton(

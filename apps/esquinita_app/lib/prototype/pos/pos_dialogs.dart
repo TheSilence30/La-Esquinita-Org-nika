@@ -1,7 +1,10 @@
+import 'dart:async';
+
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:flutter/material.dart';
 
 import '../../app/theme.dart';
+import '../../devices/feedback/scan_feedback.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
@@ -379,13 +382,75 @@ Future<DemoCustomer?> showCustomerPicker(BuildContext context) =>
       },
     );
 
+/// Adding [addBaseMilli] of [product] goes past its sellable local stock
+/// and this sale has no answer yet: "¿Agregar de todas formas?". Sí keeps
+/// adding it (amber); No rejects it (red) on every read until the cart is
+/// emptied. The caller then adds as usual and shows the store's error.
+Future<void> askOversell(
+  BuildContext context,
+  DemoProduct product,
+  int addBaseMilli,
+) async {
+  final store = DemoScope.read(context);
+  if (!store.needsOversellAnswer(product, addBaseMilli)) return;
+  unawaited(ScanFeedback.error());
+  final left = product.sellableStockMilli(store.now);
+  final sell = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (d) => AlertDialog(
+      icon: const Icon(
+        Icons.warning_amber_rounded,
+        color: EsquinitaColors.amber,
+      ),
+      title: const Text('Sin stock'),
+      content: Text(
+        '${product.name}\n'
+        'Stock local vendible: ${Quantity(left < 0 ? 0 : left)}\n\n'
+        '¿Agregar de todas formas?',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(d, false),
+          child: const Text('No'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(d, true),
+          child: const Text('Sí, agregar'),
+        ),
+      ],
+    ),
+  );
+  store.decideOversell(product, sell: sell ?? false);
+}
+
+/// Sets [line] to [qtyMilli] (and the price per kg of a weight line),
+/// asking first when it goes past the stock.
+Future<void> changeLineQty(
+  BuildContext context,
+  CartLine line,
+  int qtyMilli, {
+  int? perKgCents,
+}) async {
+  final store = DemoScope.read(context);
+  final more =
+      (qtyMilli - line.qtyMilli) * line.presentation.factorMilli ~/ 1000;
+  if (more > 0) await askOversell(context, line.product, more);
+  if (!context.mounted) return;
+  final error = perKgCents == null
+      ? store.setQty(line, qtyMilli)
+      : store.setWeight(line, qtyMilli, perKgCents);
+  if (error != null) showNotice(context, error, level: NoticeLevel.error);
+}
+
 /// Adds [product] to the cart, asking for weight or presentation first.
 Future<void> addProductFlow(BuildContext context, DemoProduct product) async {
   final store = DemoScope.read(context);
   String? error;
   if (product.byWeight) {
     final pick = await showWeightCalculator(context, product);
-    if (pick == null) return;
+    if (pick == null || !context.mounted) return;
+    await askOversell(context, product, pick.grams);
     error = store.addToCart(
       product,
       product.base,
@@ -394,9 +459,15 @@ Future<void> addProductFlow(BuildContext context, DemoProduct product) async {
     );
   } else if (product.presentations.length > 1) {
     final picked = await showPresentationPicker(context, product);
-    if (picked == null) return;
+    if (picked == null || !context.mounted) return;
+    await askOversell(
+      context,
+      product,
+      picked.$2 * picked.$1.factorMilli ~/ 1000,
+    );
     error = store.addToCart(product, picked.$1, picked.$2);
   } else {
+    await askOversell(context, product, product.base.factorMilli);
     error = store.addToCart(product, product.base, 1000);
   }
   if (error != null && context.mounted) {
