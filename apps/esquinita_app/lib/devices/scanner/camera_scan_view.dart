@@ -5,7 +5,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 /// Camera scanning is only available on Android (mobile_scanner has no
 /// Windows implementation; the PC uses a USB keyboard-wedge reader).
 bool get isCameraScanSupported =>
-    !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    !debugDisableCameraScan &&
+    !kIsWeb &&
+    defaultTargetPlatform == TargetPlatform.android;
+
+/// Widget tests run as Android but have no camera plugin: they set this.
+bool debugDisableCameraScan = false;
 
 /// Monotonic clock shared by every camera view: the scan filter must not see
 /// wall-clock jumps (NTP sync, manual time change).
@@ -87,6 +92,59 @@ class CameraScanViewState extends State<CameraScanView> {
           : (context, constraints) => widget.overlay!,
     );
   }
+}
+
+/// Viewfinder drawn over the preview: white corners and a green aim line,
+/// so the cashier knows where to put the code. Decoding still uses the
+/// whole frame.
+class ScanFrame extends StatelessWidget {
+  const ScanFrame({super.key});
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.78,
+        heightFactor: 0.55,
+        child: CustomPaint(painter: _FramePainter()),
+      ),
+    ),
+  );
+}
+
+class _FramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final corner = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final len = size.shortestSide * 0.22;
+    final w = size.width;
+    final h = size.height;
+    for (final (x, y, dx, dy) in [
+      (0.0, 0.0, 1.0, 1.0),
+      (w, 0.0, -1.0, 1.0),
+      (0.0, h, 1.0, -1.0),
+      (w, h, -1.0, -1.0),
+    ]) {
+      canvas
+        ..drawLine(Offset(x, y), Offset(x + dx * len, y), corner)
+        ..drawLine(Offset(x, y), Offset(x, y + dy * len), corner);
+    }
+    canvas.drawLine(
+      Offset(w * 0.08, h / 2),
+      Offset(w * 0.92, h / 2),
+      Paint()
+        ..color =
+            const Color(0xCC7CB342) // leaf green, see-through
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FramePainter old) => false;
 }
 
 class _CameraError extends StatelessWidget {

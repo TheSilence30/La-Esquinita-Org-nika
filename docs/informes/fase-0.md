@@ -370,3 +370,99 @@ Servidor en `http://192.168.18.12:8080`, en la PC. Red marcada como privada y re
 - Con el servidor apagado, el firewall descarta la conexión sin rechazarla, así que la app muestra "no respondió a tiempo" tras 10 s en lugar de "sin conexión".
 
 **Estado: Spike 6 pendiente de aprobación del usuario (PR).**
+
+## Prototipo navegable
+
+Rama `phase-0/prototype`. Pantallas **sin lógica real**: los datos viven en memoria (`lib/prototype/`) y se reinician al cerrar la app. Sirve para aprobar la navegación y el diseño antes de la Fase 1.
+
+### Qué incluye
+
+| Pantalla | Celular (360 dp, una mano) | Tablet | PC |
+| --- | --- | --- | --- |
+| POS | Lista de productos con filas de 64 dp; barra inferior con carrito, escanear y **Cobrar** al alcance del pulgar | Vertical: cuadrícula + la misma barra. Horizontal (≥ 840 dp): catálogo y carrito en dos paneles | Buscador (F2, también para el lector USB + Enter), filas densas, atajos F2/F4/F9/F12/Esc |
+| Presentación | Hoja inferior: Unidad / Caja x12, precio minorista y mayorista | Diálogo | Diálogo |
+| Calculadora de peso | Hoja inferior a pantalla completa: *peso → precio* y *monto → peso*, teclado propio; **precio por kg editable** (por defecto el de la presentación) | Diálogo | Diálogo (también con teclado físico) |
+| Lotes | El carrito muestra el lote asignado por FEFO; los vencidos no se venden | Igual | Igual |
+| Cobro | Recibido, vuelto y montos rápidos **fijos sobre el teclado**; Yape/Plin con n.º de operación; pago mixto si el ajuste está activo; **venta a crédito solo con cliente registrado**, sin medio de pago y sin sumar a la caja | Pantalla completa | Diálogo; Enter confirma, Esc vuelve |
+| Venta registrada | Vista previa de la “Constancia de venta – no es comprobante de pago” | Igual | Diálogo |
+| Alta por escaneo | Cámara (`mobile_scanner`, sin QR), ingreso manual, “sin código → generar 29…”; formulario de nuevo producto | Dos columnas en horizontal | Lector o teclado |
+| Dashboard | Ventas de hoy, efectivo (cajón), Yape/Plin y otros, a crédito; stock bajo; lotes por vencer | Cuadrícula | Cuadrícula ancha |
+| Cierre de caja | Estado de cada equipo, aviso de ventas sin enviar, *Esperar*, *Cerrar de todos modos* con motivo; esperado por medio de pago; arqueo y diferencia | Igual | Dos columnas |
+| Inventario | Stock local con lotes y vencimientos (solo lectura) | Igual | Igual |
+
+- Navegación: barra inferior **Vender · Escanear · Inventario · Pedidos · Más** en tablet y celular; menú lateral en la PC. Indicadores de **caja** y **sincronización** (simulados) siempre visibles.
+- Roles por vistas: con **Trabajo** se ocultan Dashboard, Reportes y Ajustes; el Administrador entra al Dashboard.
+- *Más › Ajustes de demostración*: pagos mixtos, rol, estado de sincronización y ventas pendientes simuladas en la PC.
+- Diseño: paleta de CLAUDE.md §10, **Inter** (cifras tabulares) y **Fraunces** incluidas en la app (licencia OFL, sin internet), logo de `docs/marca` teñible.
+- Datos de ejemplo: 17 productos orgánicos con precios de Lima. Quinua 1 kg con *Unidad* y *Caja x12* y precio mayorista desde 6; kion y quinua roja **por peso**; miel de Oxapampa **con 3 lotes** (uno vencido, uno por vencer y uno lejano); huevos por unidad y paquete x15; 4 clientes registrados.
+- En el core: `priceForWeight`, `weightForAmount` e `internalEan13` (prefijo 29 + dígito del equipo + secuencia), con pruebas.
+
+### Pruebas automáticas (ejecutadas)
+
+- Core: 60 en verde (cálculo de peso y códigos internos).
+- App: 108 en verde. Pantallas a **360×640, 360×800**, tablet 533×893 y 893×533, y PC 1280×800 y 1024×700, sin desbordes. Flujos completos: monto → peso (S/ 5.00 de kion = 417 g) y cobro en efectivo con vuelto; crédito que exige cliente y no suma a la caja; alta por código y sin código; aviso de ventas sin enviar en el cierre; FEFO en el carrito; PC con lector + Enter, F12 y Enter; rol Trabajo sin Dashboard.
+- Las pruebas encontraron tres problemas de diseño, ya corregidos:
+  - en el celular, la fila inferior del teclado quedaba **debajo de la barra de navegación**;
+  - en el cobro del celular, el vuelto quedaba fuera de la vista;
+  - en la PC, la tabla del carrito se desbordaba.
+
+### Lo que queda fuera
+
+- Base de datos, sincronización y stock reales.
+- Login y PIN.
+- Impresión: solo la vista previa.
+- Detección del lector por ráfaga (Spike 2).
+- Cámara en la PC.
+- Notas de pedido.
+- Pantallas de Compras, Clientes, Reportes y Ajustes: “Próximamente”.
+- Riverpod.
+- Golden tests.
+
+### Resultados en dispositivo (2026-11-17)
+
+| Equipo | Resultado |
+| --- | --- |
+| PC Windows | Build abierto en la PC del usuario. Barra de la ventana “La Esquinita Orgánika” (corregido: MSVC leía mal la “á” sin `/utf-8`). |
+| Celular Samsung **SM-A576B** (Android 16, 1080×2340, densidad 420 ≈ 411 dp) | Instalado; abre sin errores; permisos de cámara y vibración concedidos. El usuario lo usó: *“la lógica interna funciona bien”*. |
+| Tablet **SM-X133** (Tab A11) | Instalado; abre en el Dashboard (rol Administrador); POS en vertical con la cuadrícula de 3 columnas y la barra de cobro; permisos de cámara y vibración concedidos. |
+
+Pedidos del usuario durante la revisión (hechos):
+
+1. **Precio por kg editable** en la calculadora de peso. Ejemplo: 300 g de kion al precio que diga. La línea queda marcada “Precio editado”.
+2. **Sonido y vibración al escanear**, con un canal nativo que suena aunque los sonidos táctiles del sistema estén apagados. Un tono distinto para los códigos no registrados.
+3. **Interruptores** para apagar el sonido y la vibración.
+
+Ajustes de Claude al revisar las capturas de la tablet:
+
+- los indicadores de caja y sincronización salían repetidos en el Dashboard;
+- los nombres largos de producto se cortaban a mitad de línea en la cuadrícula: ahora van en 2 líneas con “…”.
+
+**Pendiente de prueba en dispositivo:** que el pitido y la vibración se oigan y se sientan al escanear con la cámara. El volumen multimedia del celular estaba en 3/15.
+
+Las mejoras visuales quedan para la versión final, por decisión del usuario.
+
+### Resultados en dispositivo (2026-11-18 y 2026-11-19)
+
+Pruebas guiadas en el celular **SM-A576B** y la tablet **SM-X133**, en vertical y en horizontal. El usuario las confirmó todas:
+
+- lote nuevo al escanear un producto ya registrado;
+- cambio de lote desde la línea del carrito;
+- límite de stock en el carrito;
+- botón Atrás.
+
+Pedidos del usuario en esta revisión (hechos, con pruebas automáticas):
+
+1. **El stock limita el carrito.** Al superar el stock local vendible aparece "Sin stock · ¿Agregar de todas formas?". *Sí* agrega con aviso ámbar; *No* rechaza ese código en rojo hasta terminar la venta (`docs/modelo-datos.md` §3.2).
+2. **Atrás de Android no cierra la app de golpe.** Vuelve a *Más* o al inicio, y en el inicio pregunta "¿Salir de la app?". Además, botón **←** en pantalla.
+3. **Editar producto** al mantener presionado en Inventario: datos, stock y lotes. **Asignar lote** reparte el stock sin lote entre lotes.
+4. **Mantener presionado en Vender** abre la ficha de stock del producto.
+5. **Dar de baja un lote** (vencido): lo que queda sale como merma y el lote se oculta. No se borra (CLAUDE.md §6.3).
+
+Pruebas automáticas: app 160 en verde; `analyze --fatal-infos` sin problemas.
+
+**Pendiente de prueba en dispositivo:**
+
+- el escáner de venta con la cámara real (el fallo `Bad state: No element` ya está corregido);
+- las dos últimas versiones en el celular.
+
+**Estado: prototipo aprobado por el usuario el 2026-11-19.**

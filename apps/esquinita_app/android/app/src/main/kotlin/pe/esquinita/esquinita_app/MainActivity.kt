@@ -5,15 +5,19 @@ import io.flutter.embedding.engine.FlutterEngine
 
 class MainActivity : FlutterActivity() {
     private var btSpp: BtSppChannel? = null
+    private var feedback: FeedbackChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         btSpp = BtSppChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        feedback = FeedbackChannel(this, flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         btSpp?.dispose()
         btSpp = null
+        feedback?.dispose()
+        feedback = null
         super.cleanUpFlutterEngine(flutterEngine)
     }
 

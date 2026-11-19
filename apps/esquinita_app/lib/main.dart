@@ -1,66 +1,37 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'app/router.dart';
 import 'app/theme.dart';
-import 'spikes/print_spike_page.dart';
-import 'spikes/scan_spike_page.dart';
-import 'spikes/sync_spike_page.dart';
+import 'prototype/demo_store.dart';
+import 'prototype/widgets/notice.dart';
 
-void main() => runApp(const EsquinitaApp());
+void main() => runApp(EsquinitaApp(store: DemoStore()));
 
-class EsquinitaApp extends StatelessWidget {
-  const EsquinitaApp({super.key});
+class EsquinitaApp extends StatefulWidget {
+  const EsquinitaApp({super.key, required this.store});
+
+  final DemoStore store;
 
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
+  State<EsquinitaApp> createState() => _EsquinitaAppState();
+}
+
+class _EsquinitaAppState extends State<EsquinitaApp> {
+  late final _router = buildRouter(widget.store);
+
+  @override
+  Widget build(BuildContext context) => DemoScope(
+    store: widget.store,
+    child: MaterialApp.router(
       title: 'La Esquinita Orgánika',
       theme: buildTheme(),
       debugShowCheckedModeBanner: false,
-      home: const SpikesHomePage(),
-    );
-  }
-}
-
-/// Fase 0 entry point: one tile per hardware spike.
-class SpikesHomePage extends StatelessWidget {
-  const SpikesHomePage({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('La Esquinita · Fase 0')),
-      body: ListView(
-        children: [
-          ListTile(
-            leading: const Icon(Icons.qr_code_scanner),
-            title: const Text('Spike 1 — Escaneo con cámara'),
-            subtitle: const Text('Escaneo continuo, filtro de duplicados'),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const ScanSpikePage()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.print_outlined),
-            title: const Text('Spikes 3 y 4 — Impresión térmica'),
-            subtitle: const Text(
-              'Éterma por Bluetooth (tablet) o USB (PC): ticket, logo, tildes',
-            ),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const PrintSpikePage()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sync),
-            title: const Text('Spike 6 — Sincronización'),
-            subtitle: const Text(
-              'Operaciones sin conexión (drift + outbox) contra el servidor',
-            ),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const SyncSpikePage()),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+      routerConfig: _router,
+      locale: const Locale('es', 'PE'),
+      supportedLocales: const [Locale('es', 'PE'), Locale('es')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      builder: (_, child) => NoticeHost(child: child!),
+    ),
+  );
 }

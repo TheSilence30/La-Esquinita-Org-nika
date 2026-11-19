@@ -27,7 +27,7 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
 - [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
 - [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
 - [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
-- [ ] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet
+- [x] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **aprobado por el usuario el 2026-11-19** (PR #8)
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
 - [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
@@ -259,7 +259,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - sin balanza: calculadora peso ↔ monto, y códigos internos con prefijo `29`;
   - **una sola caja compartida**;
   - al inicio un solo usuario; roles por vistas, **Administrador** y **Trabajo** (corrección del usuario: reemplaza la idea de Dueño/Trabajador/Asistente);
-  - la venta sin stock local se registra con aviso;
+  - la venta sin stock local se registra con aviso; desde el 2026-11-19, solo después de responder **Sí** a "Sin stock · ¿Agregar de todas formas?" (ver `docs/modelo-datos.md` §3.2);
   - devoluciones con `disposition` (`restock` / `defective` → merma);
   - claves únicas con `NULL` resueltas.
 - Propuestas de Claude que el usuario debe aprobar:
@@ -272,6 +272,33 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 2. ~~Claude actualiza `docs/modelo-datos.md` y CLAUDE.md §9.~~ Hecho; el usuario aprobó §3.5 con un ajuste: el latido de 60 s solo mientras haya una caja abierta. Roles confirmados; Trabajo: abre y cierra caja, descuentos con el % que se requiera, crédito solo a clientes registrados, devoluciones.
 3. ~~Fusión del PR #6~~ (Claude, a pedido del usuario). **Modelo de datos aprobado.**
 4. **Siguiente:** prototipo navegable (último entregable de la Fase 0).
+
+### 2026-11-17 — Prototipo navegable (rama `phase-0/prototype`)
+
+**Se hizo**
+
+- El PR #6 (modelo de datos) fue fusionado por Claude, a pedido del usuario (`ceecdf2`).
+- Decisiones del usuario:
+  - además de las 4 pantallas, incluir el cobro (efectivo con vuelto, Yape, Plin y pago mixto), el cierre de caja con el estado de cada equipo y la calculadora de peso;
+  - **layout de celular diseñado aparte** (360 dp, una mano), con pruebas a 360×640 y 360×800;
+  - crédito: **no** se simplifica el modelo de datos (el libro de cuentas, los abonos, el límite y los plazos llegan en la Fase 5). En el prototipo, el interruptor “Venta a crédito” exige un cliente registrado, no pide medio de pago y no suma a la caja.
+- Commits:
+  - `e35d302` core: calculadora de peso y EAN-13 interno;
+  - `8385d05` prototipo: navegación, pantallas, fuentes y logo;
+  - `031d73e` pruebas y arreglos de diseño;
+  - título de la ventana de Windows: “La Esquinita Orgánika”.
+- Dependencia nueva: `go_router` (ya prevista en el stack, CLAUDE.md §3).
+- Pruebas: core 60 y app 108, en verde. El APK y el build de Windows compilan; la app de Windows quedó abierta en la PC para revisión.
+- **Sin probar en dispositivo:** al terminar no había ninguna tablet ni celular conectados por USB.
+
+**Siguiente paso exacto**
+
+1. ~~El usuario conecta un celular.~~ APK instalado en un Samsung **SM-A576B** (Android 16, 1080×2340, densidad 420 ≈ 411 dp de ancho); abre sin errores y pide el permiso de cámara. Falta la tablet.
+   - Pedido del usuario (2026-11-17): en la calculadora de peso, el **precio por kg** viene de la presentación pero **se puede cambiar** en el momento (ej. 300 g de kion al precio que diga). Hecho en `88e48b9`: campo *Precio por kg* editable, botón *Usar precio de lista*, y la línea del carrito queda marcada “Precio editado”. En la Fase 3 ese cambio requerirá el permiso `sales.change_price` y quedará auditado (CLAUDE.md §6.13).
+   - El usuario indicó que las mejoras visuales quedan para la versión final.
+   - Pedido del usuario: **sonido y vibración al escanear**, para darse cuenta sin mirar. Hecho con un canal nativo propio (`FeedbackChannel.kt`: `ToneGenerator` con el volumen multimedia + `Vibrator`, permiso `VIBRATE`), porque `SystemSound`/`HapticFeedback` no suenan si el usuario apagó los sonidos y vibraciones táctiles (ya visto en el Spike 1). Código reconocido: un pitido corto y una vibración; código no registrado o bloqueado: tono de error y doble vibración. En la PC se usa el sonido del sistema (los lectores USB suelen pitar solos). **Pendiente de prueba en dispositivo** (con el volumen multimedia del teléfono en 3/15 se oirá bajo).
+2. ~~Recorrido del usuario.~~ Instalado también en la tablet SM-X133. Observaciones atendidas (precio por kg editable, sonido y vibración, interruptores) y dos ajustes de legibilidad en la tablet. Resultados en `docs/informes/fase-0.md`.
+3. ~~PR del prototipo.~~ Abierto; falta la aprobación del usuario. Con eso se cumple el criterio de salida de la Fase 0 (Spikes 1, 3 y 6, prototipo y modelo de datos aprobados).
 
 ### 2026-11-17 — Carga masiva CSV y descargas (rama `docs/csv-import-reports`)
 
@@ -294,3 +321,154 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 **Pendiente**
 
 - Elegir el paquete para XLSX en la Fase 6 (requiere aprobación de dependencia). El PDF usa `pdf` + `printing`, ya en el stack.
+
+### 2026-11-17 (cierre del día) — Prototipo: arreglos del carrito y del catálogo (rama `phase-0/prototype`, PR #8 abierto, sin fusionar)
+
+**Se arregló hoy** (commits `795bc9b` y `498cef8`, tras las capturas del usuario en la tablet)
+
+- **Nombres de productos** apretados, ilegibles o cortados en la cuadrícula de la tablet:
+  - las columnas se calculan según el ancho que deja el carrito (tarjetas de hasta 210 dp);
+  - el nombre ocupa hasta 3 líneas con letra de 15 px y termina en “…” si no cabe;
+  - el panel del carrito en horizontal ocupa el 38 % del ancho (entre 320 y 420 dp), en lugar de 400 dp fijos.
+- **Eliminar una línea:** botón rojo de papelera en cada línea del carrito, también en las de productos por peso, que antes no se podían quitar.
+- **Deslizar para quitar:** deslizar la línea hacia la izquierda la elimina.
+- **Vaciar venta:** botón con confirmación (“¿Vaciar la venta?”) en el celular, en la tablet (vertical y horizontal) y en la PC.
+- **Importe del botón Cobrar:** en el celular crecía con el total y tapaba el botón del carrito (desborde de 14 px). Ahora los dos botones comparten el ancho (2:3) y el importe se achica para caber.
+- También: los indicadores de caja y sincronización ya no se repiten en el Dashboard. La cabecera del carrito se adapta si no hay espacio.
+- Pruebas: app 115 en verde, incluida una nueva de eliminar, deslizar y vaciar a 360×640 y 893×533. `analyze` sin problemas.
+
+**Falta verificar en dispositivo**
+
+- **Tablet SM-X133:** el APK con estos arreglos quedó instalado, pero la tablet se bloqueó y Claude no pudo ver la pantalla. Falta revisar los nombres en vertical y en horizontal, y probar eliminar, deslizar y vaciar.
+- **Celular SM-A576B:** sigue con una versión anterior (sin los arreglos de hoy de la tarde). Hay que reinstalar y revisar el POS, la barra de cobro con totales grandes y el carrito.
+- **Sonido y vibración al escanear:** no se confirmó en ningún equipo con un escaneo real con la cámara. En el celular, el volumen multimedia estaba en 3/15.
+
+**Observaciones del usuario pendientes**
+
+- Ninguna sin atender. Todo lo que pidió hoy está hecho y falta que lo confirme en los equipos:
+  - precio por kg editable;
+  - sonido y vibración;
+  - interruptores;
+  - nombres legibles;
+  - eliminar, deslizar y vaciar.
+- Decisión del usuario: las **mejoras visuales generales** quedan para la versión final.
+
+**Siguiente paso exacto (mañana)**
+
+1. El usuario conecta la tablet (desbloqueada) y el celular. Claude instala el APK actual en los dos.
+2. El usuario revisa en la tablet (vertical y horizontal) y en el celular:
+   - nombres de productos;
+   - eliminar, deslizar y vaciar;
+   - botón Cobrar con un total grande;
+   - pitido y vibración al escanear un producto del catálogo de ejemplo (por ejemplo la quinua `7750543400036`) y un código desconocido.
+3. Claude atiende las observaciones, actualiza los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
+4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada**. Spikes 1, 3 y 6 y el modelo de datos ya están aprobados.
+5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.
+
+### 2026-11-19 — Prototipo: celular en horizontal y teclado de montos (rama `phase-0/prototype`, PR #8)
+
+**Se hizo** (commit `3546aeb`, tras las capturas del usuario en el celular SM-A576B en horizontal)
+
+- APK instalado en la tablet SM-X133 y en el celular SM-A576B.
+- **Celular en horizontal (891×411 dp):** sin la barra verde (pedido del usuario). "Sincronizado" pasa a la derecha de la barra inferior, para que siga visible (CLAUDE.md §10). Los íconos de la barra del sistema quedan oscuros sobre el crema. El cobro tampoco muestra la barra (ya tiene "Volver"). En vertical y en la tablet no cambia nada.
+- **Teclado de montos:** primero los soles enteros y con la tecla "." los céntimos: "25" = S/ 25.00, "30.5" = S/ 30.50, "350" = S/ 350.00 (pedido del usuario). La tecla "00" se reemplaza por "."; en gramos sigue el "00". También acepta "." y "," del teclado físico.
+- Arreglo: el teclado del cobro se desbordaba 47 px en el celular en horizontal.
+- El botón del carrito vacío dice "0 ítems" (antes "Carrito v…" a 360 dp).
+- Pruebas: app 123 en verde (nuevas: teclado y celular en horizontal); `analyze` sin problemas.
+- **Segundo pedido del día** (commit `385fe49`):
+  - **Tablet en horizontal:** tampoco muestra la barra verde. "Caja abierta" y "Sincronizado" pasan a la barra inferior.
+  - **Celular en horizontal:** usa los **dos paneles de la tablet** (tarjetas y carrito a la derecha) desde 840 dp de ancho.
+  - **Calculadora de peso con selector kg / g:** en kg, "1.5" = 1.500 kg y "2" = 2 kg; en g, "500" = 500 g. Atajos: 250 g, 300 g, 500 g, 1 kg y 2 kg, en una sola fila con desplazamiento (en dos filas, a 360×640 empujaban el teclado fuera de la pantalla). En el carrito, el peso se muestra como "1.500 kg" desde 1 kg.
+  - Pruebas: app 128 en verde.
+
+**Falta verificar en dispositivo**
+
+- El cobro en el celular en horizontal y el teclado nuevo (25, 30.5, borrar).
+- Lo pendiente del 2026-11-17: nombres en la tablet, eliminar/deslizar/vaciar, pitido y vibración.
+- ~~Sin ver en dispositivo: la tablet en horizontal sin barra, el celular con dos paneles y la calculadora kg / g.~~ El usuario confirmó todo en los dos equipos ("todo ok").
+- **Tercer pedido del día: escaneo en ventas con semáforo.** El aviso de código no registrado salía detrás de la cámara (un SnackBar queda debajo de las hojas y los diálogos).
+  - **Escáner de venta a pantalla completa** (`/escanear-venta`): cámara con marco (esquinas + línea guía) en una mitad y el carrito en vivo en la otra (arriba/abajo en vertical, izquierda/derecha en horizontal). El último producto agregado sale primero. Botón Cobrar y Vaciar.
+  - **Avisos flotantes tipo semáforo** (`widgets/notice.dart`), siempre encima de todo:
+    - 🟢 agregado, con la cantidad acumulada (×2);
+    - 🟡 agregado pero sin stock local o con stock bajo, y producto por peso (abre la calculadora sobre la cámara);
+    - 🔴 código no registrado (queda fijo hasta tocarlo o hasta el siguiente escaneo, con botón **Registrar** que abre el alta con el código escrito) y lotes vencidos.
+  - El lector USB de la PC usa el mismo semáforo. Los 8 SnackBar de la app pasaron a este componente.
+  - El marco también está en la cámara de *Registrar producto*.
+  - Tarjetas de producto más bajas cuando la pantalla tiene menos de 500 dp de alto (celular en horizontal): caben más filas.
+  - Pruebas: app 136 en verde (semáforo en el store y escáner en 4 tamaños).
+  - ~~Pendiente de prueba en dispositivo~~: el usuario probó y **el escáner de venta no agregaba nada**. Log de la tablet: `Bad state: No element` en cada lectura. Causa: un `where` perezoso consultaba el `ScanFilter` dos veces por cuadro; la segunda caía en el enfriamiento y la lectura aceptada se perdía. Las pruebas no lo vieron porque llamaban directo a `handleSaleScan`. Arreglado, y la prueba ahora pasa por el camino de la cámara (`onCameraCodes`, 2 cuadros).
+- **Otros dos fallos del usuario:**
+  - *Registrar producto:* al girar el equipo se borraba lo escrito (el formulario cambia de lugar en el árbol de widgets entre una columna y dos paneles). Arreglado con una `GlobalKey`; prueba de giro en los dos sentidos.
+  - *Inventario:* nunca se pudo editar. Ahora, al tocar un producto (Administrador) se abre un panel: entrada/salida de cantidad (kg o und), por lote si tiene lotes, cambiar el vencimiento y crear un lote nuevo. Así se puede probar el quiebre de stock y los vencimientos. shortcut: modifica el stock en memoria; en la Fase 2 cada ajuste será un `stock_movement` con motivo y auditoría.
+  - Pruebas: app 141 en verde.
+  - **Pendiente de prueba en dispositivo:** el escáner de venta con la cámara real (instalado en la tablet; el celular se desconectó).
+- **Cuarto pedido del día: lotes en cualquier producto e inventario completo.**
+  - Decisiones del usuario:
+    - venta por **FEFO automático**, con la opción de **cambiar el lote** desde la línea del carrito (CLAUDE.md §6.8 se mantiene: FEFO por defecto);
+    - si el producto ya tiene stock **sin lote** y se crea un lote, la app **pregunta** si pasar ese stock al lote o dejarlo sin lote ("el lote es para identificar el producto y saber sus fechas de expiración").
+  - **Lotes en cualquier producto:** código del empaque (ej. LOT36), vencimiento y cantidad. Ejemplo del usuario: miel LOT34 ×5 + LOT36 ×3 → la venta muestra 8. Stock = sin lote + lotes; vendible = sin lote + lotes no vencidos.
+  - **Escanear un producto ya registrado** ofrece **Agregar lote nuevo** y ver su stock.
+  - **Venta:** FEFO sobre lotes no vencidos, luego el stock sin lote. Cada línea muestra de qué lote sale; al tocarla se elige otro lote, "Sin lote" o "Automático".
+  - **Inventario (criterio de Claude):** búsqueda (nombre, código o lote) y filtros con contador (Agotados, Stock bajo, Por vencer en 30 días, Vencidos). En cada producto, una ficha con:
+    - stock local, vendible y mínimo (editable);
+    - lotes con color por vencimiento y cambio de fecha;
+    - **Entrada / Salida / Conteo** con motivo (Recepción de compra, Devolución de cliente, Merma / vencido, Dañado, Consumo interno, Ajuste);
+    - **últimos movimientos** (kardex, incluidas las ventas).
+  - Calendario y diálogos en español: `flutter_localizations` (del SDK de Flutter, sin paquetes nuevos de terceros), idioma `es_PE`.
+  - shortcut: todo en memoria y sin auditoría; en la Fase 2 serán `stock_movements` y operaciones de sync reales. Ajustar stock solo con el rol Administrador (`inventory.adjust`).
+  - Pruebas: app 148 en verde. Instalado en la tablet y el celular. **Pendiente de prueba en dispositivo.**
+
+### 2026-11-19 (cierre del día) — Prototipo: lotes e inventario (rama `phase-0/prototype`, PR #8 abierto, sin fusionar)
+
+**Hecho hoy** (resumen; el detalle está en la entrada de arriba)
+
+- Celular y tablet en horizontal sin barra verde; el celular en horizontal usa los dos paneles. Teclado de montos (soles enteros primero). Calculadora de peso con kg / g. El usuario confirmó todo esto en los dos equipos.
+- Escáner de venta a pantalla completa (cámara con marco + carrito en vivo) y avisos flotantes con semáforo en toda la app.
+- Arreglos tras la prueba del usuario:
+  - el escáner de venta perdía todas las lecturas (`Bad state: No element`);
+  - el formulario de registro se borraba al girar el equipo;
+  - inventario era solo de lectura.
+- **Lotes en cualquier producto:** código del empaque, vencimiento y cantidad. Se agregan al escanear un producto ya registrado ("Agregar lote nuevo") o desde Inventario. Si hay stock sin lote, la app pregunta si pasarlo al lote. En la venta: FEFO, con la opción de cambiar el lote desde la línea del carrito.
+- **Inventario:**
+  - búsqueda (nombre, código o lote) y filtros con contador (Agotados, Stock bajo, Por vencer, Vencidos);
+  - ficha por producto: stock local, vendible y mínimo editable; lotes con cambio de fecha; Entrada / Salida / Conteo con motivo; últimos movimientos (kardex, incluidas las ventas).
+- **Calendario y diálogos en español** (`flutter_localizations` del SDK, `es_PE`).
+- **Decisión del usuario (roles):** Trabajo **sí** registra lotes y vencimientos al recibir mercadería, sin ver costos. Las salidas por merma y los conteos con diferencia (`inventory.adjust`) siguen siendo solo del Administrador. Registrado en `docs/modelo-datos.md` §4. En el prototipo, Trabajo que toca un producto en Inventario ve el aviso "requiere Administrador" con el botón **Agregar lote**.
+- Pruebas: app 149 en verde; `analyze --fatal-infos` sin problemas.
+
+**Pendiente de prueba en dispositivo** (tablet SM-X133 y celular SM-A576B; el APK actual, sin el cambio de roles de esta noche, ya está instalado en los dos)
+
+1. **Escanear** → miel `7751234500017` → **Agregar lote nuevo** → LOT36, una fecha y 3 → Guardar.
+2. **Vender** → miel: tocar el lote en la línea del carrito y cambiarlo a LOT36.
+3. **Inventario** → filtro **Vencidos** → miel (lote L-2403) → Salida de L-2403 con motivo "Merma / vencido" → revisar *Últimos movimientos*.
+4. **Escáner de venta con la cámara real:** quinua `7750543400036` dos veces (🟢 ×1 y ×2 en el carrito) y un código no registrado (🔴 + **Registrar**). Es lo que falló hoy por el `Bad state: No element`; el registro de los dos equipos quedó limpio (`logcat -c`) para revisar si vuelve a fallar.
+
+**Siguiente paso exacto (mañana)**
+
+1. El usuario conecta la tablet y el celular. Claude instala el APK del último commit (incluye el cambio de roles).
+2. El usuario hace los 4 pasos de arriba en los dos equipos, en vertical y en horizontal. Si algo falla, Claude revisa `adb logcat -s flutter` y las capturas en `DCIM/Screenshots`.
+3. Claude atiende las observaciones, completa los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
+4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada** (Spikes 1, 3 y 6 y el modelo de datos ya están aprobados).
+5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.
+
+### 2026-11-19 (pruebas en dispositivo) — Stock limita el carrito
+
+- Prueba 1 (agregar lote al escanear): **el usuario confirmó que funciona** en el celular.
+- Observación del usuario: se podía escanear o vender más unidades que el stock (10 con 2 en stock). Decisión del usuario: al superar el stock local vendible, aviso "Sin stock · ¿Agregar de todas formas?". **Sí** sigue agregando (ámbar); **No** rechaza ese código (rojo) en cada lectura hasta terminar o vaciar la venta. Aplica al escaneo con cámara, al lector o la búsqueda, al tocar un producto, a **+** y a la calculadora de peso. La cámara se pausa mientras el diálogo está abierto. Bajar una cantidad siempre se permite.
+- Pruebas: app 150 en verde; `analyze --fatal-infos` sin problemas. Instalado en el celular; la tablet no estaba conectada. **Pendiente de prueba en dispositivo.**
+- El usuario confirmó la Prueba 2 y el límite de stock en el celular ("todo perfecto"). Pidió dos cosas, y con ellas **aprueba el prototipo**:
+  - **Atrás de Android ya no cierra la app de golpe.** Una página de *Más* vuelve a *Más*; otra pestaña vuelve al inicio del rol; en el inicio pregunta "¿Salir de la app?" (Sí / No). La pantalla *Venta T1-…* vuelve a *Vender*.
+  - **Botón ← (Atrás)** en la barra verde (vertical) o al inicio de la barra inferior (horizontal), en toda pantalla que no sea el inicio.
+  - Pruebas: app 152 en verde. Instalado en el celular. **Pendiente de prueba en dispositivo**, y de instalar en la tablet.
+- Último pedido del usuario para aprobar el prototipo: **editar productos y su stock**.
+  - **Inventario → mantener presionado** (Administrador) → *Editar producto*: nombre, categoría, precio, código de barras (único, CLAUDE.md §6.12), caja (unidades y precio) y stock mínimo, más el botón **Stock y lotes**. No se puede cambiar "por peso" (el stock y las ventas ya están en esa unidad). Se conservan el precio y el mínimo mayorista. Trabajo ve "requiere el rol Administrador".
+  - **Ficha de stock → Asignar lote**: pasa la cantidad que elijas del stock sin lote a un lote existente o nuevo (ej. 10 de los 18 cafés a LOT34 y 8 a LOT36). Queda en el kardex como "Pasado al lote… / Desde stock sin lote".
+  - **Vender → mantener presionado** un producto → su ficha de stock.
+  - shortcut: la edición se hace en memoria y sin auditoría; en la Fase 1 será una edición de maestros con conexión (CLAUDE.md §7) y auditada.
+  - Pruebas: app 157 en verde; `analyze --fatal-infos` sin problemas. Instalado en la **tablet**; el celular no estaba conectado. **Pendiente de prueba en dispositivo.**
+- Pedido del usuario: **borrar un lote vencido** para que ya no figure. Como **nada se borra** (CLAUDE.md §6.3), se hizo como **Dar de baja** (icono de papelera en cada lote de la ficha, con confirmación): lo que queda del lote sale como "Merma / vencido", el lote deja de aparecer (inventario, venta, Asignar lote) y su historial queda en *Últimos movimientos*. Su código no se puede reutilizar en ese producto. Si el lote estaba elegido en el carrito, la línea vuelve a FEFO automático.
+  - Pruebas: app 160 en verde. Instalado en la tablet. **Pendiente de prueba en dispositivo.**
+- **El usuario aprobó el prototipo** ("Listo, ya está, aprobado"). Se fusiona el PR #8.
+- Pregunta del usuario: ¿*Cliente registrado* queda para después? Respuesta: el **módulo de clientes** (registro, crédito, abonos y cuentas por cobrar) es la **Fase 5**. La consulta automática de DNI/RUC (RENIEC/SUNAT) sí sería una **integración**, en la Fase 8 o como propuesta aparte.
+
+**Siguiente paso:** revisar con el usuario el estado de los spikes en la lista de arriba y cerrar la Fase 0. Luego, plan de la Fase 1 (fundamentos) para su aprobación antes de programar.
