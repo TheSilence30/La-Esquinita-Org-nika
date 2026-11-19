@@ -220,6 +220,34 @@ class DemoStore extends ChangeNotifier {
     );
   }
 
+  // --- Inventory (prototype: lets the user try stock-outs and expiry) -----
+  // shortcut: edits the in-memory stock directly; Fase 2 records each
+  // change as a stock_movement with reason and user (CLAUDE.md §6.1).
+
+  /// Adds (+) or removes (−) stock, from [lot] when the product has lots.
+  /// Never below zero.
+  void adjustStock(DemoProduct p, int deltaMilli, {DemoLot? lot}) {
+    if (lot != null) {
+      lot.qtyMilli = max(0, lot.qtyMilli + deltaMilli);
+    } else {
+      p.stockMilli = max(0, p.stockMilli + deltaMilli);
+    }
+    notifyListeners();
+  }
+
+  void setLotExpiry(DemoLot lot, DateTime expiresOn) {
+    lot.expiresOn = expiresOn;
+    notifyListeners();
+  }
+
+  /// New lot with the next code (L-…); returns it.
+  DemoLot addLot(DemoProduct p, DateTime expiresOn, int qtyMilli) {
+    final lot = DemoLot('L-${100 + p.lots.length + 1}', expiresOn, qtyMilli);
+    p.lots.add(lot);
+    notifyListeners();
+    return lot;
+  }
+
   void setQty(CartLine line, int qtyMilli) {
     if (qtyMilli <= 0) {
       cart.remove(line);

@@ -396,4 +396,9 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - El marco también está en la cámara de *Registrar producto*.
   - Tarjetas de producto más bajas cuando la pantalla tiene menos de 500 dp de alto (celular en horizontal): caben más filas.
   - Pruebas: app 136 en verde (semáforo en el store y escáner en 4 tamaños).
-  - **Pendiente de prueba en dispositivo:** el escáner nuevo con la cámara real en la tablet y el celular. Instalado en la tablet; el celular no estaba conectado.
+  - ~~Pendiente de prueba en dispositivo~~: el usuario probó y **el escáner de venta no agregaba nada**. Log de la tablet: `Bad state: No element` en cada lectura. Causa: un `where` perezoso consultaba el `ScanFilter` dos veces por cuadro; la segunda caía en el enfriamiento y la lectura aceptada se perdía. Las pruebas no lo vieron porque llamaban directo a `handleSaleScan`. Arreglado, y la prueba ahora pasa por el camino de la cámara (`onCameraCodes`, 2 cuadros).
+- **Otros dos fallos del usuario:**
+  - *Registrar producto:* al girar el equipo se borraba lo escrito (el formulario cambia de lugar en el árbol de widgets entre una columna y dos paneles). Arreglado con una `GlobalKey`; prueba de giro en los dos sentidos.
+  - *Inventario:* nunca se pudo editar. Ahora, al tocar un producto (Administrador) se abre un panel: entrada/salida de cantidad (kg o und), por lote si tiene lotes, cambiar el vencimiento y crear un lote nuevo. Así se puede probar el quiebre de stock y los vencimientos. shortcut: modifica el stock en memoria; en la Fase 2 cada ajuste será un `stock_movement` con motivo y auditoría.
+  - Pruebas: app 141 en verde.
+  - **Pendiente de prueba en dispositivo:** el escáner de venta con la cámara real (instalado en la tablet; el celular se desconectó).

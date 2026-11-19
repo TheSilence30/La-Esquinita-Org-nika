@@ -302,6 +302,65 @@ void main() {
     );
   });
 
+  for (final size in const [Size(360, 640), Size(893, 533)]) {
+    testWidgets('inventory $size: take stock to zero, then add it back', (
+      tester,
+    ) async {
+      final store = await pumpApp(tester, size);
+      final cafe = store.catalog.firstWhere((p) => p.id == 'cafe'); // 18
+      await go(tester, '/inventario');
+      await tester.scrollUntilVisible(
+        find.text('Café orgánico Villa Rica 250 g'),
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(find.text('Café orgánico Villa Rica 250 g'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Café orgánico Villa Rica 250 g'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Salida'));
+      await tester.pump();
+      await pad(tester, '18');
+      expect(tester.takeException(), isNull);
+      await tester.ensureVisible(find.text('Restar 18 und'));
+      await tester.tap(find.text('Restar 18 und'));
+      await tester.pump();
+      expect(cafe.totalStockMilli, 0);
+      expect(find.textContaining('Stock local: 0 und'), findsOneWidget);
+      await tester.tap(find.text('Entrada'));
+      await tester.pump();
+      await pad(tester, '5');
+      await tester.ensureVisible(find.text('Sumar 5 und'));
+      await tester.tap(find.text('Sumar 5 und'));
+      await tester.pump();
+      expect(cafe.totalStockMilli, 5000);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('register form keeps what was typed when rotating', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(533, 893));
+    await go(tester, '/escanear');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Código de barras'),
+      '7799999999999',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Nombre'),
+      'Mermelada de aguaymanto',
+    );
+    for (final size in const [Size(893, 533), Size(533, 893)]) {
+      tester.view.physicalSize = size;
+      await tester.pumpAndSettle();
+      expect(find.text('Mermelada de aguaymanto'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+  });
+
   // Sales scanner: camera + live cart, traffic-light notices on top of it.
   for (final size in const [
     Size(360, 640),
@@ -316,12 +375,23 @@ void main() {
       await go(tester, '/escanear-venta');
       expect(tester.takeException(), isNull);
       Future<void> scan(String code) async {
-        final state = tester.state(find.byType(SaleScannerPage));
-        await (state as dynamic).handleSaleScan(state.context, code);
+        final state = tester.state<SaleScannerPageState>(
+          find.byType(SaleScannerPage),
+        );
+        await state.handleSaleScan(state.context, code);
         await tester.pump();
       }
 
-      await scan('7750543400036');
+      // Through the camera path: confirmed on the 2nd frame (ScanFilter).
+      final scanner = tester.state<SaleScannerPageState>(
+        find.byType(SaleScannerPage),
+      );
+      for (final ms in const [0, 100]) {
+        await scanner.onCameraCodes([
+          '7750543400036',
+        ], Duration(milliseconds: ms));
+      }
+      await tester.pump();
       expect(find.byKey(const Key('notice-ok')), findsOneWidget);
       expect(find.text('Quinua blanca orgánica 1 kg ×1'), findsOneWidget);
       expect(find.text('Venta · 1 ítems'), findsOneWidget); // live cart

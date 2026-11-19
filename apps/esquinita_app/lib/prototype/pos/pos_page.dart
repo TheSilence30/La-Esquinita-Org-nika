@@ -688,20 +688,26 @@ class SaleScannerPage extends StatefulWidget {
   const SaleScannerPage({super.key});
 
   @override
-  State<SaleScannerPage> createState() => _SaleScannerPageState();
+  State<SaleScannerPage> createState() => SaleScannerPageState();
 }
 
-class _SaleScannerPageState extends State<SaleScannerPage> {
+class SaleScannerPageState extends State<SaleScannerPage> {
   final _filter = ScanFilter();
 
   /// The weight calculator is open: ignore the camera meanwhile.
   bool _weighing = false;
 
-  Future<void> _onCodes(List<String> codes, Duration elapsed) async {
+  /// Camera frames. Public for tests. Each code goes through the filter
+  /// exactly once per frame: a lazy `where` here re-ran it, the second call
+  /// hit the cooldown and every accepted read was lost ("No element").
+  Future<void> onCameraCodes(List<String> codes, Duration elapsed) async {
     if (_weighing) return;
-    final code = codes.where((c) => _filter.offer(c, elapsed).isAccepted);
-    if (code.isEmpty) return;
-    await handleSaleScan(context, code.first);
+    final accepted = [
+      for (final c in codes)
+        if (_filter.offer(c, elapsed).isAccepted) c,
+    ];
+    if (accepted.isEmpty) return;
+    await handleSaleScan(context, accepted.first);
   }
 
   /// Public for tests (no camera there).
@@ -752,7 +758,7 @@ class _SaleScannerPageState extends State<SaleScannerPage> {
       children: [
         if (isCameraScanSupported)
           CameraScanView(
-            onCodes: (codes, elapsed, _) => _onCodes(codes, elapsed),
+            onCodes: (codes, elapsed, _) => onCameraCodes(codes, elapsed),
             overlay: const ScanFrame(),
           )
         else

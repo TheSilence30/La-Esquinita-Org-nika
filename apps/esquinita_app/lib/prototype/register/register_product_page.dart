@@ -36,9 +36,14 @@ class _RegisterProductPageState extends State<RegisterProductPage> {
     super.dispose();
   }
 
+  /// Keeps the half-filled form when rotating: it moves between the single
+  /// column and the side panel, and without a GlobalKey it was rebuilt empty.
+  GlobalKey _formKey = GlobalKey();
+
   void _useCode(String code) => setState(() {
     _code = code.trim();
     _scanning = false;
+    _formKey = GlobalKey();
   });
 
   void _reset() => setState(() {
@@ -86,7 +91,7 @@ class _RegisterProductPageState extends State<RegisterProductPage> {
                 onAgain: _reset,
               )
             : _NewProductForm(
-                key: ValueKey(code),
+                key: _formKey,
                 code: code,
                 onSaved: _reset,
                 onCancel: _reset,

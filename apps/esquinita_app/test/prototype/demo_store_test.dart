@@ -12,6 +12,33 @@ void main() {
 
   DemoProduct p(String id) => store.catalog.firstWhere((x) => x.id == id);
 
+  group('inventory adjustments (prototype)', () {
+    test('add and remove stock, never below zero', () {
+      final cafe = p('cafe'); // 18
+      store.adjustStock(cafe, 5000);
+      expect(cafe.totalStockMilli, 23000);
+      store.adjustStock(cafe, -30000);
+      expect(cafe.totalStockMilli, 0);
+      expect(
+        store.scanForSale('7752345600018').message,
+        endsWith('sin stock local'),
+      );
+    });
+
+    test('lots: adjust one, move expiry, add a new one', () {
+      final miel = p('miel');
+      final expired = miel.lots.first; // L-2403
+      expect(expired.isExpired(today), isTrue);
+      store.setLotExpiry(expired, today.add(const Duration(days: 60)));
+      expect(miel.sellableStockMilli(today), 15000); // 2 + 3 + 10
+      final lot = store.addLot(miel, today.add(const Duration(days: 90)), 4000);
+      expect(miel.lots, contains(lot));
+      store.adjustStock(miel, -1000, lot: lot);
+      expect(lot.qtyMilli, 3000);
+      expect(miel.totalStockMilli, 18000);
+    });
+  });
+
   group('sales scan traffic light', () {
     test('green: added, quantity accumulates', () {
       final first = store.scanForSale('7750543400036'); // quinua, 46 in stock

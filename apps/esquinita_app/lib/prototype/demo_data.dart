@@ -6,7 +6,7 @@ class DemoLot {
   DemoLot(this.code, this.expiresOn, this.qtyMilli);
 
   final String code;
-  final DateTime expiresOn;
+  DateTime expiresOn;
   int qtyMilli;
 
   bool isExpired(DateTime today) => expiresOn.isBefore(_day(today));
