@@ -10,6 +10,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # Spanish date picker, dialogs and tooltips (part of the Flutter SDK).
+  flutter_localizations:
+    sdk: flutter
   esquinita_core:
     path: ../../packages/esquinita_core
   mobile_scanner: ^7.5.0

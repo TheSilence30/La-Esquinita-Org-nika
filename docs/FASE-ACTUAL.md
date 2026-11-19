@@ -402,3 +402,18 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - *Inventario:* nunca se pudo editar. Ahora, al tocar un producto (Administrador) se abre un panel: entrada/salida de cantidad (kg o und), por lote si tiene lotes, cambiar el vencimiento y crear un lote nuevo. Así se puede probar el quiebre de stock y los vencimientos. shortcut: modifica el stock en memoria; en la Fase 2 cada ajuste será un `stock_movement` con motivo y auditoría.
   - Pruebas: app 141 en verde.
   - **Pendiente de prueba en dispositivo:** el escáner de venta con la cámara real (instalado en la tablet; el celular se desconectó).
+- **Cuarto pedido del día: lotes en cualquier producto e inventario completo.**
+  - Decisiones del usuario:
+    - venta por **FEFO automático**, con la opción de **cambiar el lote** desde la línea del carrito (CLAUDE.md §6.8 se mantiene: FEFO por defecto);
+    - si el producto ya tiene stock **sin lote** y se crea un lote, la app **pregunta** si pasar ese stock al lote o dejarlo sin lote ("el lote es para identificar el producto y saber sus fechas de expiración").
+  - **Lotes en cualquier producto:** código del empaque (ej. LOT36), vencimiento y cantidad. Ejemplo del usuario: miel LOT34 ×5 + LOT36 ×3 → la venta muestra 8. Stock = sin lote + lotes; vendible = sin lote + lotes no vencidos.
+  - **Escanear un producto ya registrado** ofrece **Agregar lote nuevo** y ver su stock.
+  - **Venta:** FEFO sobre lotes no vencidos, luego el stock sin lote. Cada línea muestra de qué lote sale; al tocarla se elige otro lote, "Sin lote" o "Automático".
+  - **Inventario (criterio de Claude):** búsqueda (nombre, código o lote) y filtros con contador (Agotados, Stock bajo, Por vencer en 30 días, Vencidos). En cada producto, una ficha con:
+    - stock local, vendible y mínimo (editable);
+    - lotes con color por vencimiento y cambio de fecha;
+    - **Entrada / Salida / Conteo** con motivo (Recepción de compra, Devolución de cliente, Merma / vencido, Dañado, Consumo interno, Ajuste);
+    - **últimos movimientos** (kardex, incluidas las ventas).
+  - Calendario y diálogos en español: `flutter_localizations` (del SDK de Flutter, sin paquetes nuevos de terceros), idioma `es_PE`.
+  - shortcut: todo en memoria y sin auditoría; en la Fase 2 serán `stock_movements` y operaciones de sync reales. Ajustar stock solo con el rol Administrador (`inventory.adjust`).
+  - Pruebas: app 148 en verde. Instalado en la tablet y el celular. **Pendiente de prueba en dispositivo.**

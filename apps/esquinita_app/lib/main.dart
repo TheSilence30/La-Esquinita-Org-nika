@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/router.dart';
 import 'app/theme.dart';
@@ -27,6 +28,9 @@ class _EsquinitaAppState extends State<EsquinitaApp> {
       theme: buildTheme(),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
+      locale: const Locale('es', 'PE'),
+      supportedLocales: const [Locale('es', 'PE'), Locale('es')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (_, child) => NoticeHost(child: child!),
     ),
   );

@@ -15,9 +15,9 @@ void main() {
   group('inventory adjustments (prototype)', () {
     test('add and remove stock, never below zero', () {
       final cafe = p('cafe'); // 18
-      store.adjustStock(cafe, 5000);
+      store.adjustStock(cafe, 5000, reason: 'Ajuste');
       expect(cafe.totalStockMilli, 23000);
-      store.adjustStock(cafe, -30000);
+      store.adjustStock(cafe, -30000, reason: 'Ajuste');
       expect(cafe.totalStockMilli, 0);
       expect(
         store.scanForSale('7752345600018').message,
@@ -31,11 +31,84 @@ void main() {
       expect(expired.isExpired(today), isTrue);
       store.setLotExpiry(expired, today.add(const Duration(days: 60)));
       expect(miel.sellableStockMilli(today), 15000); // 2 + 3 + 10
-      final lot = store.addLot(miel, today.add(const Duration(days: 90)), 4000);
+      final lot = store.addLot(
+        miel,
+        'LOT36',
+        today.add(const Duration(days: 90)),
+        4000,
+      );
       expect(miel.lots, contains(lot));
-      store.adjustStock(miel, -1000, lot: lot);
+      store.adjustStock(miel, -1000, lot: lot, reason: 'Ajuste');
       expect(lot.qtyMilli, 3000);
       expect(miel.totalStockMilli, 18000);
+      expect(store.checkLotCode(miel, 'lot36'), isNotNull); // duplicate
+      expect(store.checkLotCode(miel, ' '), isNotNull);
+    });
+
+    test('user example: lot34 ×5 + lot36 ×3 = 8, sold FEFO', () {
+      final cafe = p('cafe')..stockMilli = 0;
+      store
+        ..addLot(cafe, 'LOT34', today.add(const Duration(days: 20)), 5000)
+        ..addLot(cafe, 'LOT36', today.add(const Duration(days: 80)), 3000);
+      expect(cafe.totalStockMilli, 8000);
+      store.addToCart(cafe, cafe.base, 6000);
+      expect(store.cart.single.lots.map((t) => (t.lot?.code, t.qtyMilli)), [
+        ('LOT34', 5000),
+        ('LOT36', 1000),
+      ]);
+    });
+
+    test('stock without lot: kept or moved into the first lot', () {
+      final cafe = p('cafe'); // 18 without lot
+      store.addLot(cafe, 'A1', today.add(const Duration(days: 30)), 2000);
+      expect((cafe.stockMilli, cafe.totalStockMilli), (18000, 20000));
+      final chia = p('chia'); // 22 without lot
+      final lot = store.addLot(
+        chia,
+        'B1',
+        today.add(const Duration(days: 30)),
+        0,
+        moveUnlotted: true,
+      );
+      expect((chia.stockMilli, lot.qtyMilli), (0, 22000));
+    });
+
+    test('lots first (FEFO), then stock without lot', () {
+      final cafe = p('cafe'); // 18 without lot
+      store.addLot(cafe, 'A1', today.add(const Duration(days: 30)), 2000);
+      store.addToCart(cafe, cafe.base, 5000);
+      expect(store.cart.single.lots.map((t) => (t.lot?.code, t.qtyMilli)), [
+        ('A1', 2000),
+        (null, 3000),
+      ]);
+    });
+
+    test('a lot picked by hand goes first; back to automatic', () {
+      final miel = p('miel'); // L-2410 ×3 (expires first), L-2502 ×10
+      store.addToCart(miel, miel.base, 2000);
+      final line = store.cart.single;
+      expect(line.lots.single.lot?.code, 'L-2410');
+      final later = miel.lots.firstWhere((l) => l.code == 'L-2502');
+      store.pinLot(line, lot: later);
+      expect(line.lots.single.lot?.code, 'L-2502');
+      store.pinLot(line);
+      expect(line.lots.single.lot?.code, 'L-2410');
+    });
+
+    test('kardex: adjustments, counts and sales are recorded', () {
+      final cafe = p('cafe'); // 18
+      store
+        ..adjustStock(cafe, 2000, reason: 'Recepción de compra')
+        ..countStock(cafe, 19000);
+      expect(cafe.stockMilli, 19000);
+      store.addToCart(cafe, cafe.base, 1000);
+      store.confirmSale(
+        CheckoutDraft(store.cartTotalCents, mixedAllowed: false),
+      );
+      final moves = store.movementsOf(cafe);
+      expect(moves.first.reason, startsWith('Venta T1-'));
+      expect(moves.map((m) => m.deltaMilli), [-1000, -1000, 2000]);
+      expect(moves[1].reason, 'Conteo físico');
     });
   });
 
@@ -78,7 +151,7 @@ void main() {
     final miel = p('miel');
     expect(store.addToCart(miel, miel.base, 4000), isNull);
     final line = store.cart.single;
-    expect(line.lots.map((t) => (t.lot.code, t.qtyMilli)), [
+    expect(line.lots.map((t) => (t.lot?.code, t.qtyMilli)), [
       ('L-2410', 3000),
       ('L-2502', 1000),
     ]);

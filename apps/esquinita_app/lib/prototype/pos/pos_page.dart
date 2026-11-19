@@ -13,6 +13,7 @@ import '../checkout/checkout_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/keypad.dart';
 import '../widgets/notice.dart';
 import 'pos_dialogs.dart';
 
@@ -363,11 +364,17 @@ class _CartLineTile extends StatelessWidget {
                 const _Badge('Precio editado', EsquinitaColors.wood),
               if (line.isWholesale)
                 const _Badge('Mayorista', EsquinitaColors.forest),
-              for (final take in line.lots)
-                _Badge(
-                  '${take.lot.code} · vence ${_date(take.lot.expiresOn)} · ${Quantity(take.qtyMilli)}',
-                  EsquinitaColors.wood,
-                ),
+              if (p.tracksLots)
+                for (final take in line.lots)
+                  InkWell(
+                    onTap: () => _showLotPicker(context, line),
+                    child: _Badge(
+                      '${_takeLabel(take)} · ${Quantity(take.qtyMilli)}'
+                      '${line.pinnedLot != null || line.pinnedNoLot ? ' (elegido)' : ''}'
+                      '  ✎',
+                      EsquinitaColors.wood,
+                    ),
+                  ),
               if (line.stockWarning)
                 const _Badge(
                   'Sin stock local: se registra con aviso',
@@ -472,6 +479,79 @@ class _ClearCartButton extends StatelessWidget {
 
 String _date(DateTime d) =>
     '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+String _takeLabel(LotTake t) => switch (t.lot) {
+  final lot? => '${lot.code} · vence ${_date(lot.expiresOn)}',
+  null => 'Sin lote',
+};
+
+/// Cart line: change the lot it is taken from (FEFO by default).
+Future<void> _showLotPicker(BuildContext context, CartLine line) =>
+    showAdaptiveSheet<void>(
+      context,
+      builder: (sheet) {
+        final store = DemoScope.read(context);
+        final p = line.product;
+        void pick({DemoLot? lot, bool noLot = false}) {
+          store.pinLot(line, lot: lot, noLot: noLot);
+          Navigator.pop(sheet);
+        }
+
+        final auto = line.pinnedLot == null && !line.pinnedNoLot;
+        final lots = [...p.lots]
+          ..sort((a, b) => a.expiresOn.compareTo(b.expiresOn));
+        return ListView(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
+          children: [
+            ListTile(
+              title: Text(
+                '¿De qué lote sale ${p.name}?',
+                style: Theme.of(sheet).textTheme.titleMedium,
+              ),
+            ),
+            ListTile(
+              leading: Icon(
+                auto ? Icons.radio_button_checked : Icons.radio_button_off,
+              ),
+              title: const Text('Automático: primero el que vence antes'),
+              onTap: () => pick(),
+            ),
+            for (final l in lots)
+              ListTile(
+                enabled: !l.isExpired(store.now),
+                leading: Icon(
+                  line.pinnedLot == l
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: Text(l.code),
+                subtitle: Text(
+                  l.isExpired(store.now)
+                      ? 'Vencido: bloqueado'
+                      : 'Vence ${_date(l.expiresOn)}',
+                ),
+                trailing: Text(Quantity(l.qtyMilli).toString(), style: tabular),
+                onTap: () => pick(lot: l),
+              ),
+            if (p.stockMilli > 0)
+              ListTile(
+                leading: Icon(
+                  line.pinnedNoLot
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_off,
+                ),
+                title: const Text('Sin lote'),
+                trailing: Text(
+                  Quantity(p.stockMilli).toString(),
+                  style: tabular,
+                ),
+                onTap: () => pick(noLot: true),
+              ),
+          ],
+        );
+      },
+    );
 
 class _CustomerButton extends StatelessWidget {
   const _CustomerButton();
@@ -1081,8 +1161,8 @@ class _DesktopCartTable extends StatelessWidget {
                 l.isWholesale
                     ? '${l.presentation.name} (mayorista)'
                     : l.presentation.name,
-                for (final take in l.lots)
-                  '${take.lot.code} (vence ${_date(take.lot.expiresOn)})',
+                if (l.product.tracksLots)
+                  for (final take in l.lots) _takeLabel(take),
                 if (l.priceOverrideCents != null) 'precio editado',
                 if (l.stockWarning) 'sin stock local',
               ].join(' · ');

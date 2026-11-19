@@ -46,10 +46,10 @@ class DemoProduct {
     required this.presentations,
     required this.avgCostCents,
     this.byWeight = false,
-    this.lots = const [],
+    List<DemoLot>? lots,
     this.stockMilli = 0,
     this.minStockMilli = 0,
-  });
+  }) : lots = lots ?? [];
 
   final String id;
   final String name;
@@ -63,22 +63,25 @@ class DemoProduct {
 
   /// Sold by kg: quantities are grams, prices are per kg.
   final bool byWeight;
+
+  /// Any product can have several lots (each with its own expiry).
   final List<DemoLot> lots;
 
-  /// Stock in base units × 1000 when the product has no lots.
+  /// Stock without a lot, in base units × 1000 (all of it when there are no
+  /// lots).
   int stockMilli;
-  final int minStockMilli;
+  int minStockMilli;
 
   bool get tracksLots => lots.isNotEmpty;
   DemoPresentation get base => presentations.first;
 
   int get totalStockMilli =>
-      tracksLots ? lots.fold(0, (s, l) => s + l.qtyMilli) : stockMilli;
+      stockMilli + lots.fold(0, (s, l) => s + l.qtyMilli);
 
   /// Sellable stock: expired lots are blocked (docs/modelo-datos.md §3.2).
-  int sellableStockMilli(DateTime today) => tracksLots
-      ? lots.where((l) => !l.isExpired(today)).fold(0, (s, l) => s + l.qtyMilli)
-      : stockMilli;
+  int sellableStockMilli(DateTime today) =>
+      stockMilli +
+      lots.where((l) => !l.isExpired(today)).fold(0, (s, l) => s + l.qtyMilli);
 }
 
 class DemoCustomer {

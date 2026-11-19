@@ -29,8 +29,29 @@ enum DemoSyncState { synced, pending, error }
 class LotTake {
   const LotTake(this.lot, this.qtyMilli);
 
-  final DemoLot lot;
+  /// Null: from the stock without lot.
+  final DemoLot? lot;
   final int qtyMilli;
+}
+
+/// One stock change (kardex). shortcut: in memory; Fase 2 stores them as
+/// `stock_movements`, the only way stock changes (CLAUDE.md §6.1).
+class DemoMovement {
+  const DemoMovement(
+    this.at,
+    this.product,
+    this.lotCode,
+    this.deltaMilli,
+    this.reason,
+  );
+
+  final DateTime at;
+  final DemoProduct product;
+
+  /// Null: stock without lot.
+  final String? lotCode;
+  final int deltaMilli;
+  final String reason;
 }
 
 class CartLine {
@@ -59,8 +80,13 @@ class CartLine {
 
   int get totalCents => Money(unitPriceCents).times(Quantity(qtyMilli)).cents;
 
-  /// FEFO split for lot-tracked products (empty otherwise).
+  /// Where the quantity comes from: FEFO over lots, then stock without lot.
   List<LotTake> lots = const [];
+
+  /// Lot chosen by hand (taken first, the rest by FEFO), or [pinnedNoLot]
+  /// for the stock without lot. Neither: automatic FEFO.
+  DemoLot? pinnedLot;
+  bool pinnedNoLot = false;
 
   /// Sold beyond the sellable local stock: recorded with a warning.
   bool stockWarning = false;
@@ -147,7 +173,9 @@ class DemoStore extends ChangeNotifier {
     int qtyMilli, {
     int? perKgCents,
   }) {
-    if (product.tracksLots && product.lots.every((l) => l.isExpired(now))) {
+    if (product.tracksLots &&
+        product.stockMilli <= 0 &&
+        product.lots.every((l) => l.isExpired(now))) {
       return 'Todos los lotes de ${product.name} están vencidos: no se puede vender.';
     }
     final existing = product.byWeight
@@ -224,26 +252,86 @@ class DemoStore extends ChangeNotifier {
   // shortcut: edits the in-memory stock directly; Fase 2 records each
   // change as a stock_movement with reason and user (CLAUDE.md §6.1).
 
-  /// Adds (+) or removes (−) stock, from [lot] when the product has lots.
-  /// Never below zero.
-  void adjustStock(DemoProduct p, int deltaMilli, {DemoLot? lot}) {
+  final movements = <DemoMovement>[];
+
+  /// Latest first.
+  List<DemoMovement> movementsOf(DemoProduct p) => [
+    for (final m in movements.reversed)
+      if (m.product == p) m,
+  ];
+
+  /// Adds (+) or removes (−) stock in [lot], or in the stock without lot.
+  /// Never below zero; records what really changed.
+  void adjustStock(
+    DemoProduct p,
+    int deltaMilli, {
+    DemoLot? lot,
+    required String reason,
+  }) {
+    final before = lot?.qtyMilli ?? p.stockMilli;
+    final after = max(0, before + deltaMilli);
     if (lot != null) {
-      lot.qtyMilli = max(0, lot.qtyMilli + deltaMilli);
+      lot.qtyMilli = after;
     } else {
-      p.stockMilli = max(0, p.stockMilli + deltaMilli);
+      p.stockMilli = after;
+    }
+    if (after != before) {
+      movements.add(DemoMovement(now, p, lot?.code, after - before, reason));
     }
     notifyListeners();
   }
+
+  /// Physical count: sets [lot] (or the stock without lot) to [countedMilli].
+  void countStock(DemoProduct p, int countedMilli, {DemoLot? lot}) =>
+      adjustStock(
+        p,
+        countedMilli - (lot?.qtyMilli ?? p.stockMilli),
+        lot: lot,
+        reason: 'Conteo físico',
+      );
 
   void setLotExpiry(DemoLot lot, DateTime expiresOn) {
     lot.expiresOn = expiresOn;
     notifyListeners();
   }
 
-  /// New lot with the next code (L-…); returns it.
-  DemoLot addLot(DemoProduct p, DateTime expiresOn, int qtyMilli) {
-    final lot = DemoLot('L-${100 + p.lots.length + 1}', expiresOn, qtyMilli);
+  void setMinStock(DemoProduct p, int minMilli) {
+    p.minStockMilli = minMilli;
+    notifyListeners();
+  }
+
+  /// Error message, or null when [code] can be a new lot of [p].
+  String? checkLotCode(DemoProduct p, String code) => code.trim().isEmpty
+      ? 'Escribe el código del lote (viene en el empaque).'
+      : p.lots.any((l) => l.code.toLowerCase() == code.trim().toLowerCase())
+      ? 'Ya existe el lote ${code.trim()} para este producto.'
+      : null;
+
+  /// New lot with [qtyMilli] received. [moveUnlotted]: the stock without
+  /// lot goes into it as well (the user is asked when there is some).
+  DemoLot addLot(
+    DemoProduct p,
+    String code,
+    DateTime expiresOn,
+    int qtyMilli, {
+    bool moveUnlotted = false,
+  }) {
+    final lot = DemoLot(code.trim(), expiresOn, 0);
     p.lots.add(lot);
+    final moved = moveUnlotted ? p.stockMilli : 0;
+    if (moved > 0) {
+      p.stockMilli = 0;
+      lot.qtyMilli = moved;
+      movements
+        ..add(DemoMovement(now, p, null, -moved, 'Pasado al lote ${lot.code}'))
+        ..add(DemoMovement(now, p, lot.code, moved, 'Desde stock sin lote'));
+    }
+    if (qtyMilli > 0) {
+      lot.qtyMilli += qtyMilli;
+      movements.add(
+        DemoMovement(now, p, lot.code, qtyMilli, 'Ingreso de lote nuevo'),
+      );
+    }
     notifyListeners();
     return lot;
   }
@@ -272,29 +360,50 @@ class DemoStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// FEFO over non-expired lots; the shortfall goes to the lot that expires
-  /// last and the line is flagged (docs/modelo-datos.md §3.2).
+  /// The lot picked by hand first, then FEFO over non-expired lots, then the
+  /// stock without lot. A shortfall goes to the last source used and the
+  /// line is flagged (sold anyway, docs/modelo-datos.md §3.2).
   void _allocate(CartLine line) {
     final p = line.product;
     var need = line.baseQtyMilli;
-    if (!p.tracksLots) {
-      line.stockWarning = need > p.stockMilli;
-      return;
-    }
-    final usable = p.lots.where((l) => !l.isExpired(now)).toList()
+    final fefo = p.lots.where((l) => !l.isExpired(now)).toList()
       ..sort((a, b) => a.expiresOn.compareTo(b.expiresOn));
+    final pinned = line.pinnedLot;
+    final sources = <DemoLot?>[
+      if (line.pinnedNoLot) null else ?pinned,
+      ...fefo.where((l) => l != pinned),
+      if (!line.pinnedNoLot) null,
+    ];
     final takes = <LotTake>[];
-    for (final lot in usable) {
+    for (final src in sources) {
       if (need == 0) break;
-      final take = min(need, max(0, lot.qtyMilli));
+      final take = min(need, max(0, src?.qtyMilli ?? p.stockMilli));
       if (take > 0) {
-        takes.add(LotTake(lot, take));
+        takes.add(LotTake(src, take));
         need -= take;
       }
     }
     line.stockWarning = need > 0;
-    if (need > 0) takes.add(LotTake(usable.last, need));
+    if (need > 0) {
+      final last = takes.isEmpty ? null : takes.removeLast();
+      takes.add(
+        LotTake(
+          last?.lot ?? pinned ?? fefo.lastOrNull,
+          (last?.qtyMilli ?? 0) + need,
+        ),
+      );
+    }
     line.lots = takes;
+  }
+
+  /// From the cart: take this line from [lot] (or the stock without lot
+  /// when [noLot]); both unset = automatic FEFO.
+  void pinLot(CartLine line, {DemoLot? lot, bool noLot = false}) {
+    line
+      ..pinnedLot = lot
+      ..pinnedNoLot = noLot;
+    _allocate(line);
+    notifyListeners();
   }
 
   ({DemoProduct product, DemoPresentation presentation})? findByBarcode(
@@ -335,12 +444,21 @@ class DemoStore extends ChangeNotifier {
           : {for (final p in draft.parts) p.method: p.amountCents},
     );
     for (final l in cart) {
-      if (l.product.tracksLots) {
-        for (final t in l.lots) {
-          t.lot.qtyMilli -= t.qtyMilli;
+      for (final t in l.lots) {
+        if (t.lot case final lot?) {
+          lot.qtyMilli -= t.qtyMilli;
+        } else {
+          l.product.stockMilli -= t.qtyMilli;
         }
-      } else {
-        l.product.stockMilli -= l.baseQtyMilli;
+        movements.add(
+          DemoMovement(
+            now,
+            l.product,
+            t.lot?.code,
+            -t.qtyMilli,
+            'Venta ${sale.code}',
+          ),
+        );
       }
     }
     sales.add(sale);

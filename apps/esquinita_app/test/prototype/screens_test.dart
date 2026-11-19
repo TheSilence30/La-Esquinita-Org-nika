@@ -44,9 +44,12 @@ Future<void> searchAndTap(
 
 Future<void> pad(WidgetTester tester, String digits) async {
   for (final d in digits.split('')) {
-    await tester.tap(
-      find.descendant(of: find.byType(NumberPad), matching: find.text(d)),
+    final key = find.descendant(
+      of: find.byType(NumberPad),
+      matching: find.text(d),
     );
+    await tester.ensureVisible(key);
+    await tester.tap(key);
     await tester.pump();
   }
 }
@@ -318,22 +321,69 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('Café orgánico Villa Rica 250 g'));
       await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Salida'));
       await tester.tap(find.text('Salida'));
       await tester.pump();
       await pad(tester, '18');
       expect(tester.takeException(), isNull);
-      await tester.ensureVisible(find.text('Restar 18 und'));
-      await tester.tap(find.text('Restar 18 und'));
+      await tester.ensureVisible(find.text('Restar 18 und de sin lote'));
+      await tester.tap(find.text('Restar 18 und de sin lote'));
       await tester.pump();
       expect(cafe.totalStockMilli, 0);
-      expect(find.textContaining('Stock local: 0 und'), findsOneWidget);
+      expect(find.textContaining('Stock local 0 und'), findsOneWidget);
+      expect(store.movementsOf(cafe).single.reason, 'Merma / vencido');
+      await tester.pump(const Duration(seconds: 4)); // the notice goes away
+      await tester.ensureVisible(find.text('Entrada'));
       await tester.tap(find.text('Entrada'));
       await tester.pump();
       await pad(tester, '5');
-      await tester.ensureVisible(find.text('Sumar 5 und'));
-      await tester.tap(find.text('Sumar 5 und'));
+      await tester.ensureVisible(find.text('Sumar 5 und en sin lote'));
+      await tester.tap(find.text('Sumar 5 und en sin lote'));
       await tester.pump();
       expect(cafe.totalStockMilli, 5000);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  for (final size in const [Size(360, 640), Size(533, 893)]) {
+    testWidgets('scan a known product $size → new lot; asks about no-lot', (
+      tester,
+    ) async {
+      final store = await pumpApp(tester, size);
+      final cafe = store.catalog.firstWhere((p) => p.id == 'cafe'); // 18
+      await go(tester, '/escanear');
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Código de barras'),
+        '7752345600018',
+      );
+      await tester.testTextInput.receiveAction(TextInputAction.done);
+      await tester.pumpAndSettle();
+      expect(find.text('Ya registrado'), findsOneWidget);
+      await tester.ensureVisible(find.text('Agregar lote nuevo'));
+      await tester.tap(find.text('Agregar lote nuevo'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Guardar lote'));
+      await tester.pump();
+      expect(find.byKey(const Key('lot-error')), findsOneWidget); // no code
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Código de lote'),
+        'LOT36',
+      );
+      await tester.tap(find.text('Fecha de vencimiento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ACEPTAR')); // Spanish date picker
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Vence '), findsOneWidget);
+      await pad(tester, '3');
+      await tester.ensureVisible(find.text('Guardar lote'));
+      await tester.tap(find.text('Guardar lote'));
+      await tester.pumpAndSettle();
+      expect(find.text('Stock sin lote'), findsOneWidget); // 18 und without lot
+      await tester.tap(find.text('Pasar al lote'));
+      await tester.pumpAndSettle();
+      final lot = cafe.lots.single;
+      expect((lot.code, lot.qtyMilli, cafe.stockMilli), ('LOT36', 21000, 0));
       expect(tester.takeException(), isNull);
     });
   }
@@ -439,7 +489,7 @@ void main() {
       await go(tester, '/vender');
       await searchAndTap(tester, 'miel', 'Miel de abeja Oxapampa 1 kg');
       expect(
-        store.cart.single.lots.first.lot.code,
+        store.cart.single.lots.first.lot?.code,
         'L-2410',
       ); // not the expired L-2403
       if (size.width < 840) {

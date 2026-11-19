@@ -9,6 +9,7 @@ import '../../devices/feedback/scan_feedback.dart';
 import '../../devices/scanner/camera_scan_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
+import '../inventory/inventory_page.dart';
 import '../widgets/common.dart';
 import '../widgets/notice.dart';
 
@@ -221,9 +222,29 @@ class _Existing extends StatelessWidget {
             ),
             trailing: MoneyText(p.retailCents),
           ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.inventory_2_outlined),
+          title: Text(
+            'Stock local: ${Quantity(product.totalStockMilli)}'
+            '${product.tracksLots ? ' en ${product.lots.length} lotes' : ''}',
+          ),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () => showProductStock(context, product),
+        ),
         const SizedBox(height: 12),
-        FilledButton(
+        // Same product again with another lot/expiry (e.g. a new delivery).
+        FilledButton.icon(
           style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+          onPressed: () => showNewLot(context, product),
+          icon: const Icon(Icons.add_box_outlined),
+          label: const Text('Agregar lote nuevo'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+          ),
           onPressed: onAgain,
           child: const Text('Escanear otro'),
         ),
