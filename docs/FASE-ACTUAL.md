@@ -364,3 +364,20 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 3. Claude atiende las observaciones, actualiza los *Resultados en dispositivo* del prototipo en `docs/informes/fase-0.md` y sube los cambios al PR #8.
 4. Si el usuario aprueba el prototipo, se fusiona el PR #8 y se marca la **Fase 0 como terminada**. Spikes 1, 3 y 6 y el modelo de datos ya están aprobados.
 5. Después: plan de la Fase 1 (fundamentos), para aprobación del usuario antes de programar.
+
+### 2026-11-19 — Prototipo: celular en horizontal y teclado de montos (rama `phase-0/prototype`, PR #8)
+
+**Se hizo** (commit `3546aeb`, tras las capturas del usuario en el celular SM-A576B en horizontal)
+
+- APK instalado en la tablet SM-X133 y en el celular SM-A576B.
+- **Celular en horizontal (891×411 dp):** sin la barra verde (pedido del usuario). "Sincronizado" pasa a la derecha de la barra inferior, para que siga visible (CLAUDE.md §10). Los íconos de la barra del sistema quedan oscuros sobre el crema. El cobro tampoco muestra la barra (ya tiene "Volver"). En vertical y en la tablet no cambia nada.
+- **Teclado de montos:** primero los soles enteros y con la tecla "." los céntimos: "25" = S/ 25.00, "30.5" = S/ 30.50, "350" = S/ 350.00 (pedido del usuario). La tecla "00" se reemplaza por "."; en gramos sigue el "00". También acepta "." y "," del teclado físico.
+- Arreglo: el teclado del cobro se desbordaba 47 px en el celular en horizontal.
+- El botón del carrito vacío dice "0 ítems" (antes "Carrito v…" a 360 dp).
+- Pruebas: app 123 en verde (nuevas: teclado y celular en horizontal); `analyze` sin problemas.
+
+**Falta verificar en dispositivo**
+
+- El cobro en el celular en horizontal y el teclado nuevo (25, 30.5, borrar).
+- Lo pendiente del 2026-11-17: nombres en la tablet, eliminar/deslizar/vaciar, pitido y vibración.
+- Observación del usuario sin atender todavía: "márgenes muy grandes" en el celular en horizontal (la lista de productos usa el diseño de vertical).
