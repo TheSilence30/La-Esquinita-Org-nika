@@ -133,6 +133,21 @@ void main() {
         expect(line.totalCents, 300);
       });
 
+      testWidgets('weight calculator in kg: 1.5 → 1.500 kg', (tester) async {
+        final store = await pumpApp(tester, size);
+        await go(tester, '/vender');
+        await searchAndTap(tester, 'kion', 'Kion fresco (por kg)');
+        await tester.tap(find.text('kg').first);
+        await tester.pump();
+        await pad(tester, '1.5');
+        expect(find.text('1.500 kg'), findsOneWidget);
+        expect(find.text('Precio: S/ 18.00'), findsOneWidget); // S/ 12.00 / kg
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.textContaining('Agregar 1.500 kg'));
+        await tester.pumpAndSettle();
+        expect(store.cart.single.qtyMilli, 1500);
+      });
+
       testWidgets('credit sale needs a registered customer, no payment', (
         tester,
       ) async {
@@ -274,6 +289,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(AppBar), findsNothing);
     expect(tester.takeException(), isNull); // keypad used to overflow 47 px
+    expect(find.text('Volver'), findsOneWidget);
     await pad(tester, '30.5');
     expect(store.cart, isNotEmpty);
     expect(
@@ -300,6 +316,13 @@ void main() {
       ]) {
         await go(tester, path);
         expect(tester.takeException(), isNull, reason: path);
+        // Landscape: no green bar; cash and sync still visible.
+        expect(
+          find.byType(AppBar),
+          size.width > size.height ? findsNothing : findsOneWidget,
+          reason: path,
+        );
+        expect(find.text('Sincronizado'), findsWidgets, reason: path);
       }
       await go(tester, '/vender');
       await searchAndTap(tester, 'miel', 'Miel de abeja Oxapampa 1 kg');

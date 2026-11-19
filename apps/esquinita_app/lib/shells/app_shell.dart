@@ -83,9 +83,9 @@ class _TouchShell extends StatelessWidget {
     final index = _underMore.any((p) => _matches(location, p))
         ? 4
         : touchNav.indexWhere((n) => _matches(location, n.path));
-    // Phone in landscape: no green bar (height is scarce); the sync status
-    // moves to the bottom bar so it stays visible (CLAUDE.md §10).
-    final landscapePhone = FormFactor.isLandscapePhone(context);
+    // Landscape: no green bar (height is scarce); cash and sync status move
+    // to the bottom bar so they stay visible (CLAUDE.md §10).
+    final landscape = FormFactor.isLandscapeTouch(context);
     final nav = NavigationBar(
       selectedIndex: index < 0 ? 0 : index,
       height: phone ? 64 : 72,
@@ -97,7 +97,7 @@ class _TouchShell extends StatelessWidget {
       ],
     );
     return Scaffold(
-      appBar: landscapePhone
+      appBar: landscape
           ? null
           : AppBar(
               toolbarHeight: phone ? 52 : 60,
@@ -113,13 +113,13 @@ class _TouchShell extends StatelessWidget {
               ],
             ),
       // Without the green bar, status-bar icons must be dark on cream.
-      body: landscapePhone
+      body: landscape
           ? AnnotatedRegion(
               value: SystemUiOverlayStyle.dark,
               child: SafeArea(bottom: false, child: child),
             )
           : child,
-      bottomNavigationBar: landscapePhone
+      bottomNavigationBar: landscape
           ? ColoredBox(
               color:
                   NavigationBarTheme.of(context).backgroundColor ??
@@ -129,6 +129,7 @@ class _TouchShell extends StatelessWidget {
                 child: Row(
                   children: [
                     Expanded(child: nav),
+                    if (!phone) const CashChip(),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 12),
                       child: SyncChip(),

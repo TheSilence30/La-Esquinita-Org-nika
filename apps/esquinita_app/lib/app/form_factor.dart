@@ -23,11 +23,11 @@ enum FormFactor {
   static FormFactor of(BuildContext context) =>
       resolve(defaultTargetPlatform, MediaQuery.sizeOf(context));
 
-  /// Phone held sideways: vertical space is scarce, so screens drop the
-  /// green top bar.
-  static bool isLandscapePhone(BuildContext context) {
+  /// Phone or tablet held sideways: vertical space is scarce, so screens
+  /// drop the green top bar.
+  static bool isLandscapeTouch(BuildContext context) {
     final size = MediaQuery.sizeOf(context);
-    return resolve(defaultTargetPlatform, size) == FormFactor.phone &&
+    return resolve(defaultTargetPlatform, size) != FormFactor.desktop &&
         size.width > size.height;
   }
 

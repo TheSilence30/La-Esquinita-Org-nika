@@ -12,6 +12,10 @@ import '../widgets/keypad.dart';
 /// starts at the presentation's and can be changed for this sale.
 typedef WeightPick = ({int grams, int perKgCents});
 
+/// 300 → "300 g", 1500 → "1.500 kg", 2000 → "2 kg".
+String weightLabel(int grams) =>
+    grams >= 1000 ? '${Quantity(grams)} kg' : '$grams g';
+
 Future<WeightPick?> showWeightCalculator(
   BuildContext context,
   DemoProduct product, {
@@ -51,6 +55,9 @@ class _WeightCalculatorState extends State<WeightCalculator> {
 
   /// The keypad edits the price per kg instead of the weight/amount.
   bool _editingPrice = false;
+
+  /// Weight typed in kg ("1.5" = 1.500 kg) instead of grams ("500").
+  late bool _inKg = widget.initialGrams >= 1000;
 
   int get _defaultPerKg => widget.product.base.retailCents;
   Money get _perKg => Money(_perKgCents);
@@ -122,7 +129,11 @@ class _WeightCalculatorState extends State<WeightCalculator> {
                 child: _field(
                   key: const Key('calc-input'),
                   label: _byAmount ? 'Monto que pide' : 'Peso',
-                  value: _byAmount ? soles(_amountCents) : '$_grams g',
+                  value: _byAmount
+                      ? soles(_amountCents)
+                      : _inKg
+                      ? '${Quantity(_grams)} kg'
+                      : '$_grams g',
                   focused: !_editingPrice,
                   onTap: () => setState(() => _editingPrice = false),
                   style: big,
@@ -162,7 +173,8 @@ class _WeightCalculatorState extends State<WeightCalculator> {
             ),
             child: Text(
               _byAmount
-                  ? 'Pesar $_resultGrams g  ·  cobrar ${soles(_resultCents)}'
+                  ? 'Pesar ${weightLabel(_resultGrams)}  ·  '
+                        'cobrar ${soles(_resultCents)}'
                   : 'Precio: ${soles(_resultCents)}',
               key: const Key('calc-result'),
               textAlign: TextAlign.center,
@@ -173,15 +185,28 @@ class _WeightCalculatorState extends State<WeightCalculator> {
           ),
           const SizedBox(height: 8),
           if (!_byAmount && !_editingPrice)
-            Wrap(
-              spacing: 8,
-              children: [
-                for (final g in const [250, 300, 500, 1000])
-                  ActionChip(
-                    label: Text(g == 1000 ? '1 kg' : '$g g'),
-                    onPressed: () => setState(() => _grams = g),
+            // One scrolling row: a second row pushed the keypad off 640 dp.
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                spacing: 8,
+                children: [
+                  SegmentedButton<bool>(
+                    showSelectedIcon: false,
+                    segments: const [
+                      ButtonSegment(value: true, label: Text('kg')),
+                      ButtonSegment(value: false, label: Text('g')),
+                    ],
+                    selected: {_inKg},
+                    onSelectionChanged: (s) => setState(() => _inKg = s.single),
                   ),
-              ],
+                  for (final g in const [250, 300, 500, 1000, 2000])
+                    ActionChip(
+                      label: Text(weightLabel(g)),
+                      onPressed: () => setState(() => _grams = g),
+                    ),
+                ],
+              ),
             ),
           const SizedBox(height: 8),
           NumberPad(
@@ -190,7 +215,11 @@ class _WeightCalculatorState extends State<WeightCalculator> {
                 : _byAmount
                 ? _amountCents
                 : _grams,
-            money: _editingPrice || _byAmount,
+            decimals: _editingPrice || _byAmount
+                ? 2
+                : _inKg
+                ? 3
+                : 0,
             max: _editingPrice || _byAmount ? 99999 : 50000,
             compact: true,
             onChanged: (v) => setState(() {
@@ -215,7 +244,9 @@ class _WeightCalculatorState extends State<WeightCalculator> {
                   ))
                 : null,
             icon: const Icon(Icons.add_shopping_cart),
-            label: Text('Agregar $_resultGrams g · ${soles(_resultCents)}'),
+            label: Text(
+              'Agregar ${weightLabel(_resultGrams)} · ${soles(_resultCents)}',
+            ),
           ),
         ],
       ),

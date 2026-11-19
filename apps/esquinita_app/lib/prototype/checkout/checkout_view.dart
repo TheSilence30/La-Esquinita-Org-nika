@@ -17,8 +17,8 @@ class CheckoutPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Landscape phone: no top bar; the footer already has "Volver".
-    final landscapePhone = FormFactor.isLandscapePhone(context);
+    // Landscape: no top bar; the footer already has "Volver".
+    final landscapePhone = FormFactor.isLandscapeTouch(context);
     return Scaffold(
       appBar: landscapePhone ? null : AppBar(title: const Text('Cobrar')),
       body: AnnotatedRegion(

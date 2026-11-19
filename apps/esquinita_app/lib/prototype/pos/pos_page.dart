@@ -24,13 +24,13 @@ class PosPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final camera = isCameraScanSupported;
+    // Phone and tablet look alike sideways: two panels once there is room.
     return switch (FormFactor.of(context)) {
       FormFactor.desktop => const _DesktopPos(),
-      FormFactor.phone => _CompactPos(phone: true, camera: camera),
-      FormFactor.tablet =>
-        MediaQuery.sizeOf(context).width >= 840
-            ? _TwoPanelPos(camera: camera)
-            : _CompactPos(phone: false, camera: camera),
+      _ when MediaQuery.sizeOf(context).width >= 840 => _TwoPanelPos(
+        camera: camera,
+      ),
+      final f => _CompactPos(phone: f == FormFactor.phone, camera: camera),
     };
   }
 }
@@ -343,7 +343,7 @@ class _CartLineTile extends StatelessWidget {
           ),
           Text(
             p.byWeight
-                ? '${line.qtyMilli} g × ${soles(line.unitPriceCents)}/kg'
+                ? '${weightLabel(line.qtyMilli)} × ${soles(line.unitPriceCents)}/kg'
                 : '${line.presentation.name} · ${soles(line.unitPriceCents)} c/u',
             style: t.bodySmall!.merge(tabular),
           ),
@@ -1005,7 +1005,7 @@ class _DesktopCartTable extends StatelessWidget {
                     ),
                     num(
                       l.product.byWeight
-                          ? '${l.qtyMilli} g'
+                          ? weightLabel(l.qtyMilli)
                           : Quantity(l.qtyMilli).toString(),
                       72,
                     ),
