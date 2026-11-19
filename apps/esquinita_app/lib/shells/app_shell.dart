@@ -67,6 +67,38 @@ class AppShell extends StatelessWidget {
 bool _matches(String location, String path) =>
     location == path || location.startsWith('$path/');
 
+/// Where "Atrás" goes from [location]: a page under Más → Más; another tab
+/// → the role's home; the home itself → null (ask before leaving the app).
+String? backTarget(String location, {required bool isAdmin}) {
+  final home = isAdmin ? '/dashboard' : '/vender';
+  if (_matches(location, home)) return null;
+  if (location != '/mas' && _underMore.any((p) => _matches(location, p))) {
+    return '/mas';
+  }
+  return home;
+}
+
+/// "¿Salir de la app?" Sí closes it; No stays.
+Future<void> confirmExit(BuildContext context) async {
+  final exit = await showDialog<bool>(
+    context: context,
+    builder: (d) => AlertDialog(
+      title: const Text('¿Salir de la app?'),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(d, false),
+          child: const Text('No'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(d, true),
+          child: const Text('Sí, salir'),
+        ),
+      ],
+    ),
+  );
+  if (exit ?? false) await SystemNavigator.pop();
+}
+
 class _TouchShell extends StatelessWidget {
   const _TouchShell({
     required this.location,
@@ -80,6 +112,15 @@ class _TouchShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final back = backTarget(location, isAdmin: DemoScope.of(context).isAdmin);
+    void goBack() => back == null ? confirmExit(context) : context.go(back);
+    final backButton = back == null
+        ? null
+        : IconButton(
+            tooltip: 'Atrás',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: goBack,
+          );
     final index = _underMore.any((p) => _matches(location, p))
         ? 4
         : touchNav.indexWhere((n) => _matches(location, n.path));
@@ -96,49 +137,58 @@ class _TouchShell extends StatelessWidget {
           NavigationDestination(icon: Icon(n.icon), label: n.label),
       ],
     );
-    return Scaffold(
-      appBar: landscape
-          ? null
-          : AppBar(
-              toolbarHeight: phone ? 52 : 60,
-              titleSpacing: 12,
-              title: BrandLogo(height: phone ? 30 : 38, color: Colors.white),
-              actions: [
-                if (!phone) ...[
-                  const CashChip(onDark: true),
-                  const SizedBox(width: 8),
-                ],
-                const SyncChip(onDark: true),
-                const SizedBox(width: 12),
-              ],
-            ),
-      // Without the green bar, status-bar icons must be dark on cream.
-      body: landscape
-          ? AnnotatedRegion(
-              value: SystemUiOverlayStyle.dark,
-              child: SafeArea(bottom: false, child: child),
-            )
-          : child,
-      bottomNavigationBar: landscape
-          ? ColoredBox(
-              color:
-                  NavigationBarTheme.of(context).backgroundColor ??
-                  Theme.of(context).colorScheme.surfaceContainer,
-              child: SafeArea(
-                top: false,
-                child: Row(
-                  children: [
-                    Expanded(child: nav),
-                    if (!phone) const CashChip(),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 12),
-                      child: SyncChip(),
-                    ),
+    // Android "Atrás" never closes the app straight away (user, 2026-11-19).
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) goBack();
+      },
+      child: Scaffold(
+        appBar: landscape
+            ? null
+            : AppBar(
+                toolbarHeight: phone ? 52 : 60,
+                leading: backButton,
+                titleSpacing: back == null ? 12 : 0,
+                title: BrandLogo(height: phone ? 30 : 38, color: Colors.white),
+                actions: [
+                  if (!phone) ...[
+                    const CashChip(onDark: true),
+                    const SizedBox(width: 8),
                   ],
-                ),
+                  const SyncChip(onDark: true),
+                  const SizedBox(width: 12),
+                ],
               ),
-            )
-          : nav,
+        // Without the green bar, status-bar icons must be dark on cream.
+        body: landscape
+            ? AnnotatedRegion(
+                value: SystemUiOverlayStyle.dark,
+                child: SafeArea(bottom: false, child: child),
+              )
+            : child,
+        bottomNavigationBar: landscape
+            ? ColoredBox(
+                color:
+                    NavigationBarTheme.of(context).backgroundColor ??
+                    Theme.of(context).colorScheme.surfaceContainer,
+                child: SafeArea(
+                  top: false,
+                  child: Row(
+                    children: [
+                      ?backButton,
+                      Expanded(child: nav),
+                      if (!phone) const CashChip(),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 12),
+                        child: SyncChip(),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            : nav,
+      ),
     );
   }
 }

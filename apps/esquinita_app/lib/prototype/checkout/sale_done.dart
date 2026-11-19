@@ -12,12 +12,19 @@ class SaleDonePage extends StatelessWidget {
   final DemoSale sale;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text('Venta ${sale.code}'),
-      automaticallyImplyLeading: false,
+  Widget build(BuildContext context) => PopScope(
+    // Reached with go(): without this, "Atrás" would close the app.
+    canPop: false,
+    onPopInvokedWithResult: (didPop, _) {
+      if (!didPop) context.go('/vender');
+    },
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text('Venta ${sale.code}'),
+        leading: BackButton(onPressed: () => context.go('/vender')),
+      ),
+      body: _SaleDone(sale: sale, onNew: () => context.go('/vender')),
     ),
-    body: _SaleDone(sale: sale, onNew: () => context.go('/vender')),
   );
 }
 

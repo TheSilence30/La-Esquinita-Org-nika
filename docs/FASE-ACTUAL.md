@@ -456,3 +456,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Prueba 1 (agregar lote al escanear): **el usuario confirmó que funciona** en el celular.
 - Observación del usuario: se podía escanear o vender más unidades que el stock (10 con 2 en stock). Decisión del usuario: al superar el stock local vendible, aviso "Sin stock · ¿Agregar de todas formas?". **Sí** sigue agregando (ámbar); **No** rechaza ese código (rojo) en cada lectura hasta terminar o vaciar la venta. Aplica al escaneo con cámara, al lector o la búsqueda, al tocar un producto, a **+** y a la calculadora de peso. La cámara se pausa mientras el diálogo está abierto. Bajar una cantidad siempre se permite.
 - Pruebas: app 150 en verde; `analyze --fatal-infos` sin problemas. Instalado en el celular; la tablet no estaba conectada. **Pendiente de prueba en dispositivo.**
+- El usuario confirmó la Prueba 2 y el límite de stock en el celular ("todo perfecto"). Pidió dos cosas, y con ellas **aprueba el prototipo**:
+  - **Atrás de Android ya no cierra la app de golpe.** Una página de *Más* vuelve a *Más*; otra pestaña vuelve al inicio del rol; en el inicio pregunta "¿Salir de la app?" (Sí / No). La pantalla *Venta T1-…* vuelve a *Vender*.
+  - **Botón ← (Atrás)** en la barra verde (vertical) o al inicio de la barra inferior (horizontal), en toda pantalla que no sea el inicio.
+  - Pruebas: app 152 en verde. Instalado en el celular. **Pendiente de prueba en dispositivo**, y de instalar en la tablet.

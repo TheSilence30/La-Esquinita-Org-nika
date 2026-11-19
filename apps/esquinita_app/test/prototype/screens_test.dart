@@ -55,6 +55,35 @@ Future<void> pad(WidgetTester tester, String digits) async {
 }
 
 void main() {
+  for (final size in const [Size(533, 893), Size(893, 533)]) {
+    testWidgets('Atrás $size: Más page → Más → home → asks to exit', (
+      tester,
+    ) async {
+      await pumpApp(tester, size);
+      String where() =>
+          GoRouter.of(tester.element(find.byType(Scaffold).first))
+              .state
+              .uri
+              .path;
+      await go(tester, '/caja');
+      await tester.binding.handlePopRoute(); // Android back key
+      await tester.pumpAndSettle();
+      expect(where(), '/mas');
+      await tester.tap(find.byTooltip('Atrás')); // on-screen button
+      await tester.pumpAndSettle();
+      expect(where(), '/dashboard');
+      expect(find.byTooltip('Atrás'), findsNothing);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('¿Salir de la app?'), findsOneWidget);
+      await tester.tap(find.text('No'));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Salir de la app?'), findsNothing);
+      expect(where(), '/dashboard');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   // Phone: designed for one hand at 360 dp (not a shrunk tablet).
   for (final size in const [Size(360, 640), Size(360, 800)]) {
     group('phone $size', () {
