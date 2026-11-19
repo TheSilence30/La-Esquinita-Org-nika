@@ -205,6 +205,25 @@ void main() {
     expect(store.findByBarcode('7752345600018'), isNull);
   });
 
+  test('retire a lot: stock out as merma, hidden, kept in the kardex', () {
+    final miel = p('miel');
+    final expired = miel.lots.firstWhere((l) => l.code == 'L-2403');
+    final before = miel.totalStockMilli;
+    final good = miel.lots.firstWhere((l) => l.code == 'L-2410');
+    store.addToCart(miel, miel.base, 1000);
+    store.pinLot(store.cart.single, lot: good);
+    store.retireLot(miel, good);
+    expect(store.cart.single.pinnedLot, isNull); // back to automatic FEFO
+    expect(store.cart.single.lots.map((t) => t.lot), isNot(contains(good)));
+    store.retireLot(miel, expired);
+    expect(miel.lots, isNot(contains(expired)));
+    expect(miel.retiredLots, [good, expired]);
+    expect(miel.totalStockMilli, before - 2000 - 3000);
+    final last = store.movementsOf(miel).first;
+    expect((last.lotCode, last.reason), ('L-2403', 'Merma / vencido'));
+    expect(store.checkLotCode(miel, 'l-2403'), contains('Ya existe'));
+  });
+
   test('FEFO skips the expired lot and takes the one that expires first', () {
     final miel = p('miel');
     expect(store.addToCart(miel, miel.base, 4000), isNull);

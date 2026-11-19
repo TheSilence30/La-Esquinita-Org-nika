@@ -466,3 +466,5 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - **Vender → mantener presionado** un producto → su ficha de stock.
   - shortcut: la edición se hace en memoria y sin auditoría; en la Fase 1 será una edición de maestros con conexión (CLAUDE.md §7) y auditada.
   - Pruebas: app 157 en verde; `analyze --fatal-infos` sin problemas. Instalado en la **tablet**; el celular no estaba conectado. **Pendiente de prueba en dispositivo.**
+- Pedido del usuario: **borrar un lote vencido** para que ya no figure. Como **nada se borra** (CLAUDE.md §6.3), se hizo como **Dar de baja** (icono de papelera en cada lote de la ficha, con confirmación): lo que queda del lote sale como "Merma / vencido", el lote deja de aparecer (inventario, venta, Asignar lote) y su historial queda en *Últimos movimientos*. Su código no se puede reutilizar en ese producto. Si el lote estaba elegido en el carrito, la línea vuelve a FEFO automático.
+  - Pruebas: app 160 en verde. Instalado en la tablet. **Pendiente de prueba en dispositivo.**

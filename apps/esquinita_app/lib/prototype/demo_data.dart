@@ -84,6 +84,10 @@ class DemoProduct {
   /// Any product can have several lots (each with its own expiry).
   final List<DemoLot> lots;
 
+  /// Lots taken out with "Dar de baja": nothing is deleted (CLAUDE.md §6.3),
+  /// they just stop showing; their movements stay in the kardex.
+  final retiredLots = <DemoLot>[];
+
   /// Stock without a lot, in base units × 1000 (all of it when there are no
   /// lots).
   int stockMilli;

@@ -330,7 +330,10 @@ class DemoStore extends ChangeNotifier {
   /// Error message, or null when [code] can be a new lot of [p].
   String? checkLotCode(DemoProduct p, String code) => code.trim().isEmpty
       ? 'Escribe el código del lote (viene en el empaque).'
-      : p.lots.any((l) => l.code.toLowerCase() == code.trim().toLowerCase())
+      : [
+          ...p.lots,
+          ...p.retiredLots,
+        ].any((l) => l.code.toLowerCase() == code.trim().toLowerCase())
       ? 'Ya existe el lote ${code.trim()} para este producto.'
       : null;
 
@@ -554,6 +557,19 @@ class DemoStore extends ChangeNotifier {
   /// Internal EAN-13 for products without a code (prefix 29, device 1).
   String nextInternalBarcode() =>
       internalEan13(deviceDigit: 1, sequence: _nextBarcodeSeq++);
+
+  /// "Dar de baja" (e.g. an expired lot): what is left goes out as
+  /// "Merma / vencido" and the lot stops showing. Not deleted (§6.3).
+  void retireLot(DemoProduct p, DemoLot lot) {
+    adjustStock(p, -lot.qtyMilli, lot: lot, reason: 'Merma / vencido');
+    p.lots.remove(lot);
+    p.retiredLots.add(lot);
+    for (final l in cart.where((l) => l.product == p)) {
+      if (l.pinnedLot == lot) l.pinnedLot = null;
+      _allocate(l);
+    }
+    notifyListeners();
+  }
 
   /// Moves [qtyMilli] of the stock without lot into [lot] (capped at what
   /// there is): e.g. 10 of the 18 coffees without lot are LOT34.

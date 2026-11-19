@@ -342,6 +342,42 @@ class _ProductStockSheetState extends State<ProductStockSheet> {
     if (ok ?? false) store.setMinStock(_p, _p.byWeight ? v : v * 1000);
   }
 
+  Future<void> _retire(DemoLot lot) async {
+    final store = DemoScope.read(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => AlertDialog(
+        title: Text('¿Dar de baja el lote ${lot.code}?'),
+        content: Text(
+          lot.qtyMilli > 0
+              ? 'Sus ${_qty(_p, lot.qtyMilli)} salen del stock como '
+                    '"Merma / vencido" y el lote deja de aparecer. '
+                    'Queda en Últimos movimientos.'
+              : 'El lote deja de aparecer. Queda en Últimos movimientos.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(d, false),
+            child: const Text('No'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: EsquinitaColors.red),
+            onPressed: () => Navigator.pop(d, true),
+            child: const Text('Dar de baja'),
+          ),
+        ],
+      ),
+    );
+    if (!(ok ?? false) || !mounted) return;
+    store.retireLot(_p, lot);
+    if (_lot == lot) setState(() => _lot = _firstUsable());
+    showNotice(
+      context,
+      '${_p.name}: lote ${lot.code} dado de baja · '
+      'stock ${_qty(_p, _p.totalStockMilli)}',
+    );
+  }
+
   Widget _source({
     required DemoLot? lot,
     required String title,
@@ -377,6 +413,12 @@ class _ProductStockSheetState extends State<ProductStockSheet> {
                   final d = await _pickExpiry(context, lot.expiresOn);
                   if (d != null) store.setLotExpiry(lot, d);
                 },
+              ),
+            if (lot != null)
+              IconButton(
+                tooltip: 'Dar de baja ${lot.code}',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _retire(lot),
               ),
           ],
         ),

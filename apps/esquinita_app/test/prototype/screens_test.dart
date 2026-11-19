@@ -460,6 +460,32 @@ void main() {
     });
   }
 
+  for (final size in const [Size(360, 640), Size(893, 533)]) {
+    testWidgets('inventory $size: retire an expired lot', (tester) async {
+      final store = await pumpApp(tester, size);
+      final miel = store.catalog.firstWhere((p) => p.id == 'miel');
+      await go(tester, '/inventario');
+      final name = find.text(miel.name);
+      await tester.scrollUntilVisible(
+        name,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(name);
+      await tester.pumpAndSettle();
+      await tester.tap(name);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Dar de baja L-2403'));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Dar de baja el lote L-2403?'), findsOneWidget);
+      await tester.tap(find.widgetWithText(FilledButton, 'Dar de baja'));
+      await tester.pumpAndSettle();
+      expect(miel.lots.map((l) => l.code), isNot(contains('L-2403')));
+      expect(find.byTooltip('Dar de baja L-2403'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('Vender: long press a product opens its stock sheet', (
     tester,
   ) async {
