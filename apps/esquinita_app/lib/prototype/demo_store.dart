@@ -345,14 +345,7 @@ class DemoStore extends ChangeNotifier {
   }) {
     final lot = DemoLot(code.trim(), expiresOn, 0);
     p.lots.add(lot);
-    final moved = moveUnlotted ? p.stockMilli : 0;
-    if (moved > 0) {
-      p.stockMilli = 0;
-      lot.qtyMilli = moved;
-      movements
-        ..add(DemoMovement(now, p, null, -moved, 'Pasado al lote ${lot.code}'))
-        ..add(DemoMovement(now, p, lot.code, moved, 'Desde stock sin lote'));
-    }
+    if (moveUnlotted) assignLot(p, lot, p.stockMilli);
     if (qtyMilli > 0) {
       lot.qtyMilli += qtyMilli;
       movements.add(
@@ -561,6 +554,62 @@ class DemoStore extends ChangeNotifier {
   /// Internal EAN-13 for products without a code (prefix 29, device 1).
   String nextInternalBarcode() =>
       internalEan13(deviceDigit: 1, sequence: _nextBarcodeSeq++);
+
+  /// Moves [qtyMilli] of the stock without lot into [lot] (capped at what
+  /// there is): e.g. 10 of the 18 coffees without lot are LOT34.
+  void assignLot(DemoProduct p, DemoLot lot, int qtyMilli) {
+    final moved = min(qtyMilli, p.stockMilli);
+    if (moved <= 0) return;
+    p.stockMilli -= moved;
+    lot.qtyMilli += moved;
+    movements
+      ..add(DemoMovement(now, p, null, -moved, 'Pasado al lote ${lot.code}'))
+      ..add(DemoMovement(now, p, lot.code, moved, 'Desde stock sin lote'));
+    notifyListeners();
+  }
+
+  /// Edits the product data (Administrador). [boxUnits] null: no box.
+  /// Returns an error message or null. The barcode is unique across all
+  /// presentations (CLAUDE.md §6.12).
+  String? updateProduct(
+    DemoProduct p, {
+    required String name,
+    required String category,
+    required int retailCents,
+    required String? barcode,
+    required int minStockMilli,
+    int? boxUnits,
+    int? boxCents,
+  }) {
+    final code = barcode?.trim();
+    final taken = code == null || code.isEmpty ? null : findByBarcode(code);
+    if (taken != null && taken.product != p) {
+      return 'El código $code ya es de ${taken.product.name}.';
+    }
+    final box = p.presentations.length > 1 ? p.presentations[1] : null;
+    p
+      ..name = name.trim()
+      ..category = category
+      ..minStockMilli = minStockMilli
+      ..presentations = [
+        p.base.copyWith(
+          retailCents: retailCents,
+          barcode: code == null || code.isEmpty ? null : code,
+        ),
+        if (boxUnits != null && boxCents != null && !p.byWeight)
+          box == null || box.factorMilli != boxUnits * 1000
+              ? DemoPresentation(
+                  name: 'Caja x$boxUnits',
+                  factorMilli: boxUnits * 1000,
+                  retailCents: boxCents,
+                  barcode: box?.barcode,
+                )
+              : box.copyWith(retailCents: boxCents),
+        ...p.presentations.skip(2),
+      ];
+    notifyListeners();
+    return null;
+  }
 
   void registerProduct(DemoProduct product) {
     catalog.add(product);

@@ -149,6 +149,62 @@ void main() {
     });
   });
 
+  test('assign part of the stock without lot to lots', () {
+    final cafe = p('cafe'); // 18 without lot
+    final a = store.addLot(
+      cafe,
+      'LOT34',
+      today.add(const Duration(days: 20)),
+      0,
+    );
+    store.assignLot(cafe, a, 10000);
+    final b = store.addLot(
+      cafe,
+      'LOT36',
+      today.add(const Duration(days: 80)),
+      0,
+    );
+    store.assignLot(cafe, b, 99000); // capped at the 8 left
+    expect((cafe.stockMilli, a.qtyMilli, b.qtyMilli), (0, 10000, 8000));
+    expect(cafe.totalStockMilli, 18000);
+    expect(store.movementsOf(cafe).first.reason, 'Desde stock sin lote');
+  });
+
+  test('edit product: data, box, unique barcode, wholesale kept', () {
+    final cafe = p('cafe');
+    expect(
+      store.updateProduct(
+        cafe,
+        name: 'Café X',
+        category: 'Bebidas',
+        retailCents: 2700,
+        barcode: '7750543400036', // quinua's
+        minStockMilli: 0,
+      ),
+      contains('Quinua'),
+    );
+    expect(cafe.name, 'Café orgánico Villa Rica 250 g');
+    expect(
+      store.updateProduct(
+        cafe,
+        name: ' Café X ',
+        category: 'Bebidas',
+        retailCents: 2700,
+        barcode: '7752345600099',
+        minStockMilli: 3000,
+        boxUnits: 6,
+        boxCents: 15000,
+      ),
+      isNull,
+    );
+    expect(cafe.name, 'Café X');
+    expect(cafe.base.retailCents, 2700);
+    expect(cafe.base.wholesaleCents, 2350);
+    expect(cafe.presentations[1].factorMilli, 6000);
+    expect(store.findByBarcode('7752345600099')?.product, cafe);
+    expect(store.findByBarcode('7752345600018'), isNull);
+  });
+
   test('FEFO skips the expired lot and takes the one that expires first', () {
     final miel = p('miel');
     expect(store.addToCart(miel, miel.base, 4000), isNull);

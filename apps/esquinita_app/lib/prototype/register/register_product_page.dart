@@ -253,15 +253,36 @@ class _Existing extends StatelessWidget {
   }
 }
 
+/// Long press in Inventario (Administrador): edit the product's data, with
+/// a way to its stock and lots.
+Future<void> showEditProduct(BuildContext context, DemoProduct p) =>
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (page) => Scaffold(
+          appBar: AppBar(title: const Text('Editar producto')),
+          body: _NewProductForm(
+            code: p.base.barcode ?? '',
+            product: p,
+            onSaved: () => Navigator.pop(page),
+            onCancel: () => Navigator.pop(page),
+          ),
+        ),
+      ),
+    );
+
 class _NewProductForm extends StatefulWidget {
   const _NewProductForm({
     super.key,
     required this.code,
     required this.onSaved,
     required this.onCancel,
+    this.product,
   });
 
   final String code;
+
+  /// Set: edit this product instead of registering a new one.
+  final DemoProduct? product;
   final VoidCallback onSaved;
   final VoidCallback onCancel;
 
@@ -275,15 +296,44 @@ class _NewProductFormState extends State<_NewProductForm> {
   final _boxFactor = TextEditingController();
   final _boxPrice = TextEditingController();
   final _minStock = TextEditingController(text: '5');
+  late final _barcode = TextEditingController(text: widget.code);
   String _category = categories.first;
   bool _byWeight = false;
   bool _tracksLots = false;
   bool _withBox = false;
   String? _error;
 
+  DemoProduct? get _editing => widget.product;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = _editing;
+    if (p == null) return;
+    String soles(int cents) => (cents / 100).toStringAsFixed(2);
+    final box = p.presentations.length > 1 ? p.presentations[1] : null;
+    _name.text = p.name;
+    _price.text = soles(p.base.retailCents);
+    _minStock.text = '${p.minStockMilli ~/ 1000}';
+    _category = p.category;
+    _byWeight = p.byWeight;
+    _withBox = box != null;
+    if (box != null) {
+      _boxFactor.text = '${box.factorMilli ~/ 1000}';
+      _boxPrice.text = soles(box.retailCents);
+    }
+  }
+
   @override
   void dispose() {
-    for (final c in [_name, _price, _boxFactor, _boxPrice, _minStock]) {
+    for (final c in [
+      _name,
+      _price,
+      _boxFactor,
+      _boxPrice,
+      _minStock,
+      _barcode,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -310,6 +360,23 @@ class _NewProductFormState extends State<_NewProductForm> {
     setState(() => _error = error);
     if (error != null) return;
     final store = DemoScope.read(context);
+    if (_editing case final p?) {
+      final failed = store.updateProduct(
+        p,
+        name: _name.text,
+        category: _category,
+        retailCents: price!,
+        barcode: _barcode.text,
+        minStockMilli: (int.tryParse(_minStock.text) ?? 0) * 1000,
+        boxUnits: _withBox ? factor : null,
+        boxCents: _withBox ? boxPrice : null,
+      );
+      setState(() => _error = failed);
+      if (failed != null) return;
+      showNotice(context, '${p.name}: datos guardados (solo en memoria).');
+      widget.onSaved();
+      return;
+    }
     store.registerProduct(
       DemoProduct(
         id: widget.code,
@@ -345,13 +412,35 @@ class _NewProductFormState extends State<_NewProductForm> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        Text('Nuevo producto', style: t.titleLarge),
-        Text(
-          generated
-              ? 'Código interno generado: ${widget.code}'
-              : 'Código: ${widget.code}',
-          style: t.bodyMedium!.merge(tabular),
-        ),
+        if (_editing case final p?) ...[
+          // Stock and lots live in the stock sheet (same as a tap).
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 48)),
+            icon: const Icon(Icons.inventory_2_outlined),
+            label: Text(
+              'Stock y lotes · ${Quantity(p.totalStockMilli)} '
+              '${p.byWeight ? 'kg' : 'und'}',
+            ),
+            onPressed: () => showProductStock(context, p),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _barcode,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(
+              labelText: 'Código de barras',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ] else ...[
+          Text('Nuevo producto', style: t.titleLarge),
+          Text(
+            generated
+                ? 'Código interno generado: ${widget.code}'
+                : 'Código: ${widget.code}',
+            style: t.bodyMedium!.merge(tabular),
+          ),
+        ],
         const SizedBox(height: 12),
         TextField(
           controller: _name,
@@ -370,17 +459,21 @@ class _NewProductFormState extends State<_NewProductForm> {
             border: OutlineInputBorder(),
           ),
           items: [
-            for (final c in categories)
+            for (final c in {...categories, _category})
               DropdownMenuItem(value: c, child: Text(c)),
           ],
           onChanged: (v) => setState(() => _category = v!),
         ),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Se vende por peso (kg)'),
-          value: _byWeight,
-          onChanged: (v) => setState(() => _byWeight = v),
-        ),
+        // Not editable: the existing stock and sales are in this unit.
+        if (_editing == null)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Se vende por peso (kg)'),
+            value: _byWeight,
+            onChanged: (v) => setState(() => _byWeight = v),
+          )
+        else
+          const SizedBox(height: 12),
         TextField(
           controller: _price,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -427,13 +520,16 @@ class _NewProductFormState extends State<_NewProductForm> {
               ],
             ),
         ],
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Controla lotes y vencimientos'),
-          subtitle: const Text('Se piden al recibir la mercadería'),
-          value: _tracksLots,
-          onChanged: (v) => setState(() => _tracksLots = v),
-        ),
+        if (_editing == null)
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Controla lotes y vencimientos'),
+            subtitle: const Text('Se piden al recibir la mercadería'),
+            value: _tracksLots,
+            onChanged: (v) => setState(() => _tracksLots = v),
+          )
+        else
+          const SizedBox(height: 12),
         TextField(
           controller: _minStock,
           keyboardType: TextInputType.number,
@@ -463,7 +559,9 @@ class _NewProductFormState extends State<_NewProductForm> {
               child: FilledButton(
                 style: FilledButton.styleFrom(minimumSize: const Size(0, 52)),
                 onPressed: _save,
-                child: const Text('Guardar producto'),
+                child: Text(
+                  _editing == null ? 'Guardar producto' : 'Guardar cambios',
+                ),
               ),
             ),
           ],

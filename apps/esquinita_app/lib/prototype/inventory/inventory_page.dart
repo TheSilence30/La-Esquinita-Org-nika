@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/keypad.dart';
+import '../register/register_product_page.dart';
 import '../widgets/notice.dart';
 
 String _date(DateTime d) =>
@@ -58,11 +59,30 @@ void showProductStock(BuildContext context, DemoProduct p) {
 /// Receives a new lot of [p]: code, expiry and quantity. Both roles:
 /// Trabajo receives goods without seeing costs (CLAUDE.md §9; the sheet
 /// shows no costs).
-Future<void> showNewLot(BuildContext context, DemoProduct p) async {
+/// [assignMilli]: the new lot is for that much of the stock without lot
+/// (Asignar lote), not for goods that just arrived.
+Future<void> showNewLot(
+  BuildContext context,
+  DemoProduct p, {
+  int? assignMilli,
+}) async {
   await showAdaptiveSheet<void>(
     context,
-    builder: (_) => NewLotSheet(product: p),
+    builder: (_) => NewLotSheet(product: p, assignMilli: assignMilli),
   );
+}
+
+/// Long press in Inventario: edit the product (Administrador).
+void editProduct(BuildContext context, DemoProduct p) {
+  if (!DemoScope.read(context).isAdmin) {
+    showNotice(
+      context,
+      'Editar productos requiere el rol Administrador.',
+      level: NoticeLevel.warn,
+    );
+    return;
+  }
+  showEditProduct(context, p);
 }
 
 /// Local stock with lots and expiry warnings ("stock local": pending
@@ -157,6 +177,7 @@ class _ProductStockCard extends StatelessWidget {
       color: Colors.white,
       child: ListTile(
         onTap: () => showProductStock(context, p),
+        onLongPress: () => editProduct(context, p),
         title: Text(p.name),
         subtitle: p.tracksLots
             ? Padding(
@@ -419,19 +440,30 @@ class _ProductStockSheetState extends State<ProductStockSheet> {
                   : 'Stock sin lote ni vencimiento',
               qtyMilli: _p.stockMilli,
             ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              icon: const Icon(Icons.add),
-              label: const Text('Nuevo lote'),
-              onPressed: () async {
-                final before = _p.lots.length;
-                await showNewLot(context, _p);
-                if (_p.lots.length > before && mounted) {
-                  setState(() => _lot = _p.lots.last);
-                }
-              },
-            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('Nuevo lote'),
+                onPressed: () async {
+                  final before = _p.lots.length;
+                  await showNewLot(context, _p);
+                  if (_p.lots.length > before && mounted) {
+                    setState(() => _lot = _p.lots.last);
+                  }
+                },
+              ),
+              if (_p.stockMilli > 0)
+                TextButton.icon(
+                  icon: const Icon(Icons.move_down),
+                  label: const Text('Asignar lote'),
+                  onPressed: () => showAdaptiveSheet<void>(
+                    context,
+                    builder: (_) => AssignLotSheet(product: _p),
+                  ),
+                ),
+            ],
           ),
           const Divider(),
           SegmentedButton<_Mode>(
@@ -558,10 +590,126 @@ Future<DateTime?> _pickExpiry(BuildContext context, DateTime initial) {
 /// New lot: the code printed on the package, its expiry and how much came.
 /// If the product has stock without lot, asks whether it belongs to this
 /// lot (user decision, 2026-11-19).
-class NewLotSheet extends StatefulWidget {
-  const NewLotSheet({super.key, required this.product});
+/// Puts part (or all) of the stock without lot into a lot, existing or new:
+/// e.g. 10 of 18 coffees are LOT34 and the other 8 LOT36.
+class AssignLotSheet extends StatefulWidget {
+  const AssignLotSheet({super.key, required this.product});
 
   final DemoProduct product;
+
+  @override
+  State<AssignLotSheet> createState() => _AssignLotSheetState();
+}
+
+class _AssignLotSheetState extends State<AssignLotSheet> {
+  DemoProduct get _p => widget.product;
+
+  /// Null: a new lot.
+  late DemoLot? _to = _p.lots.firstOrNull;
+
+  /// Grams (by weight) or whole units; starts with all of it.
+  late int _amount = _p.byWeight ? _p.stockMilli : _p.stockMilli ~/ 1000;
+  int get _milli => _p.byWeight ? _amount : _amount * 1000;
+
+  Future<void> _save() async {
+    final store = DemoScope.read(context);
+    final milli = _milli.clamp(0, _p.stockMilli);
+    if (milli <= 0) return;
+    final to = _to;
+    if (to == null) {
+      final nav = Navigator.of(context);
+      final parent = nav.context;
+      nav.pop();
+      await showNewLot(parent, _p, assignMilli: milli);
+      return;
+    }
+    store.assignLot(_p, to, milli);
+    showNotice(
+      context,
+      '${_p.name}: ${_qty(_p, milli)} pasaron al lote ${to.code}',
+    );
+    Navigator.pop(context);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final today = DemoScope.of(context).now;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Asignar lote · ${_p.name}', style: t.titleMedium),
+          Text(
+            'Sin lote: ${_qty(_p, _p.stockMilli)}. ¿Cuánto y a qué lote?',
+            style: t.bodyMedium,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: [
+              for (final l in _p.lots)
+                ChoiceChip(
+                  label: Text(
+                    l.isExpired(today) ? '${l.code} (vencido)' : l.code,
+                  ),
+                  selected: _to == l,
+                  onSelected: (_) => setState(() => _to = l),
+                ),
+              ChoiceChip(
+                avatar: const Icon(Icons.add, size: 18),
+                label: const Text('Lote nuevo'),
+                selected: _to == null,
+                onSelected: (_) => setState(() => _to = null),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          InputDecorator(
+            isFocused: true,
+            decoration: InputDecoration(
+              labelText: _p.byWeight ? 'Cantidad (kg)' : 'Cantidad (und)',
+              border: const OutlineInputBorder(),
+              isDense: true,
+            ),
+            child: Text(
+              _qty(_p, _milli),
+              key: const Key('assign-qty'),
+              style: t.headlineSmall!.merge(tabular),
+            ),
+          ),
+          const SizedBox(height: 8),
+          NumberPad(
+            value: _amount,
+            decimals: _p.byWeight ? 3 : 0,
+            max: _p.byWeight ? _p.stockMilli : _p.stockMilli ~/ 1000,
+            compact: true,
+            onChanged: (v) => setState(() => _amount = v),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              minimumSize: const Size.fromHeight(52),
+            ),
+            onPressed: _milli > 0 ? _save : null,
+            child: Text(_to == null ? 'Siguiente: datos del lote' : 'Asignar'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NewLotSheet extends StatefulWidget {
+  const NewLotSheet({super.key, required this.product, this.assignMilli});
+
+  final DemoProduct product;
+
+  /// Set: the lot is for this much of the stock without lot.
+  final int? assignMilli;
 
   @override
   State<NewLotSheet> createState() => _NewLotSheetState();
@@ -593,6 +741,16 @@ class _NewLotSheetState extends State<NewLotSheet> {
     setState(() => _error = error);
     if (error != null) return;
     var move = false;
+    if (widget.assignMilli case final assign?) {
+      final lot = store.addLot(_p, _code.text, _expires!, 0);
+      store.assignLot(_p, lot, assign);
+      showNotice(
+        context,
+        '${_p.name}: ${_qty(_p, lot.qtyMilli)} pasaron al lote ${lot.code}',
+      );
+      Navigator.pop(context);
+      return;
+    }
     if (_p.stockMilli > 0) {
       final answer = await showDialog<bool>(
         context: context,
@@ -649,6 +807,8 @@ class _NewLotSheetState extends State<NewLotSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Nuevo lote · ${_p.name}', style: t.titleMedium),
+          if (widget.assignMilli case final m?)
+            Text('Para ${_qty(_p, m)} del stock sin lote', style: t.bodyMedium),
           const SizedBox(height: 8),
           TextField(
             controller: _code,
@@ -678,30 +838,32 @@ class _NewLotSheetState extends State<NewLotSheet> {
               if (d != null) setState(() => _expires = d);
             },
           ),
-          const SizedBox(height: 8),
-          InputDecorator(
-            isFocused: true,
-            decoration: InputDecoration(
-              labelText: _p.byWeight
-                  ? 'Cantidad que llegó (kg)'
-                  : 'Cantidad que llegó (und)',
-              border: const OutlineInputBorder(),
-              isDense: true,
+          if (widget.assignMilli == null) ...[
+            const SizedBox(height: 8),
+            InputDecorator(
+              isFocused: true,
+              decoration: InputDecoration(
+                labelText: _p.byWeight
+                    ? 'Cantidad que llegó (kg)'
+                    : 'Cantidad que llegó (und)',
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+              child: Text(
+                _qty(_p, _milli),
+                key: const Key('lot-qty'),
+                style: t.headlineSmall!.merge(tabular),
+              ),
             ),
-            child: Text(
-              _qty(_p, _milli),
-              key: const Key('lot-qty'),
-              style: t.headlineSmall!.merge(tabular),
+            const SizedBox(height: 8),
+            NumberPad(
+              value: _amount,
+              decimals: _p.byWeight ? 3 : 0,
+              max: _p.byWeight ? 500000 : 9999,
+              compact: true,
+              onChanged: (v) => setState(() => _amount = v),
             ),
-          ),
-          const SizedBox(height: 8),
-          NumberPad(
-            value: _amount,
-            decimals: _p.byWeight ? 3 : 0,
-            max: _p.byWeight ? 500000 : 9999,
-            compact: true,
-            onChanged: (v) => setState(() => _amount = v),
-          ),
+          ],
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),

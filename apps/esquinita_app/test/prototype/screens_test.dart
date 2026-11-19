@@ -374,6 +374,109 @@ void main() {
     });
   }
 
+  for (final size in const [Size(360, 640), Size(893, 533)]) {
+    testWidgets('inventory $size: long press edits; assign lot to no-lot', (
+      tester,
+    ) async {
+      final store = await pumpApp(tester, size);
+      final cafe = store.catalog.firstWhere((p) => p.id == 'cafe'); // 18
+      await go(tester, '/inventario');
+      final name = find.text('Café orgánico Villa Rica 250 g');
+      await tester.scrollUntilVisible(
+        name,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(name);
+      await tester.pumpAndSettle();
+      await tester.longPress(name);
+      await tester.pumpAndSettle();
+      expect(find.text('Editar producto'), findsOneWidget);
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Nombre'),
+        'Café Villa Rica',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Guardar cambios'),
+        200,
+        scrollable: find
+            .ancestor(
+              of: find.widgetWithText(TextField, 'Nombre'),
+              matching: find.byType(Scrollable),
+            )
+            .first,
+      );
+      await tester.tap(find.text('Guardar cambios'));
+      await tester.pumpAndSettle();
+      expect(cafe.name, 'Café Villa Rica');
+      expect(find.text('Editar producto'), findsNothing);
+      expect(tester.takeException(), isNull);
+      // Assign 10 of the 18 without lot to a new lot.
+      await tester.pump(const Duration(seconds: 4)); // the notice goes away
+      await tester.pumpAndSettle();
+      final renamed = find.text('Café Villa Rica');
+      await tester.scrollUntilVisible(
+        renamed,
+        200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.ensureVisible(renamed);
+      await tester.pumpAndSettle();
+      await tester.tap(renamed);
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Asignar lote'));
+      await tester.tap(find.text('Asignar lote'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.backspace_outlined).last);
+      await tester.tap(find.byIcon(Icons.backspace_outlined).last);
+      for (final d in ['1', '0']) {
+        await tester.tap(
+          find
+              .descendant(
+                of: find.byType(NumberPad).last,
+                matching: find.text(d),
+              )
+              .first,
+        );
+        await tester.pump();
+      }
+      expect(find.text('10 und'), findsOneWidget);
+      await tester.tap(find.text('Siguiente: datos del lote'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Código de lote'),
+        'LOT34',
+      );
+      await tester.tap(find.text('Fecha de vencimiento'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('ACEPTAR'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Guardar lote'));
+      await tester.tap(find.text('Guardar lote'));
+      await tester.pumpAndSettle();
+      expect(cafe.lots.single.qtyMilli, 10000);
+      expect(cafe.stockMilli, 8000);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('Vender: long press a product opens its stock sheet', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(533, 893));
+    await go(tester, '/vender');
+    final name = find.text('Café orgánico Villa Rica 250 g');
+    await tester.scrollUntilVisible(
+      name,
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.longPress(name);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('adjust-stock')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final size in const [Size(360, 640), Size(533, 893)]) {
     testWidgets('scan a known product $size → new lot; asks about no-lot', (
       tester,

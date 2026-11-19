@@ -12,6 +12,7 @@ import '../../devices/scanner/camera_scan_view.dart';
 import '../checkout/checkout_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
+import '../inventory/inventory_page.dart';
 import '../widgets/common.dart';
 import '../widgets/keypad.dart';
 import '../widgets/notice.dart';
@@ -185,6 +186,8 @@ class _ProductCard extends StatelessWidget {
     child: InkWell(
       borderRadius: BorderRadius.circular(12),
       onTap: () => addProductFlow(context, product),
+      // Long press: this product's stock sheet (user, 2026-11-19).
+      onLongPress: () => showProductStock(context, product),
       child: Padding(
         padding: const EdgeInsets.all(10),
         child: Column(
@@ -268,6 +271,7 @@ class _ProductRow extends StatelessWidget {
       size: 30,
     ),
     onTap: () => addProductFlow(context, product),
+    onLongPress: () => showProductStock(context, product),
   );
 }
 

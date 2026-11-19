@@ -36,6 +36,21 @@ class DemoPresentation {
   final int? wholesaleCents;
   final int? wholesaleMinMilli;
   final String? barcode;
+
+  /// Edited copy; wholesale price and minimum are kept.
+  DemoPresentation copyWith({
+    String? name,
+    int? factorMilli,
+    int? retailCents,
+    String? barcode,
+  }) => DemoPresentation(
+    name: name ?? this.name,
+    factorMilli: factorMilli ?? this.factorMilli,
+    retailCents: retailCents ?? this.retailCents,
+    wholesaleCents: wholesaleCents,
+    wholesaleMinMilli: wholesaleMinMilli,
+    barcode: barcode ?? this.barcode,
+  );
 }
 
 class DemoProduct {
@@ -52,11 +67,13 @@ class DemoProduct {
   }) : lots = lots ?? [];
 
   final String id;
-  final String name;
-  final String category;
+  // Editable from Inventario (long press). shortcut: edited in memory;
+  // Fase 1 makes it an online-only product edit with audit (CLAUDE.md §7).
+  String name;
+  String category;
 
   /// First one is the base presentation.
-  final List<DemoPresentation> presentations;
+  List<DemoPresentation> presentations;
 
   /// Average cost per base unit (hidden from the Trabajo role).
   final int avgCostCents;

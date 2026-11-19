@@ -460,3 +460,9 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
   - **Atrás de Android ya no cierra la app de golpe.** Una página de *Más* vuelve a *Más*; otra pestaña vuelve al inicio del rol; en el inicio pregunta "¿Salir de la app?" (Sí / No). La pantalla *Venta T1-…* vuelve a *Vender*.
   - **Botón ← (Atrás)** en la barra verde (vertical) o al inicio de la barra inferior (horizontal), en toda pantalla que no sea el inicio.
   - Pruebas: app 152 en verde. Instalado en el celular. **Pendiente de prueba en dispositivo**, y de instalar en la tablet.
+- Último pedido del usuario para aprobar el prototipo: **editar productos y su stock**.
+  - **Inventario → mantener presionado** (Administrador) → *Editar producto*: nombre, categoría, precio, código de barras (único, CLAUDE.md §6.12), caja (unidades y precio) y stock mínimo, más el botón **Stock y lotes**. No se puede cambiar "por peso" (el stock y las ventas ya están en esa unidad). Se conservan el precio y el mínimo mayorista. Trabajo ve "requiere el rol Administrador".
+  - **Ficha de stock → Asignar lote**: pasa la cantidad que elijas del stock sin lote a un lote existente o nuevo (ej. 10 de los 18 cafés a LOT34 y 8 a LOT36). Queda en el kardex como "Pasado al lote… / Desde stock sin lote".
+  - **Vender → mantener presionado** un producto → su ficha de stock.
+  - shortcut: la edición se hace en memoria y sin auditoría; en la Fase 1 será una edición de maestros con conexión (CLAUDE.md §7) y auditada.
+  - Pruebas: app 157 en verde; `analyze --fatal-infos` sin problemas. Instalado en la **tablet**; el celular no estaba conectado. **Pendiente de prueba en dispositivo.**
