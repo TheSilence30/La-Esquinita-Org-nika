@@ -10,11 +10,15 @@ import '../../devices/scanner/camera_scan_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/notice.dart';
 
 /// "Registrar producto" scan context: read a code, show the product if it
 /// exists, otherwise fill a short form. No QR (store codes only).
 class RegisterProductPage extends StatefulWidget {
-  const RegisterProductPage({super.key});
+  const RegisterProductPage({super.key, this.initialCode});
+
+  /// Code to start with (an unknown code from the sales scanner).
+  final String? initialCode;
 
   @override
   State<RegisterProductPage> createState() => _RegisterProductPageState();
@@ -23,8 +27,8 @@ class RegisterProductPage extends StatefulWidget {
 class _RegisterProductPageState extends State<RegisterProductPage> {
   final _filter = ScanFilter();
   final _manual = TextEditingController();
-  String? _code;
-  bool _scanning = true;
+  late String? _code = widget.initialCode;
+  late bool _scanning = widget.initialCode == null;
 
   @override
   void dispose() {
@@ -133,6 +137,7 @@ class _CodeEntry extends StatelessWidget {
             aspectRatio: 4 / 3,
             child: CameraScanView(
               onCodes: (codes, elapsed, _) => onCameraCodes(codes, elapsed),
+              overlay: const ScanFrame(),
             ),
           ),
         )
@@ -303,11 +308,7 @@ class _NewProductFormState extends State<_NewProductForm> {
         ],
       ),
     );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('${_name.text.trim()} registrado (solo en memoria).'),
-      ),
-    );
+    showNotice(context, '${_name.text.trim()} registrado (solo en memoria).');
     widget.onSaved();
   }
 

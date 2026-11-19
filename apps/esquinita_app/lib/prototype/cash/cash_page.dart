@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../checkout.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/notice.dart';
 import '../widgets/keypad.dart';
 
 /// One shared cash drawer (docs/modelo-datos.md §3.5): expected by method,
@@ -49,12 +50,11 @@ class _CashPageState extends State<CashPage> {
     }
     store.closeCash();
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Caja cerrada. Diferencia: ${soles(_counted - store.expectedCashCents)}',
-        ),
-      ),
+    final diff = _counted - store.expectedCashCents;
+    showNotice(
+      context,
+      'Caja cerrada. Diferencia: ${soles(diff)}',
+      level: diff == 0 ? NoticeLevel.ok : NoticeLevel.warn,
     );
   }
 

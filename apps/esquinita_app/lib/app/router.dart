@@ -34,7 +34,14 @@ GoRouter buildRouter(DemoStore store) => GoRouter(
           AppShell(location: state.uri.path, child: child),
       routes: [
         _page('/vender', (_) => const PosPage()),
-        _page('/escanear', (_) => const RegisterProductPage()),
+        // ?code= comes from "Registrar" on an unknown code in the scanner.
+        _page(
+          '/escanear',
+          (state) => RegisterProductPage(
+            key: ValueKey(state.uri.queryParameters['code']),
+            initialCode: state.uri.queryParameters['code'],
+          ),
+        ),
         _page('/inventario', (_) => const InventoryPage()),
         _page(
           '/pedidos',
@@ -63,13 +70,17 @@ GoRouter buildRouter(DemoStore store) => GoRouter(
     // Touch devices: full screen, without the bottom bar.
     GoRoute(path: '/cobro', builder: (_, _) => const CheckoutPage()),
     GoRoute(
+      path: '/escanear-venta',
+      builder: (_, _) => const SaleScannerPage(),
+    ),
+    GoRoute(
       path: '/venta',
       builder: (_, state) => SaleDonePage(sale: state.extra! as DemoSale),
     ),
   ],
 );
 
-GoRoute _page(String path, WidgetBuilder builder) => GoRoute(
+GoRoute _page(String path, Widget Function(GoRouterState) builder) => GoRoute(
   path: path,
-  pageBuilder: (context, _) => NoTransitionPage(child: builder(context)),
+  pageBuilder: (_, state) => NoTransitionPage(child: builder(state)),
 );

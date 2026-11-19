@@ -13,6 +13,7 @@ import '../checkout/checkout_view.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/notice.dart';
 import 'pos_dialogs.dart';
 
 /// Point of sale. Independent layouts per form factor (CLAUDE.md §2):
@@ -116,11 +117,15 @@ class _CatalogState extends State<_Catalog> {
                   padding: const EdgeInsets.all(12),
                   // Columns follow the space left by the cart, so names get
                   // a readable width on every tablet orientation.
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                     maxCrossAxisExtent: 210,
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    mainAxisExtent: 150,
+                    // Phone sideways (~410 dp tall): 2-line names, so more
+                    // than one row of cards fits.
+                    mainAxisExtent: MediaQuery.sizeOf(context).height < 500
+                        ? 112
+                        : 150,
                   ),
                   itemCount: products.length,
                   itemBuilder: (context, i) => _ProductCard(products[i]),
@@ -269,7 +274,10 @@ class _ProductRow extends StatelessWidget {
 // Cart (touch)
 
 class _CartList extends StatelessWidget {
-  const _CartList();
+  const _CartList({this.newestFirst = false});
+
+  /// Scanner: the line just added shows at the top, in view.
+  final bool newestFirst;
 
   @override
   Widget build(BuildContext context) {
@@ -289,7 +297,7 @@ class _CartList extends StatelessWidget {
       itemCount: store.cart.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (context, i) {
-        final line = store.cart[i];
+        final line = store.cart[newestFirst ? store.cart.length - 1 - i : i];
         return Dismissible(
           key: ObjectKey(line),
           direction: DismissDirection.endToStart,
@@ -671,70 +679,157 @@ class _ScanButton extends StatelessWidget {
         );
 }
 
-void _showSaleScanner(BuildContext context) {
-  final store = DemoScope.read(context);
-  final filter = ScanFilter();
-  showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true, // above the bottom bar
-    isScrollControlled: true,
-    useSafeArea: true,
-    builder: (sheet) => SizedBox(
-      height: MediaQuery.sizeOf(sheet).height * 0.6,
-      child: Stack(
+void _showSaleScanner(BuildContext context) => context.push('/escanear-venta');
+
+/// Sales scanner, full screen: camera with a frame on one half, the live
+/// cart on the other (top/bottom in portrait, left/right in landscape).
+/// Each read shows a traffic-light notice above the camera.
+class SaleScannerPage extends StatefulWidget {
+  const SaleScannerPage({super.key});
+
+  @override
+  State<SaleScannerPage> createState() => _SaleScannerPageState();
+}
+
+class _SaleScannerPageState extends State<SaleScannerPage> {
+  final _filter = ScanFilter();
+
+  /// The weight calculator is open: ignore the camera meanwhile.
+  bool _weighing = false;
+
+  Future<void> _onCodes(List<String> codes, Duration elapsed) async {
+    if (_weighing) return;
+    final code = codes.where((c) => _filter.offer(c, elapsed).isAccepted);
+    if (code.isEmpty) return;
+    await handleSaleScan(context, code.first);
+  }
+
+  /// Public for tests (no camera there).
+  Future<void> handleSaleScan(BuildContext context, String code) async {
+    final store = DemoScope.read(context);
+    final r = store.scanForSale(code);
+    unawaited(
+      r.level == NoticeLevel.error
+          ? ScanFeedback.error()
+          : ScanFeedback.success(),
+    );
+    final unknown = r.unknownCode;
+    showNotice(
+      context,
+      r.message,
+      level: r.level,
+      sticky: r.level == NoticeLevel.error, // until tapped or the next read
+      actionLabel: unknown == null ? null : 'Registrar',
+      onAction: unknown == null
+          ? null
+          : () => context.go('/escanear?code=$unknown'),
+    );
+    final weigh = r.weigh;
+    if (weigh == null) return;
+    _weighing = true;
+    final pick = await showWeightCalculator(context, weigh);
+    _weighing = false;
+    if (pick == null || !context.mounted) return;
+    final error = store.addToCart(
+      weigh,
+      weigh.base,
+      pick.grams,
+      perKgCents: pick.perKgCents,
+    );
+    showNotice(
+      context,
+      error ?? '${weigh.name} ${weightLabel(pick.grams)}',
+      level: error == null ? NoticeLevel.ok : NoticeLevel.error,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = DemoScope.of(context);
+    final size = MediaQuery.sizeOf(context);
+    final camera = Stack(
+      fit: StackFit.expand,
+      children: [
+        if (isCameraScanSupported)
+          CameraScanView(
+            onCodes: (codes, elapsed, _) => _onCodes(codes, elapsed),
+            overlay: const ScanFrame(),
+          )
+        else
+          const ColoredBox(
+            color: Colors.black,
+            child: Stack(
+              children: [
+                ScanFrame(),
+                Center(
+                  child: Text(
+                    'Cámara no disponible',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        // Bottom corner: the top is where notices appear.
+        Positioned(
+          right: 12,
+          bottom: 12,
+          child: IconButton.filled(
+            tooltip: 'Cerrar escáner',
+            iconSize: 28,
+            style: IconButton.styleFrom(minimumSize: const Size(56, 56)),
+            onPressed: () => context.pop(),
+            icon: const Icon(Icons.close),
+          ),
+        ),
+      ],
+    );
+    final cart = ColoredBox(
+      color: Colors.white,
+      child: Column(
         children: [
-          Positioned.fill(
-            child: CameraScanView(
-              onCodes: (codes, elapsed, _) {
-                for (final code in codes) {
-                  if (!filter.offer(code, elapsed).isAccepted) continue;
-                  final hit = store.findByBarcode(code);
-                  final String? error;
-                  final String msg;
-                  if (hit == null) {
-                    error = msg = 'Código $code no registrado';
-                  } else if (hit.product.byWeight) {
-                    error = null;
-                    msg =
-                        '${hit.product.name} se vende por peso: tócalo en la lista para pesarlo';
-                  } else {
-                    error = store.addToCart(
-                      hit.product,
-                      hit.presentation,
-                      1000,
-                    );
-                    msg = error ?? '${hit.product.name} agregado';
-                  }
-                  unawaited(
-                    error == null
-                        ? ScanFeedback.success()
-                        : ScanFeedback.error(),
-                  );
-                  ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: Text(msg),
-                        duration: const Duration(milliseconds: 1200),
-                      ),
-                    );
-                }
-              },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 4, 8, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    store.cart.isEmpty
+                        ? 'Venta'
+                        : 'Venta · ${store.cartItems} ítems',
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium,
+                  ),
+                ),
+                const _ClearCartButton(),
+              ],
             ),
           ),
-          Positioned(
-            right: 12,
-            top: 12,
-            child: IconButton.filled(
-              tooltip: 'Cerrar',
-              onPressed: () => Navigator.pop(sheet),
-              icon: const Icon(Icons.close),
-            ),
-          ),
+          const Divider(height: 1),
+          const Expanded(child: _CartList(newestFirst: true)),
+          const Divider(height: 1),
+          const Padding(padding: EdgeInsets.all(12), child: _ChargeButton()),
         ],
       ),
-    ),
-  );
+    );
+    return AnnotatedRegion(
+      value: SystemUiOverlayStyle.light, // white icons over the camera
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: Flex(
+            direction: size.width > size.height
+                ? Axis.horizontal
+                : Axis.vertical,
+            children: [
+              Expanded(child: camera),
+              Expanded(child: cart),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -771,25 +866,27 @@ class _DesktopPosState extends State<_DesktopPos> {
   /// Enter: a barcode (USB reader types it + Enter) or the first result.
   Future<void> _submit(DemoStore store) async {
     final hit = store.findByBarcode(_query);
-    if (hit != null) {
-      if (hit.product.byWeight) {
-        unawaited(ScanFeedback.success());
-        await addProductFlow(context, hit.product);
-      } else {
-        final err = store.addToCart(hit.product, hit.presentation, 1000);
-        unawaited(err == null ? ScanFeedback.success() : ScanFeedback.error());
-        if (err != null && mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text(err)));
-        }
-      }
+    if (hit != null && hit.product.byWeight) {
+      unawaited(ScanFeedback.success());
+      await addProductFlow(context, hit.product);
+    } else if (hit != null) {
+      // Same traffic light as the camera scanner.
+      final r = store.scanForSale(_query);
+      unawaited(
+        r.level == NoticeLevel.error
+            ? ScanFeedback.error()
+            : ScanFeedback.success(),
+      );
+      showNotice(context, r.message, level: r.level);
     } else if (_results(store).firstOrNull case final p?) {
       await addProductFlow(context, p);
     } else if (_query.isNotEmpty && mounted) {
       unawaited(ScanFeedback.error());
-      ScaffoldMessenger.of(
+      showNotice(
         context,
-      ).showSnackBar(SnackBar(content: Text('Sin resultados para "$_query"')));
+        'Sin resultados para "$_query"',
+        level: NoticeLevel.error,
+      );
       return;
     }
     _search.clear();
@@ -809,12 +906,11 @@ class _DesktopPosState extends State<_DesktopPos> {
           final c = await showCustomerPicker(context);
           if (c != null) store.update(() => store.cartCustomer = c);
         },
-        const SingleActivator(LogicalKeyboardKey.f9): () =>
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Nota de pedido: fuera del prototipo (Fase 3).'),
-              ),
-            ),
+        const SingleActivator(LogicalKeyboardKey.f9): () => showNotice(
+          context,
+          'Nota de pedido: fuera del prototipo (Fase 3).',
+          level: NoticeLevel.warn,
+        ),
         const SingleActivator(LogicalKeyboardKey.f12): () =>
             _goToCheckout(context),
         const SingleActivator(LogicalKeyboardKey.escape): () {

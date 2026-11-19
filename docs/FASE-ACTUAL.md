@@ -385,4 +385,15 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 - El cobro en el celular en horizontal y el teclado nuevo (25, 30.5, borrar).
 - Lo pendiente del 2026-11-17: nombres en la tablet, eliminar/deslizar/vaciar, pitido y vibración.
-- Sin ver en dispositivo: la tablet en horizontal sin barra, el celular con dos paneles y la calculadora kg / g. El celular se desconectó y la tablet tenía la pantalla apagada; en la tablet ya está instalado el APK.
+- ~~Sin ver en dispositivo: la tablet en horizontal sin barra, el celular con dos paneles y la calculadora kg / g.~~ El usuario confirmó todo en los dos equipos ("todo ok").
+- **Tercer pedido del día: escaneo en ventas con semáforo.** El aviso de código no registrado salía detrás de la cámara (un SnackBar queda debajo de las hojas y los diálogos).
+  - **Escáner de venta a pantalla completa** (`/escanear-venta`): cámara con marco (esquinas + línea guía) en una mitad y el carrito en vivo en la otra (arriba/abajo en vertical, izquierda/derecha en horizontal). El último producto agregado sale primero. Botón Cobrar y Vaciar.
+  - **Avisos flotantes tipo semáforo** (`widgets/notice.dart`), siempre encima de todo:
+    - 🟢 agregado, con la cantidad acumulada (×2);
+    - 🟡 agregado pero sin stock local o con stock bajo, y producto por peso (abre la calculadora sobre la cámara);
+    - 🔴 código no registrado (queda fijo hasta tocarlo o hasta el siguiente escaneo, con botón **Registrar** que abre el alta con el código escrito) y lotes vencidos.
+  - El lector USB de la PC usa el mismo semáforo. Los 8 SnackBar de la app pasaron a este componente.
+  - El marco también está en la cámara de *Registrar producto*.
+  - Tarjetas de producto más bajas cuando la pantalla tiene menos de 500 dp de alto (celular en horizontal): caben más filas.
+  - Pruebas: app 136 en verde (semáforo en el store y escáner en 4 tamaños).
+  - **Pendiente de prueba en dispositivo:** el escáner nuevo con la cámara real en la tablet y el celular. Instalado en la tablet; el celular no estaba conectado.

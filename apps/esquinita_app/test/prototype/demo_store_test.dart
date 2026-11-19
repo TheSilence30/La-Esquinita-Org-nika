@@ -1,6 +1,7 @@
 import 'package:esquinita_app/prototype/checkout.dart';
 import 'package:esquinita_app/prototype/demo_data.dart';
 import 'package:esquinita_app/prototype/demo_store.dart';
+import 'package:esquinita_app/prototype/widgets/notice.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -10,6 +11,41 @@ void main() {
   setUp(() => store = DemoStore(clock: () => today));
 
   DemoProduct p(String id) => store.catalog.firstWhere((x) => x.id == id);
+
+  group('sales scan traffic light', () {
+    test('green: added, quantity accumulates', () {
+      final first = store.scanForSale('7750543400036'); // quinua, 46 in stock
+      expect(first.level, NoticeLevel.ok);
+      expect(first.message, 'Quinua blanca orgánica 1 kg ×1');
+      expect(store.scanForSale('7750543400036').message, endsWith('×2'));
+      expect(store.cart.single.qtyMilli, 2000);
+    });
+
+    test('amber: no local stock (still added) or low stock', () {
+      final none = store.scanForSale('7750123400016'); // almendras, 0
+      expect(none.level, NoticeLevel.warn);
+      expect(none.message, endsWith('sin stock local'));
+      final low = store.scanForSale('7755678900011'); // maca, 4 (min 5)
+      expect(low.level, NoticeLevel.warn);
+      expect(low.message, endsWith('stock bajo'));
+      expect(store.cart, hasLength(2));
+    });
+
+    test('red: unknown code, nothing added, offers to register it', () {
+      final r = store.scanForSale('123456');
+      expect(r.level, NoticeLevel.error);
+      expect(r.unknownCode, '123456');
+      expect(store.cart, isEmpty);
+    });
+
+    test('red: all lots expired is blocked', () {
+      final miel = p('miel');
+      miel.lots.removeWhere((l) => !l.isExpired(today)); // only L-2403 left
+      final r = store.scanForSale('7751234500017');
+      expect(r.level, NoticeLevel.error);
+      expect(store.cart, isEmpty);
+    });
+  });
 
   test('FEFO skips the expired lot and takes the one that expires first', () {
     final miel = p('miel');

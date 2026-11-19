@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/notice.dart';
 
 class SaleDonePage extends StatelessWidget {
   const SaleDonePage({super.key, required this.sale});
@@ -75,12 +76,10 @@ class _SaleDone extends StatelessWidget {
             children: [
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(minimumSize: const Size(0, 56)),
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Impresión: fuera del prototipo (spikes 3 y 4 ya probados).',
-                    ),
-                  ),
+                onPressed: () => showNotice(
+                  context,
+                  'Impresión: fuera del prototipo (spikes 3 y 4 ya probados).',
+                  level: NoticeLevel.warn,
                 ),
                 icon: const Icon(Icons.print_outlined),
                 label: const Text('Imprimir'),

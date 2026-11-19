@@ -94,6 +94,59 @@ class CameraScanViewState extends State<CameraScanView> {
   }
 }
 
+/// Viewfinder drawn over the preview: white corners and a green aim line,
+/// so the cashier knows where to put the code. Decoding still uses the
+/// whole frame.
+class ScanFrame extends StatelessWidget {
+  const ScanFrame({super.key});
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: Center(
+      child: FractionallySizedBox(
+        widthFactor: 0.78,
+        heightFactor: 0.55,
+        child: CustomPaint(painter: _FramePainter()),
+      ),
+    ),
+  );
+}
+
+class _FramePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final corner = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final len = size.shortestSide * 0.22;
+    final w = size.width;
+    final h = size.height;
+    for (final (x, y, dx, dy) in [
+      (0.0, 0.0, 1.0, 1.0),
+      (w, 0.0, -1.0, 1.0),
+      (0.0, h, 1.0, -1.0),
+      (w, h, -1.0, -1.0),
+    ]) {
+      canvas
+        ..drawLine(Offset(x, y), Offset(x + dx * len, y), corner)
+        ..drawLine(Offset(x, y), Offset(x, y + dy * len), corner);
+    }
+    canvas.drawLine(
+      Offset(w * 0.08, h / 2),
+      Offset(w * 0.92, h / 2),
+      Paint()
+        ..color =
+            const Color(0xCC7CB342) // leaf green, see-through
+        ..strokeWidth = 2,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_FramePainter old) => false;
+}
+
 class _CameraError extends StatelessWidget {
   const _CameraError(this.error);
 

@@ -5,6 +5,7 @@ import '../../app/theme.dart';
 import '../demo_data.dart';
 import '../demo_store.dart';
 import '../widgets/common.dart';
+import '../widgets/notice.dart';
 import '../widgets/keypad.dart';
 
 /// Grams to sell and the price per kg to charge. Two directions: weight →
@@ -381,7 +382,6 @@ Future<DemoCustomer?> showCustomerPicker(BuildContext context) =>
 /// Adds [product] to the cart, asking for weight or presentation first.
 Future<void> addProductFlow(BuildContext context, DemoProduct product) async {
   final store = DemoScope.read(context);
-  final messenger = ScaffoldMessenger.of(context);
   String? error;
   if (product.byWeight) {
     final pick = await showWeightCalculator(context, product);
@@ -399,7 +399,7 @@ Future<void> addProductFlow(BuildContext context, DemoProduct product) async {
   } else {
     error = store.addToCart(product, product.base, 1000);
   }
-  if (error != null) {
-    messenger.showSnackBar(SnackBar(content: Text(error)));
+  if (error != null && context.mounted) {
+    showNotice(context, error, level: NoticeLevel.error);
   }
 }

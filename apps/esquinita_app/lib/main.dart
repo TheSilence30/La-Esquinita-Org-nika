@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'prototype/demo_store.dart';
+import 'prototype/widgets/notice.dart';
 
 void main() => runApp(EsquinitaApp(store: DemoStore()));
 
@@ -26,6 +27,7 @@ class _EsquinitaAppState extends State<EsquinitaApp> {
       theme: buildTheme(),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
+      builder: (_, child) => NoticeHost(child: child!),
     ),
   );
 }

@@ -1,6 +1,7 @@
 import 'package:esquinita_app/devices/scanner/camera_scan_view.dart';
 import 'package:esquinita_app/main.dart';
 import 'package:esquinita_app/prototype/demo_store.dart';
+import 'package:esquinita_app/prototype/pos/pos_page.dart';
 import 'package:esquinita_app/prototype/widgets/keypad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -300,6 +301,47 @@ void main() {
       findsOneWidget,
     );
   });
+
+  // Sales scanner: camera + live cart, traffic-light notices on top of it.
+  for (final size in const [
+    Size(360, 640),
+    Size(891, 411),
+    Size(533, 893),
+    Size(893, 533),
+  ]) {
+    testWidgets('sales scanner $size: notices visible, Registrar', (
+      tester,
+    ) async {
+      final store = await pumpApp(tester, size);
+      await go(tester, '/escanear-venta');
+      expect(tester.takeException(), isNull);
+      Future<void> scan(String code) async {
+        final state = tester.state(find.byType(SaleScannerPage));
+        await (state as dynamic).handleSaleScan(state.context, code);
+        await tester.pump();
+      }
+
+      await scan('7750543400036');
+      expect(find.byKey(const Key('notice-ok')), findsOneWidget);
+      expect(find.text('Quinua blanca orgánica 1 kg ×1'), findsOneWidget);
+      expect(find.text('Venta · 1 ítems'), findsOneWidget); // live cart
+      await scan('7750123400016');
+      expect(find.byKey(const Key('notice-warn')), findsOneWidget);
+      await scan('999');
+      expect(find.byKey(const Key('notice-error')), findsOneWidget);
+      expect(find.text('Código 999 no registrado'), findsOneWidget);
+      expect(store.cart, hasLength(2));
+      expect(tester.takeException(), isNull);
+      // Red stays until acted on; Registrar opens the form with the code.
+      await tester.pump(const Duration(seconds: 10));
+      await tester.tap(find.text('Registrar'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('notice-error')), findsNothing);
+      expect(find.byType(SaleScannerPage), findsNothing);
+      expect(find.textContaining('999'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   // Tab A11 at 240 dpi: 533 × 893 dp (portrait) and 893 × 533 (landscape).
   for (final size in const [Size(533, 893), Size(893, 533)]) {

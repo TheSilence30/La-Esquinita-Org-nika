@@ -5,6 +5,16 @@ import 'package:flutter/widgets.dart';
 
 import 'checkout.dart';
 import 'demo_data.dart';
+import 'widgets/notice.dart';
+
+/// What a sales scan did. [weigh]: open the weight calculator for it.
+/// [unknownCode]: offer to register it.
+typedef ScanOutcome = ({
+  NoticeLevel level,
+  String message,
+  DemoProduct? weigh,
+  String? unknownCode,
+});
 
 enum DemoRole {
   admin('Administrador'),
@@ -156,6 +166,58 @@ class DemoStore extends ChangeNotifier {
     _allocate(line);
     notifyListeners();
     return null;
+  }
+
+  /// Sales scan, as a traffic light: green added; amber added but needs a
+  /// look (no local stock — still sold, docs/modelo-datos.md — or low
+  /// stock) or sold by weight (the caller opens the calculator); red not
+  /// registered or blocked (expired lots).
+  ScanOutcome scanForSale(String code) {
+    final hit = findByBarcode(code);
+    if (hit == null) {
+      return (
+        level: NoticeLevel.error,
+        message: 'Código $code no registrado',
+        weigh: null,
+        unknownCode: code,
+      );
+    }
+    final p = hit.product;
+    if (p.byWeight) {
+      return (
+        level: NoticeLevel.warn,
+        message: '${p.name}: se vende por peso',
+        weigh: p,
+        unknownCode: null,
+      );
+    }
+    final error = addToCart(p, hit.presentation, 1000);
+    if (error != null) {
+      return (
+        level: NoticeLevel.error,
+        message: error,
+        weigh: null,
+        unknownCode: null,
+      );
+    }
+    final inCart = cart
+        .where((l) => l.product == p)
+        .fold(0, (s, l) => s + l.baseQtyMilli);
+    final line = cart.firstWhere(
+      (l) => l.product == p && l.presentation == hit.presentation,
+    );
+    final added = '${p.name} ×${Quantity(line.qtyMilli)}';
+    final (level, note) = line.stockWarning
+        ? (NoticeLevel.warn, ' · sin stock local')
+        : p.totalStockMilli - inCart <= p.minStockMilli
+        ? (NoticeLevel.warn, ' · stock bajo')
+        : (NoticeLevel.ok, '');
+    return (
+      level: level,
+      message: added + note,
+      weigh: null,
+      unknownCode: null,
+    );
   }
 
   void setQty(CartLine line, int qtyMilli) {
