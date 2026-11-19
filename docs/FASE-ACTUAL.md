@@ -375,9 +375,14 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Arreglo: el teclado del cobro se desbordaba 47 px en el celular en horizontal.
 - El botón del carrito vacío dice "0 ítems" (antes "Carrito v…" a 360 dp).
 - Pruebas: app 123 en verde (nuevas: teclado y celular en horizontal); `analyze` sin problemas.
+- **Segundo pedido del día** (commit `385fe49`):
+  - **Tablet en horizontal:** tampoco muestra la barra verde. "Caja abierta" y "Sincronizado" pasan a la barra inferior.
+  - **Celular en horizontal:** usa los **dos paneles de la tablet** (tarjetas y carrito a la derecha) desde 840 dp de ancho.
+  - **Calculadora de peso con selector kg / g:** en kg, "1.5" = 1.500 kg y "2" = 2 kg; en g, "500" = 500 g. Atajos: 250 g, 300 g, 500 g, 1 kg y 2 kg, en una sola fila con desplazamiento (en dos filas, a 360×640 empujaban el teclado fuera de la pantalla). En el carrito, el peso se muestra como "1.500 kg" desde 1 kg.
+  - Pruebas: app 128 en verde.
 
 **Falta verificar en dispositivo**
 
 - El cobro en el celular en horizontal y el teclado nuevo (25, 30.5, borrar).
 - Lo pendiente del 2026-11-17: nombres en la tablet, eliminar/deslizar/vaciar, pitido y vibración.
-- Observación del usuario sin atender todavía: "márgenes muy grandes" en el celular en horizontal (la lista de productos usa el diseño de vertical).
+- Sin ver en dispositivo: la tablet en horizontal sin barra, el celular con dos paneles y la calculadora kg / g. El celular se desconectó y la tablet tenía la pantalla apagada; en la tablet ya está instalado el APK.
