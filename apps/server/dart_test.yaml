@@ -1,0 +1,7 @@
+# The database tests share one throwaway PostgreSQL and reset its schema:
+# run test files one at a time.
+concurrency: 1
+
+tags:
+  # Needs TEST_DATABASE_URL (a throwaway PostgreSQL).
+  db:
