@@ -8,7 +8,10 @@ import 'app/providers.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
 import 'data/local/local_database.dart';
+import 'features/auth/application/auth_providers.dart';
 import 'features/auth/widgets/key_lost_page.dart';
+import 'features/auth/widgets/login_page.dart';
+import 'features/auth/widgets/setup_page.dart';
 import 'prototype/demo_store.dart';
 import 'prototype/widgets/notice.dart';
 import 'shells/app_shell.dart';
@@ -69,10 +72,52 @@ class _StartupState extends State<_Startup> {
     ),
     LocalDbReady(:final db) => ProviderScope(
       overrides: [appDatabaseProvider.overrideWithValue(db)],
-      child: EsquinitaApp(store: DemoStore()),
+      child: const AuthGate(),
     ),
   };
 }
+
+/// First start (register the device), then login, then the app on the
+/// home screen of the user's role.
+class AuthGate extends ConsumerWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final registered = ref.watch(deviceRegisteredProvider);
+    final session = ref.watch(currentSessionProvider);
+    return switch (registered) {
+      AsyncData(value: false) => _plainApp(const SetupPage()),
+      AsyncData(value: true) when session == null => _plainApp(
+        const LoginPage(),
+      ),
+      AsyncData(value: true) => EsquinitaApp(
+        // A new app per login: the prototype data and the router start over.
+        key: ValueKey(session!.userId),
+        store: DemoStore()
+          ..role = session.homeView == 'dashboard'
+              ? DemoRole.admin
+              : DemoRole.staff,
+      ),
+      AsyncError(:final error) => _plainApp(
+        Scaffold(body: Center(child: Text('Error al iniciar: $error'))),
+      ),
+      _ => _plainApp(
+        const Scaffold(body: Center(child: CircularProgressIndicator())),
+      ),
+    };
+  }
+}
+
+Widget _plainApp(Widget home) => MaterialApp(
+  title: 'La Esquinita Orgánika',
+  theme: buildTheme(),
+  debugShowCheckedModeBanner: false,
+  locale: _locale,
+  supportedLocales: _locales,
+  localizationsDelegates: GlobalMaterialLocalizations.delegates,
+  home: home,
+);
 
 class EsquinitaApp extends StatefulWidget {
   const EsquinitaApp({super.key, required this.store});

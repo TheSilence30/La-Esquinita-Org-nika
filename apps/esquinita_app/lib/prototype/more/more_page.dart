@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../devices/feedback/scan_feedback.dart';
+import '../../features/auth/application/auth_providers.dart';
 
 import '../demo_store.dart';
 
@@ -36,6 +38,8 @@ class MorePage extends StatelessWidget {
           title: const Text('Spikes de hardware (Fase 0)'),
           onTap: () => context.go('/spikes'),
         ),
+        const Divider(),
+        ...sessionTiles(context),
       ],
     );
   }
@@ -114,4 +118,24 @@ class DemoSettingsPage extends StatelessWidget {
       ],
     );
   }
+}
+
+/// "Cambiar usuario" keeps the saved login (the PIN still works);
+/// "Cerrar sesión" ends it here and on the server.
+List<Widget> sessionTiles(BuildContext context) {
+  final session = ProviderScope.containerOf(context)
+      .read(currentSessionProvider.notifier);
+  return [
+    ListTile(
+      leading: const Icon(Icons.switch_account_outlined),
+      title: const Text('Cambiar usuario'),
+      onTap: session.lock,
+    ),
+    ListTile(
+      leading: const Icon(Icons.logout),
+      title: const Text('Cerrar sesión'),
+      subtitle: const Text('Para volver a entrar hará falta la contraseña'),
+      onTap: session.logout,
+    ),
+  ];
 }
