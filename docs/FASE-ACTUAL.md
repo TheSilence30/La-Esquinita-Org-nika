@@ -77,3 +77,20 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - core 64 y app 160 en verde.
 - Prueba manual con el servidor corriendo y curl: 401, login, `/me` (19 permisos, sin hashes), refresh 200 y luego 401 al reusarlo, y 429 tras 5 fallos.
 - **Pendiente del usuario**: escribir en su `.env` las contraseñas y los PIN iniciales (`ADMIN_INITIAL_PASSWORD`, `ADMIN_INITIAL_PIN`, `STAFF_INITIAL_PASSWORD`, `STAFF_INITIAL_PIN`) antes del primer arranque del servidor en la base de desarrollo.
+
+### 2026-11-19 (cierre del día) — Estado
+
+- **Tarea 2 (autenticación):** terminada, en el **PR #12**, abierto para que el usuario lo revise. CI en verde. No se fusiona sin su aprobación.
+- **Tarea 3 (registro de equipos, series y `GET /sync/pull`):** **sin empezar**; no hay código. Rama `phase-1/devices-pull`, creada sobre `phase-1/auth` porque la necesita, con solo esta nota.
+  - Al retomarla:
+    - bajada de `users` con columnas explícitas, sin `password_hash`;
+    - cursor seguro ante transacciones concurrentes (p. ej. `pg_snapshot_xmin`), con su prueba;
+    - PR abierto para revisión, porque es sincronización.
+- **Pendientes de decisión del usuario:**
+  1. **`pin_hash` en los equipos.** Propuesta de Claude:
+     - baja solo a los equipos donde ese usuario ya entró con contraseña;
+     - el servidor nunca acepta el PIN;
+     - 5 PIN fallidos obligan a entrar con contraseña;
+     - el PIN solo abre la sesión guardada de 7 días.
+  2. **Cifrado de la base local** (tablet y PC), con SQLCipher y la llave en el almacén seguro del sistema. Cierra el riesgo de que alguien adivine el PIN si roba el equipo. Suma un paquete a la app; se haría en la tarea 4.
+  3. **Las cuatro claves iniciales del `.env`** (`ADMIN_INITIAL_PASSWORD`, `ADMIN_INITIAL_PIN`, `STAFF_INITIAL_PASSWORD`, `STAFF_INITIAL_PIN`). Las escribe el usuario; sin ellas, el servidor no arranca en la base de desarrollo.
