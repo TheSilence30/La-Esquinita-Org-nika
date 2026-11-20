@@ -8,7 +8,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. **PR abierto para revisión del usuario** (autenticación)
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. **PR abierto para revisión del usuario** (sincronización)
 - [ ] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004)
-- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
+- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`

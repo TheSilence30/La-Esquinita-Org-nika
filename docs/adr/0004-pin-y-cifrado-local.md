@@ -15,6 +15,7 @@ Fecha: 2026-11-20 · Estado: **aceptada** (decisión del usuario del 2026-11-20)
 - `GET /sync/pull` envía el `pin_hash` de un usuario **solo al equipo donde ese usuario ya entró con contraseña** (hay un inicio de sesión suyo en `refresh_tokens` para ese `device_id`). A los demás equipos no les llega.
 - El servidor **nunca** acepta el PIN para iniciar sesión: el PIN solo abre la sesión guardada en el equipo.
 - **5 PIN fallidos** seguidos en el equipo obligan a entrar con contraseña, lo que exige conexión.
+- El **contador de PIN fallidos** se guarda en la base local cifrada y **sobrevive a reiniciar la app** (cerrarla no da intentos nuevos). Solo vuelve a cero al entrar con el PIN correcto o con la contraseña (decisión del usuario, 2026-11-20).
 - La sesión local dura **7 días** desde el último ingreso con contraseña; vencida, pide contraseña.
 - Argon2id con los parámetros del servidor (19 MiB, t=2, p=1), **sin bajarlos**. Se mide en la tablet SM-X133: si la verificación pasa de **1 s**, se usa la implementación nativa (`cryptography_flutter`) con los mismos parámetros.
 
