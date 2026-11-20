@@ -45,6 +45,8 @@ const desktopNav = [
   NavItem('Reportes', Icons.bar_chart, '/reportes', adminOnly: true),
   NavItem('Ajustes', Icons.settings_outlined, '/ajustes', adminOnly: true),
   NavItem('Demostración', Icons.science_outlined, '/demo'),
+  // Fase 0 spikes (sync test operations), as under Más on the tablet.
+  NavItem('Pruebas', Icons.build_outlined, '/spikes'),
 ];
 
 /// Picks the tablet/phone or desktop shell (independent interfaces,
