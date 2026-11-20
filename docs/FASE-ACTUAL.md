@@ -491,3 +491,4 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Token de decolecta: **solo en la PC**, en `.env` (ignorado por git). No está en GitHub ni en el APK.
 
 **Siguiente paso:** plan de la Fase 1 (fundamentos) para aprobación del usuario antes de programar.
+- Plan de la Fase 1 propuesto en `docs/planes/fase-1.md` (PR), **pendiente de aprobación**.
