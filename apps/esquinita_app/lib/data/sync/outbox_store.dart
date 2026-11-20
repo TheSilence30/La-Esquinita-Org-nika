@@ -124,6 +124,16 @@ class OutboxStore {
         updates: {db.outbox},
       );
 
+  /// Commands not yet answered by the server.
+  Future<int> pendingCount() async {
+    final n = db.outbox.opId.count();
+    return (await (db.selectOnly(db.outbox)
+              ..addColumns([n])
+              ..where(db.outbox.status.equals('pending')))
+            .getSingle())
+        .read(n)!;
+  }
+
   Stream<int> watchPendingCount() {
     final n = db.outbox.opId.count();
     return (db.selectOnly(db.outbox)

@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../app/form_factor.dart';
+import '../app/providers.dart';
 import '../app/theme.dart';
 import '../prototype/demo_store.dart';
 import '../prototype/widgets/common.dart';
@@ -78,12 +80,29 @@ String? backTarget(String location, {required bool isAdmin}) {
   return home;
 }
 
-/// "¿Salir de la app?" Sí closes it; No stays.
-Future<void> confirmExit(BuildContext context) async {
+/// "¿Salir de la app?", warning when commands have not reached the server
+/// yet. True when the user chose to leave.
+Future<bool> confirmLeave(
+  BuildContext context, {
+  bool onlyIfPending = false,
+}) async {
+  final pending = await ProviderScope.containerOf(
+    context,
+    listen: false,
+  ).read(outboxStoreProvider).pendingCount();
+  if (onlyIfPending && pending == 0) return true;
+  if (!context.mounted) return false;
   final exit = await showDialog<bool>(
     context: context,
     builder: (d) => AlertDialog(
       title: const Text('¿Salir de la app?'),
+      content: pending == 0
+          ? null
+          : Text(
+              pending == 1
+                  ? 'Queda 1 operación sin enviar al servidor.'
+                  : 'Quedan $pending operaciones sin enviar al servidor.',
+            ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(d, false),
@@ -96,7 +115,12 @@ Future<void> confirmExit(BuildContext context) async {
       ],
     ),
   );
-  if (exit ?? false) await SystemNavigator.pop();
+  return exit ?? false;
+}
+
+/// Android "Atrás" on the home screen.
+Future<void> confirmExit(BuildContext context) async {
+  if (await confirmLeave(context)) await SystemNavigator.pop();
 }
 
 class _TouchShell extends StatelessWidget {

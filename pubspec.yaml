@@ -8,3 +8,10 @@ workspace:
   - apps/esquinita_app
   - apps/server
   - packages/esquinita_core
+
+# The app's local database is encrypted with SQLCipher (ADR-0004). The
+# sqlite3 package bundles it; this picks that build instead of plain SQLite.
+hooks:
+  user_defines:
+    sqlite3:
+      source: sqlcipher
