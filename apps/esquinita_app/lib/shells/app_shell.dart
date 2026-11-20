@@ -219,14 +219,29 @@ class _TouchShell extends StatelessWidget {
   }
 }
 
-class _DesktopShell extends StatelessWidget {
+class _DesktopShell extends StatefulWidget {
   const _DesktopShell({required this.location, required this.child});
 
   final String location;
   final Widget child;
 
   @override
+  State<_DesktopShell> createState() => _DesktopShellState();
+}
+
+class _DesktopShellState extends State<_DesktopShell> {
+  final _menu = ScrollController();
+
+  @override
+  void dispose() {
+    _menu.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final location = widget.location;
+    final child = widget.child;
     final store = DemoScope.of(context);
     final items = [
       for (final n in desktopNav)
@@ -243,19 +258,26 @@ class _DesktopShell extends StatelessWidget {
               child: Column(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
-                    child: BrandLogo(height: 70, color: Colors.white),
+                    padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: BrandLogo(height: 52, color: Colors.white),
                   ),
+                  // Always-visible bar: in a short window the last items
+                  // are below the fold, and nothing else would say so.
                   Expanded(
-                    child: ListView(
-                      children: [
-                        for (final n in items)
-                          _SideItem(
-                            item: n,
-                            selected: n == current,
-                            onTap: () => context.go(n.path),
-                          ),
-                      ],
+                    child: Scrollbar(
+                      controller: _menu,
+                      thumbVisibility: true,
+                      child: ListView(
+                        controller: _menu,
+                        children: [
+                          for (final n in items)
+                            _SideItem(
+                              item: n,
+                              selected: n == current,
+                              onTap: () => context.go(n.path),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   Padding(
@@ -328,9 +350,17 @@ class _SideItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: ListTile(
         dense: true,
+        // Mouse, not touch: 40 lets all 12 items fit a maximized window at
+        // 125 % scaling (1536×864).
+        minTileHeight: 40,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         leading: Icon(item.icon, color: Colors.white),
-        title: Text(item.label, style: const TextStyle(color: Colors.white)),
+        title: Text(
+          item.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white),
+        ),
         onTap: onTap,
       ),
     ),
