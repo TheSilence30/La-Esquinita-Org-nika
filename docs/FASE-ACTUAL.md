@@ -178,3 +178,9 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - **Regla nueva en CLAUDE.md §12:** nunca ejecutar en un equipo real comandos que desinstalen la app o borren sus datos (`flutter drive`, `adb uninstall`, `pm clear`, reinstalar con otra firma) sin permiso del usuario, aunque sean datos de prueba.
 - **Prueba de punta a punta** (`test/features/auth/login_flow_test.dart`, prueba de widgets con base en memoria y servidor falso, sin tocar ningún equipo): registro del equipo → ingreso con contraseña → cambio obligatorio (incluye contraseñas que no coinciden) → app → «Cambiar usuario» → PIN incorrecto (quedan 4 intentos) → PIN correcto. En verde; app 201 pruebas en verde y `flutter analyze` sin observaciones.
 - **Migración v1 → v2 con la base real de la PC**, sobre una **copia** (la original no se tocó): versión 1 → 2, se crea `local_sessions` y se conservan todas las filas (outbox 1, spike 1, ajustes locales 2). La base real migrará sola, con el mismo código, al abrir la app nueva en la PC.
+- PR #15 fusionado en `main` (`a562273`) con la CI en verde; el PR #16 apunta ahora a `main` y sigue abierto para revisión del usuario (autenticación).
+- **En espera de volver a la tienda** (decisión del usuario): la PC estaba en la Wi-Fi `upc.edu.pe` (pública), donde no se debe exponer el servidor y que bloquea `git push`. Pendiente:
+  1. subir el commit `3dbe381` al PR #16;
+  2. en la Wi-Fi de la tienda: verificar la IP con `ipconfig`, ponerla en `SERVER_HOST` del `.env` y arrancar el servidor;
+  3. probar con el usuario en la tablet y la PC (la base real de la PC migra a v2 al abrir la app nueva);
+  4. sacar el PR #16 de borrador para revisión.
