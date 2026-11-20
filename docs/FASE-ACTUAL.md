@@ -22,10 +22,10 @@ Estado: **terminada** (2026-11-19). El usuario aprobó todos los spikes, el mode
   - [x] Pantalla del spike con métricas, “× cantidad”, ingreso manual, CSV; layout adaptable (celular, tablet, PC) probado en 6 tamaños
   - [x] APK debug y build Windows compilan
   - [x] Mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`); aprobado por el usuario el 2026-11-19
-- [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano. No es criterio de salida; queda para cuando haya un lector USB (antes de la Fase 3)
+- [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano. **Pendiente** (no es criterio de salida). Por ahora la PC no será el equipo principal, pero se tiene en cuenta; se hace cuando haya un lector USB, antes de la Fase 3
 - [x] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **aprobado por el usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
 - [x] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **aprobado por el usuario**): imprimir el mismo ticket por USB
-- [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
+- [ ] **Spike 5 — A4** (**en espera, sin aprobar**, decisión del usuario): la Epson L4160 se usará para los **reportes que el usuario pida desde la app** (semanal, mensual, trimestral, etc.) y para las notas de pedido A4. Se valida con la Fase 6 (Reportes) o antes, si hace falta
 - [x] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **aprobado por el usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [x] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **aprobado por el usuario el 2026-11-19** (PR #8)
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
@@ -484,4 +484,10 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Probado: un RUC público (SUNAT) devolvió HTTP 200 con razón social, estado, condición y dirección. El token está solo en `.env`, que git no sube; en `.env.example` hay un valor ficticio.
 - Recomendación: regenerar el token en decolecta antes de producción, porque se compartió en una conversación.
 
-**Siguiente paso:** el usuario aprueba el ADR-0003; luego, plan de la Fase 1 (fundamentos) para su aprobación antes de programar.
+- El usuario **aprobó el ADR-0003** y pidió fusionar el PR #9.
+- Aclaraciones del usuario:
+  - la **PC no será el equipo principal por ahora**, pero se tiene en cuenta (Spike 2 pendiente);
+  - la **Epson A4** es para los reportes que se pidan desde la app (semanal, mensual, trimestral…), por eso el Spike 5 sigue sin aprobar.
+- Token de decolecta: **solo en la PC**, en `.env` (ignorado por git). No está en GitHub ni en el APK.
+
+**Siguiente paso:** plan de la Fase 1 (fundamentos) para aprobación del usuario antes de programar.

@@ -1,6 +1,6 @@
 # ADR-0003 — Datos del cliente en la venta y consulta de DNI/RUC (decolecta)
 
-Fecha: 2026-11-19 · Estado: **propuesta** (pendiente de aprobación del usuario)
+Fecha: 2026-11-19 · Estado: **aceptada** (aprobada por el usuario el 2026-11-19)
 
 ## Contexto
 
