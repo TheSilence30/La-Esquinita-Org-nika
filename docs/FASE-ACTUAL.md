@@ -1,6 +1,6 @@
 # Fase actual: 0 — Planificación
 
-Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
+Estado: **terminada** (2026-11-19). El usuario aprobó todos los spikes, el modelo de datos y el prototipo. Siguiente: plan de la Fase 1.
 
 ## Entorno (usuario)
 
@@ -21,15 +21,15 @@ Estado: **en curso**. Actualiza esta lista al terminar cada tarea.
   - [x] Filtro `ScanFilter` en core (2 cuadros ≤ 300 ms, enfriamiento 1,5 s, re-armado tras 500 ms de ausencia; configurables) con pruebas
   - [x] Pantalla del spike con métricas, “× cantidad”, ingreso manual, CSV; layout adaptable (celular, tablet, PC) probado en 6 tamaños
   - [x] APK debug y build Windows compilan
-  - [ ] **Pendiente de prueba en dispositivo**: mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`)
-- [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano
-- [ ] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
-- [ ] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **pendiente de aprobación del usuario**): imprimir el mismo ticket por USB
-- [ ] **Spike 5 — A4** (**en espera** por decisión del usuario, 2026-11-17): PDF de nota de pedido impreso en la Epson L4160
-- [ ] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **pendiente de aprobación del usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
+  - [x] Mediciones reales en la Tab A11 (ver `docs/informes/fase-0.md`); aprobado por el usuario el 2026-11-19
+- [ ] **Spike 2 — Lector HID**: en Windows, detectar ráfagas del lector USB vs tecleo humano. **Pendiente** (no es criterio de salida). Por ahora la PC no será el equipo principal, pero se tiene en cuenta; se hace cuando haya un lector USB, antes de la Fase 3
+- [x] **Spike 3 — Térmica Bluetooth (Android)** (rama `phase-0/spike-printing`; probado con papel el 2026-11-17, **aprobado por el usuario**): listar dispositivos, conectar a la Éterma, imprimir ticket de prueba con tildes, ñ, S/, logo raster y 40 líneas. Resultado: PC850 y 4096 B / 10 ms (ver `docs/informes/fase-0.md`)
+- [x] **Spike 4 — Térmica USB (Windows)** (rama `phase-0/spike-usb-printing`; probado con papel el 2026-11-17, **aprobado por el usuario**): imprimir el mismo ticket por USB
+- [ ] **Spike 5 — A4** (**en espera, sin aprobar**, decisión del usuario): la Epson L4160 se usará para los **reportes que el usuario pida desde la app** (semanal, mensual, trimestral, etc.) y para las notas de pedido A4. Se valida con la Fase 6 (Reportes) o antes, si hace falta
+- [x] **Spike 6 — drift + outbox** (rama `phase-0/spike-drift-outbox`; probado en tablet y PC el 2026-11-17, **aprobado por el usuario**): crear operación offline, cerrar la app, reabrir, sincronizar contra servidor local sin duplicar
 - [x] Prototipo navegable (pantallas sin lógica real): POS tablet, POS escritorio, alta por escaneo, dashboard tablet — hecho en la rama `phase-0/prototype` (también cobro, calculadora de peso, cierre de caja y layout de celular); probado en PC, celular y tablet; **aprobado por el usuario el 2026-11-19** (PR #8)
 - [x] Modelo de datos inicial en `docs/modelo-datos.md` (tablas, claves, índices únicos) — **aprobado por el usuario el 2026-11-17** (PR #6; roles Administrador/Trabajo en CLAUDE.md §9)
-- [ ] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
+- [x] Informe de Fase 0 en `docs/informes/fase-0.md` con evidencia de cada spike
 
 ## Datos del negocio (usuario)
 
@@ -472,3 +472,22 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 - Pregunta del usuario: ¿*Cliente registrado* queda para después? Respuesta: el **módulo de clientes** (registro, crédito, abonos y cuentas por cobrar) es la **Fase 5**. La consulta automática de DNI/RUC (RENIEC/SUNAT) sí sería una **integración**, en la Fase 8 o como propuesta aparte.
 
 **Siguiente paso:** revisar con el usuario el estado de los spikes en la lista de arriba y cerrar la Fase 0. Luego, plan de la Fase 1 (fundamentos) para su aprobación antes de programar.
+
+### 2026-11-19 (cierre de la Fase 0) — Datos del cliente en la venta
+
+- El usuario aprobó **todos los spikes**: la **Fase 0 queda terminada**.
+- Pedido del usuario: en cualquier venta, no solo a crédito, poder poner los datos del cliente en el ticket, buscándolos por DNI o RUC con **decolecta.com**. La opción es "¿Con datos del cliente?": **No** emite el ticket normal; **Sí** busca o se escribe a mano, y nada es obligatorio. No es boleta.
+- Decisiones del usuario:
+  - se hace en la **Fase 3 (POS)**;
+  - los datos quedan **solo en esa venta**, con la casilla "Registrar como cliente".
+- Propuesta en **ADR-0003** (`docs/adr/0003-consulta-dni-ruc.md`), **pendiente de aprobación**: el servidor consulta a decolecta (el token nunca va en el APK) y guarda las respuestas para no pagar dos veces.
+- Probado: un RUC público (SUNAT) devolvió HTTP 200 con razón social, estado, condición y dirección. El token está solo en `.env`, que git no sube; en `.env.example` hay un valor ficticio.
+- Recomendación: regenerar el token en decolecta antes de producción, porque se compartió en una conversación.
+
+- El usuario **aprobó el ADR-0003** y pidió fusionar el PR #9.
+- Aclaraciones del usuario:
+  - la **PC no será el equipo principal por ahora**, pero se tiene en cuenta (Spike 2 pendiente);
+  - la **Epson A4** es para los reportes que se pidan desde la app (semanal, mensual, trimestral…), por eso el Spike 5 sigue sin aprobar.
+- Token de decolecta: **solo en la PC**, en `.env` (ignorado por git). No está en GitHub ni en el APK.
+
+**Siguiente paso:** plan de la Fase 1 (fundamentos) para aprobación del usuario antes de programar.
