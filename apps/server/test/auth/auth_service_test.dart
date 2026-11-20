@@ -123,6 +123,20 @@ void main() {
       },
     );
 
+    test('a login bumps the user version, so the device pulls its PIN '
+        'hash (ADR-0004)', () async {
+      Future<List<Object?>> state() async => (await db.execute(
+        "select version, last_login_at from users where username = 'Trabajo'",
+      )).single;
+      final before = await state();
+      await login('Trabajo', 'trabajo-inicial-1');
+      final after = await state();
+      expect(after[0]! as int, greaterThan(before[0]! as int));
+      expect(after[1], now);
+      await auth.login('Trabajo', 'mal', _device);
+      expect((await state())[0], after[0], reason: 'a failure bumps nothing');
+    });
+
     test('wrong password and unknown user get the same answer', () async {
       for (final (u, p) in [
         ('Administrador', 'otra-clave'),

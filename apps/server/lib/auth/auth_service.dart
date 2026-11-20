@@ -145,9 +145,19 @@ class AuthService {
     }
     _failures.remove(key);
     final userId = row[0]! as String;
-    final tokens = await _db.runTx(
-      (tx) => _issue(tx, userId, deviceId, family: uuidV7()),
-    );
+    final tokens = await _db.runTx((tx) async {
+      final t = await _issue(tx, userId, deviceId, family: uuidV7());
+      // Bumps the user's version, so this device's next pull brings the
+      // PIN hash it may now receive (ADR-0004).
+      await tx.execute(
+        Sql.named(
+          'update users set last_login_at = @now:timestamptz '
+          'where id = @u:uuid',
+        ),
+        parameters: {'u': userId, 'now': _clock()},
+      );
+      return t;
+    });
     return (
       tokens: tokens,
       mustChangePassword: row[3]! as bool,
@@ -289,15 +299,25 @@ class AuthService {
   Future<Set<String>> _permissions(String userId) async {
     final rows = await _db.execute(
       Sql.named('''
-        select distinct rp.permission_code
+        select ur.active, r.active, rp.active, p.active, p.code
         from user_roles ur
-        join roles r on r.id = ur.role_id and r.active
-        join role_permissions rp on rp.role_id = r.id and rp.active
-        join permissions p on p.code = rp.permission_code and p.active
-        where ur.user_id = @u:uuid and ur.active'''),
+        join roles r on r.id = ur.role_id
+        join role_permissions rp on rp.role_id = r.id
+        join permissions p on p.code = rp.permission_code
+        where ur.user_id = @u:uuid'''),
       parameters: {'u': userId},
     );
-    return {for (final r in rows) r[0]! as String};
+    // The rule lives in core: the device applies it offline too.
+    return effectivePermissions([
+      for (final r in rows)
+        (
+          userRoleActive: r[0]! as bool,
+          roleActive: r[1]! as bool,
+          grantActive: r[2]! as bool,
+          permissionActive: r[3]! as bool,
+          code: r[4]! as String,
+        ),
+    ]);
   }
 
   Future<Tokens> _issue(

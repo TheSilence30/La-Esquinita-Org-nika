@@ -121,7 +121,8 @@ void main() {
 
   group('GET /sync/pull', () {
     test('needs a session (any role) and a valid cursor', () async {
-      when(() => pulls.pull(any())).thenAnswer((_) async => {'cursor': 7});
+      when(() => pulls.pull(any(), any()))
+          .thenAnswer((_) async => {'cursor': 7});
       request('GET', '/sync/pull?since=3', '');
       expect((await pull.onRequest(context)).statusCode, 401);
       request('POST', '/sync/pull', '', token: 'staff');
@@ -130,7 +131,7 @@ void main() {
         request('GET', '/sync/pull?since=$bad', '', token: 'staff');
         expect((await pull.onRequest(context)).statusCode, 400, reason: bad);
       }
-      verifyNever(() => pulls.pull(any()));
+      verifyNever(() => pulls.pull(any(), any()));
 
       request('GET', '/sync/pull?since=3', '', token: 'staff');
       final r = await pull.onRequest(context);
@@ -138,7 +139,10 @@ void main() {
       expect(await r.json(), {'cursor': 7});
       request('GET', '/sync/pull', '', token: 'staff');
       await pull.onRequest(context);
-      verifyInOrder([() => pulls.pull(3), () => pulls.pull(0)]);
+      verifyInOrder([
+        () => pulls.pull(3, _device),
+        () => pulls.pull(0, _device),
+      ]);
     });
   });
 }

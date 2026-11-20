@@ -13,6 +13,8 @@ import 'package:test/test.dart';
 import '../support/schema.dart';
 
 const _user = '019a9a00-0000-7000-8000-0000000000a1';
+const _tablet = '019a9a00-0000-7000-8000-0000000000d1';
+const _pc = '019a9a00-0000-7000-8000-0000000000d2';
 
 void main() {
   final url = testDatabaseUrl;
@@ -52,8 +54,9 @@ void main() {
     parameters: {'v': text},
   );
 
-  test('since 0 sends every master; no password or PIN hash', () async {
-    final r = await pull.pull(0);
+  test('since 0 sends every master; never the password hash, and no PIN '
+      'hash to a device the user never logged in on', () async {
+    final r = await pull.pull(0, _tablet);
     expect(rows(r, 'roles'), hasLength(2));
     expect(rows(r, 'permissions'), hasLength(34));
     expect(rows(r, 'role_permissions'), hasLength(34 + 19));
@@ -62,33 +65,53 @@ void main() {
       'id': _user,
       'username': 'Trabajo',
       'full_name': 'Trabajo',
+      'pin_hash': null,
       'active': true,
       'version': isA<int>(),
     });
-    expect('$r', isNot(contains('hash')));
+    expect('$r', isNot(contains('secret-hash')));
+    expect('$r', isNot(contains('pin-hash')));
     expect(r['cursor'], greaterThan(0));
   });
 
   test('only what changed after the cursor, deactivations included', () async {
-    final first = (await pull.pull(0))['cursor']! as int;
-    expect(rows(await pull.pull(first), 'settings'), isEmpty);
-    expect((await pull.pull(first))['cursor'], first);
+    final first = (await pull.pull(0, _tablet))['cursor']! as int;
+    expect(rows(await pull.pull(first, _tablet), 'settings'), isEmpty);
+    expect((await pull.pull(first, _tablet))['cursor'], first);
 
     await setFooter('Vuelva pronto');
     await db.execute(
       Sql.named('update users set active = false where id = @id:uuid'),
       parameters: {'id': _user},
     );
-    final r = await pull.pull(first);
+    final r = await pull.pull(first, _tablet);
     expect(rows(r, 'settings').single, containsPair('value', 'Vuelva pronto'));
     expect(rows(r, 'users').single, containsPair('active', false));
     expect(rows(r, 'roles'), isEmpty);
     expect(r['cursor'], greaterThan(first));
   });
 
+  test('the PIN hash goes only to the device with a login of that user '
+      '(ADR-0004)', () async {
+    await db.execute(
+      Sql.named('''
+        insert into refresh_tokens (id, family_id, user_id, device_id,
+                                    token_hash, expires_at)
+        values (gen_random_uuid(), gen_random_uuid(), @u:uuid, @d:uuid,
+                'h', now())'''),
+      parameters: {'u': _user, 'd': _tablet},
+    );
+    Future<Object?> pinFor(String device) async =>
+        (rows(await pull.pull(0, device), 'users').single!
+            as Map<String, Object?>)['pin_hash'];
+    expect(await pinFor(_tablet), 'pin-hash');
+    expect(await pinFor(_pc), isNull);
+    expect('${await pull.pull(0, _tablet)}', isNot(contains('secret-hash')));
+  });
+
   test('a write that took a lower version but commits later is not skipped '
       '(user rule, docs/planes/fase-1.md)', () async {
-    final start = (await pull.pull(0))['cursor']! as int;
+    final start = (await pull.pull(0, _tablet))['cursor']! as int;
 
     // A: takes the next version and stays open.
     final release = Completer<void>();
@@ -114,13 +137,13 @@ void main() {
     expect(bDone, isFalse, reason: 'B must wait for A');
 
     // A pull now sees neither, so its cursor cannot jump past A.
-    final during = await pull.pull(start);
+    final during = await pull.pull(start, _tablet);
     expect(during['cursor'], start);
     expect(rows(during, 'settings'), isEmpty);
 
     release.complete();
     await Future.wait([a, b]);
-    final after = await pull.pull(during['cursor']! as int);
+    final after = await pull.pull(during['cursor']! as int, _tablet);
     expect(
       [for (final s in rows(after, 'settings')) (s! as Map)['key']],
       ['inventory.expiry_warning_days', 'ticket.footer'],

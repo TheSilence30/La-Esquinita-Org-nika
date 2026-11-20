@@ -14,12 +14,12 @@ class PullService {
   final SessionExecutor _db;
 
   /// Table → columns sent to devices. Explicit on purpose: `password_hash`
-  /// never leaves the server, and `pin_hash` does not either until the user
-  /// decides how the offline PIN works (docs/FASE-ACTUAL.md).
+  /// never leaves the server. `pin_hash` goes only to the devices where that
+  /// user logged in with the password (ADR-0004), see [_pinHash].
   // shortcut: one unpaged answer; fine for users and settings, add paging
   // when the catalog joins the pull (Fase 2).
   static const tables = {
-    'users': ['id', 'username', 'full_name', 'active', 'version'],
+    'users': ['id', 'username', 'full_name', 'pin_hash', 'active', 'version'],
     'roles': ['id', 'code', 'name', 'home_view', 'active', 'version'],
     'permissions': ['code', 'description', 'active', 'version'],
     'role_permissions': ['role_id', 'permission_code', 'active', 'version'],
@@ -36,19 +36,27 @@ class PullService {
     'settings': ['key', 'value', 'active', 'version'],
   };
 
-  /// `{"cursor": N, "changes": {table: [row, ...]}}`, rows in version order.
-  /// Pass `cursor` back as [since] next time.
-  Future<Map<String, Object?>> pull(int since) => _db.runTx(
+  /// Null unless the user has a login (refresh token) on the device.
+  static const _pinHash = '''
+    case when exists (select 1 from refresh_tokens t
+                      where t.user_id = users.id and t.device_id = @d:uuid)
+         then pin_hash end''';
+
+  /// `{"cursor": N, "changes": {table: [row, ...]}}`, rows in version order,
+  /// for [deviceId] (the device of the session). Pass `cursor` back as
+  /// [since] next time.
+  Future<Map<String, Object?>> pull(int since, String deviceId) => _db.runTx(
     (tx) async {
       var cursor = since;
       final changes = <String, Object?>{};
       for (final MapEntry(key: table, value: columns) in tables.entries) {
+        final select = columns.join(', ').replaceFirst('pin_hash', _pinHash);
         final rows = await tx.execute(
           Sql.named(
-            'select ${columns.join(', ')} from $table '
+            'select $select from $table '
             'where version > @since:int8 order by version',
           ),
-          parameters: {'since': since},
+          parameters: {'since': since, if (table == 'users') 'd': deviceId},
         );
         changes[table] = [
           for (final r in rows)
