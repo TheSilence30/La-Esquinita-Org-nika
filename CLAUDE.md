@@ -154,4 +154,5 @@ Por cada fase: revisar requisitos → definir alcance → diseñar → implement
 - **No afirmar que algo funciona sin haberlo ejecutado. No inventar resultados de pruebas. No ignorar errores.** Lo que requiera hardware (tablet, impresora, lector) se marca "pendiente de prueba en dispositivo" hasta que el usuario lo confirme.
 - Commits pequeños en inglés: `feat(sales): ...`, `fix(sync): ...`.
 - Actualizar `docs/FASE-ACTUAL.md` al terminar cada tarea.
+- **Nunca** ejecutar en un equipo real (tablet, celular o PC) comandos que desinstalen la app o borren sus datos (`flutter drive`, `adb uninstall`, `pm clear`, reinstalar con otra firma, etc.) sin pedir permiso al usuario antes, aunque sean datos de prueba.
 - Datos del negocio que falten: placeholders `TODO(config)` en el seed.

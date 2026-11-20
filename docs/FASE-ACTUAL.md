@@ -171,3 +171,10 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
     5. sacar el PR #16 de borrador para revisión (autenticación: no se fusiona sin aprobación).
 - El servidor local se detuvo: el sistema lo cerró por falta de memoria. Se vuelve a arrancar con `dart_frog build` y `dart build/bin/server.dart`, cargando el `.env`.
 - **Tareas 6 a 8:** sin empezar.
+
+### 2026-11-20 (tarde) — Tarea 5: punta a punta, migración y decisiones
+
+- **Decisión del usuario (ADR-0004):** el PIN tarda **~1028 ms** en la SM-X133. Se acepta: la verificación corre en segundo plano y **no se bajan los parámetros**, porque `cryptography_flutter` no trae Argon2id nativo. Anotado en el ADR-0004.
+- **Regla nueva en CLAUDE.md §12:** nunca ejecutar en un equipo real comandos que desinstalen la app o borren sus datos (`flutter drive`, `adb uninstall`, `pm clear`, reinstalar con otra firma) sin permiso del usuario, aunque sean datos de prueba.
+- **Prueba de punta a punta** (`test/features/auth/login_flow_test.dart`, prueba de widgets con base en memoria y servidor falso, sin tocar ningún equipo): registro del equipo → ingreso con contraseña → cambio obligatorio (incluye contraseñas que no coinciden) → app → «Cambiar usuario» → PIN incorrecto (quedan 4 intentos) → PIN correcto. En verde; app 201 pruebas en verde y `flutter analyze` sin observaciones.
+- **Migración v1 → v2 con la base real de la PC**, sobre una **copia** (la original no se tocó): versión 1 → 2, se crea `local_sessions` y se conservan todas las filas (outbox 1, spike 1, ajustes locales 2). La base real migrará sola, con el mismo código, al abrir la app nueva en la PC.

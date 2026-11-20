@@ -18,6 +18,7 @@ Fecha: 2026-11-20 · Estado: **aceptada** (decisión del usuario del 2026-11-20)
 - El **contador de PIN fallidos** se guarda en la base local cifrada y **sobrevive a reiniciar la app** (cerrarla no da intentos nuevos). Solo vuelve a cero al entrar con el PIN correcto o con la contraseña (decisión del usuario, 2026-11-20).
 - La sesión local dura **7 días** desde el último ingreso con contraseña; vencida, pide contraseña.
 - Argon2id con los parámetros del servidor (19 MiB, t=2, p=1), **sin bajarlos**. Se mide en la tablet SM-X133: si la verificación pasa de **1 s**, se usa la implementación nativa (`cryptography_flutter`) con los mismos parámetros.
+  - **Medición (2026-11-20):** ~**1028 ms** en la SM-X133 (modo profile, mismos parámetros). `cryptography_flutter` no trae Argon2id nativo, así que no hay implementación nativa a la cual pasar. **Decisión del usuario:** se acepta ~1 s; la verificación corre en segundo plano (no congela la pantalla) y **no se bajan los parámetros**.
 
 ### 2. La base local va cifrada (SQLCipher)
 
@@ -41,4 +42,4 @@ Fecha: 2026-11-20 · Estado: **aceptada** (decisión del usuario del 2026-11-20)
 - Mientras el equipo perdido siga sin conexión, alguien con un PIN válido puede abrir la sesión guardada hasta que venza (7 días). El cifrado impide leer la base fuera de la app, y los 5 intentos impiden adivinar el PIN dentro de ella.
 - Las operaciones que el equipo perdido no llegó a enviar no se recuperan.
 - La app suma SQLCipher y el acceso al almacén de llaves de cada plataforma.
-- La verificación del PIN en la tablet queda **pendiente de prueba en dispositivo**.
+- Entrar con PIN en la tablet tarda ~1 s (medido el 2026-11-20). La prueba de la pantalla de PIN con el usuario queda **pendiente de prueba en dispositivo**.
