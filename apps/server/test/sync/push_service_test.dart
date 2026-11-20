@@ -3,38 +3,15 @@
 @Tags(['db'])
 library;
 
-import 'dart:io';
-
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:esquinita_server/db.dart';
 import 'package:esquinita_server/sync/push_service.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-final _url = Platform.environment['TEST_DATABASE_URL'];
+import '../support/schema.dart';
 
-/// Drops and re-creates the schema from the dbmate migrations.
-Future<void> _resetSchema(Pool<void> db) async {
-  final files =
-      Directory('migrations')
-          .listSync()
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.sql'))
-          .toList()
-        ..sort((a, b) => a.path.compareTo(b.path));
-  for (final f in files.reversed) {
-    final down = f.readAsStringSync().split('-- migrate:down').last;
-    await db.execute(down, queryMode: QueryMode.simple);
-  }
-  for (final f in files) {
-    final up = f
-        .readAsStringSync()
-        .split('-- migrate:down')
-        .first
-        .replaceFirst('-- migrate:up', '');
-    await db.execute(up, queryMode: QueryMode.simple);
-  }
-}
+final _url = testDatabaseUrl;
 
 SyncCommand _cmd({
   String? opId,
@@ -68,7 +45,7 @@ void main() {
 
   setUpAll(() async {
     db = openPool(_url!);
-    await _resetSchema(db);
+    await resetSchema(db);
   });
 
   setUp(() async {

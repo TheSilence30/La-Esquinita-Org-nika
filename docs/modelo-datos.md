@@ -378,6 +378,7 @@ Siempre se imprime con la leyenda “Documento interno – no válido como compr
 | full_name | text | |
 | password_hash | text | Argon2id. **Solo servidor** |
 | pin_hash | text | nullable; Argon2id del PIN, para el ingreso rápido y sin conexión |
+| must_change_password | boolean | Pide cambiar la contraseña en el próximo ingreso (usuarios creados desde `.env`) |
 
 **`roles`** (M): `id` PK, `code` UQ, `name`, `home_view` (pantalla inicial del rol). **`permissions`**: `code` PK (`modulo.accion`), `description`. **`role_permissions`**: PK `(role_id, permission_code)`. **`user_roles`**: PK `(user_id, role_id)`. Roles propuestos en §4.
 
@@ -411,7 +412,7 @@ Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` jun
 
 **`audit_log`** (solo servidor): `id` PK, `at`, `user_id`, `device_id`, `action` (`sales.void`, `sales.discount`, `catalog.change_price`, `inventory.adjust`, `cash.close`, …), `entity_type`, `entity_id`, `before` jsonb, `after` jsonb, `reason`, `authorized_by`, `op_id`. Lo escribe el servidor al aplicar cada comando, en la misma transacción.
 
-**`refresh_tokens`** (solo servidor): `id` PK, `user_id`, `device_id`, `token_hash`, `expires_at`, `revoked_at`.
+**`refresh_tokens`** (solo servidor): `id` PK, `family_id` (la cadena de rotaciones de un inicio de sesión), `user_id`, `device_id` (sin FK: el equipo inicia sesión antes de registrarse), `token_hash` UQ (SHA-256; nunca el token), `created_at`, `expires_at`, `revoked_at`. Reusar un token ya rotado revoca toda su familia.
 
 ### 2.9 Sincronización
 
@@ -429,7 +430,9 @@ Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` jun
 | status | text | `open` \| `resolved` |
 | resolved_by, resolved_at, resolution | | nullable |
 
-**`sync_log`** (solo servidor): errores al aplicar comandos.
+**`sync_log`** (solo servidor): errores al aplicar comandos (`at`, `op_id`, `device_id`, `error`, `details`).
+
+`sync_conflicts` también guarda `created_at`; un conflicto `resolved` exige `resolved_at`.
 
 **En el dispositivo:** `outbox` (Spike 6), `sync_state` (`stream` PK, `cursor` bigint, `last_pull_at`) y `local_settings` (`device_id`, URL del servidor, sesión cacheada).
 
