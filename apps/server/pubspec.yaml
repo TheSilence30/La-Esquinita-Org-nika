@@ -8,6 +8,7 @@ environment:
   sdk: ^3.13.7
 
 dependencies:
+  crypto: ^3.0.8
   dart_frog: ^1.1.0
   esquinita_core:
     path: ../../packages/esquinita_core
