@@ -129,6 +129,19 @@ Que la tablet y la PC **inicien sesión con usuarios reales** y trabajen con su 
    - mensaje final **"Gracias por su preferencia"**;
    - **sin** teléfono ni WhatsApp (decisión del usuario: "nada más").
 
+## Reglas del usuario para esta fase (2026-11-19)
+
+- **Fusión de PR**:
+  - Claude fusiona los PR de la Fase 1 cuando la CI pasa;
+  - **excepto** los de **autenticación, sincronización (push y pull), caja y ventas**: quedan abiertos para que el usuario los revise.
+- **Bajada de `users`**:
+  - con **columnas explícitas**, nunca `password_hash`;
+  - si el PIN se valida sin conexión, Claude decide si baja `pin_hash` y se lo **explica al usuario antes** de implementarlo.
+- **`/sync/pull` y transacciones concurrentes**:
+  - una transacción que tomó una versión menor pero confirma después **no debe saltarse** en la bajada;
+  - por ejemplo, limitando la respuesta a las versiones por debajo de las transacciones aún abiertas (`pg_snapshot_xmin`), o serializando las escrituras de maestros;
+  - con una prueba de ese caso.
+
 ## Riesgos
 
 - **Wi-Fi de la tienda**: si la tablet no ve la PC, solo funciona sin conexión hasta que se reconecte, que es el diseño offline-first. Para la prueba de aceptación hace falta que estén en la misma red.
