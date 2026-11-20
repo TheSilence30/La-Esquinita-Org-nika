@@ -153,6 +153,27 @@ class SyncState extends Table {
   Set<Column> get primaryKey => {stream};
 }
 
+/// The saved login of each user on this device (ADR-0004): the PIN opens
+/// it for 7 days after the last password login. Device-only, never synced.
+@DataClassName('LocalSession')
+class LocalSessions extends Table {
+  TextColumn get userId => text()();
+
+  /// Rotating refresh token of the last password login (task 6 uses it).
+  TextColumn get refreshToken => text().nullable()();
+
+  /// Start of the 7 days in which the PIN works.
+  DateTimeColumn get passwordLoginAt => dateTime()();
+
+  /// Wrong PINs in a row; 5 require the password. Lives in the encrypted
+  /// database, so restarting the app gives no new attempts; it goes back to
+  /// 0 only on the right PIN or a password login.
+  IntColumn get failedPins => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {userId};
+}
+
 @DriftDatabase(
   tables: [
     LocalSettings,
@@ -166,6 +187,7 @@ class SyncState extends Table {
     Devices,
     Settings,
     SyncState,
+    LocalSessions,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -173,8 +195,15 @@ class AppDatabase extends _$AppDatabase {
   /// in-memory executor.
   AppDatabase(super.executor);
 
-  // A new encrypted file (local.db), so the schema starts again at 1; the
-  // Fase 0 unencrypted file is left untouched where it was.
+  // 1: the encrypted local.db (the Fase 0 unencrypted file is left where it
+  // was). 2: local_sessions.
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) await m.createTable(localSessions);
+    },
+  );
 }

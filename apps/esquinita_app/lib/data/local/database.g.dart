@@ -4020,6 +4020,345 @@ class SyncStateCompanion extends UpdateCompanion<SyncStateData> {
   }
 }
 
+class $LocalSessionsTable extends LocalSessions
+    with TableInfo<$LocalSessionsTable, LocalSession> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LocalSessionsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _userIdMeta = const VerificationMeta('userId');
+  @override
+  late final GeneratedColumn<String> userId = GeneratedColumn<String>(
+    'user_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _refreshTokenMeta = const VerificationMeta(
+    'refreshToken',
+  );
+  @override
+  late final GeneratedColumn<String> refreshToken = GeneratedColumn<String>(
+    'refresh_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _passwordLoginAtMeta = const VerificationMeta(
+    'passwordLoginAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> passwordLoginAt =
+      GeneratedColumn<DateTime>(
+        'password_login_at',
+        aliasedName,
+        false,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _failedPinsMeta = const VerificationMeta(
+    'failedPins',
+  );
+  @override
+  late final GeneratedColumn<int> failedPins = GeneratedColumn<int>(
+    'failed_pins',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    userId,
+    refreshToken,
+    passwordLoginAt,
+    failedPins,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'local_sessions';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LocalSession> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('user_id')) {
+      context.handle(
+        _userIdMeta,
+        userId.isAcceptableOrUnknown(data['user_id']!, _userIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_userIdMeta);
+    }
+    if (data.containsKey('refresh_token')) {
+      context.handle(
+        _refreshTokenMeta,
+        refreshToken.isAcceptableOrUnknown(
+          data['refresh_token']!,
+          _refreshTokenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('password_login_at')) {
+      context.handle(
+        _passwordLoginAtMeta,
+        passwordLoginAt.isAcceptableOrUnknown(
+          data['password_login_at']!,
+          _passwordLoginAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_passwordLoginAtMeta);
+    }
+    if (data.containsKey('failed_pins')) {
+      context.handle(
+        _failedPinsMeta,
+        failedPins.isAcceptableOrUnknown(data['failed_pins']!, _failedPinsMeta),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {userId};
+  @override
+  LocalSession map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LocalSession(
+      userId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}user_id'],
+      )!,
+      refreshToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}refresh_token'],
+      ),
+      passwordLoginAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}password_login_at'],
+      )!,
+      failedPins: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}failed_pins'],
+      )!,
+    );
+  }
+
+  @override
+  $LocalSessionsTable createAlias(String alias) {
+    return $LocalSessionsTable(attachedDatabase, alias);
+  }
+}
+
+class LocalSession extends DataClass implements Insertable<LocalSession> {
+  final String userId;
+
+  /// Rotating refresh token of the last password login (task 6 uses it).
+  final String? refreshToken;
+
+  /// Start of the 7 days in which the PIN works.
+  final DateTime passwordLoginAt;
+
+  /// Wrong PINs in a row; 5 require the password. Lives in the encrypted
+  /// database, so restarting the app gives no new attempts; it goes back to
+  /// 0 only on the right PIN or a password login.
+  final int failedPins;
+  const LocalSession({
+    required this.userId,
+    this.refreshToken,
+    required this.passwordLoginAt,
+    required this.failedPins,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['user_id'] = Variable<String>(userId);
+    if (!nullToAbsent || refreshToken != null) {
+      map['refresh_token'] = Variable<String>(refreshToken);
+    }
+    map['password_login_at'] = Variable<DateTime>(passwordLoginAt);
+    map['failed_pins'] = Variable<int>(failedPins);
+    return map;
+  }
+
+  LocalSessionsCompanion toCompanion(bool nullToAbsent) {
+    return LocalSessionsCompanion(
+      userId: Value(userId),
+      refreshToken: refreshToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(refreshToken),
+      passwordLoginAt: Value(passwordLoginAt),
+      failedPins: Value(failedPins),
+    );
+  }
+
+  factory LocalSession.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LocalSession(
+      userId: serializer.fromJson<String>(json['userId']),
+      refreshToken: serializer.fromJson<String?>(json['refreshToken']),
+      passwordLoginAt: serializer.fromJson<DateTime>(json['passwordLoginAt']),
+      failedPins: serializer.fromJson<int>(json['failedPins']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'userId': serializer.toJson<String>(userId),
+      'refreshToken': serializer.toJson<String?>(refreshToken),
+      'passwordLoginAt': serializer.toJson<DateTime>(passwordLoginAt),
+      'failedPins': serializer.toJson<int>(failedPins),
+    };
+  }
+
+  LocalSession copyWith({
+    String? userId,
+    Value<String?> refreshToken = const Value.absent(),
+    DateTime? passwordLoginAt,
+    int? failedPins,
+  }) => LocalSession(
+    userId: userId ?? this.userId,
+    refreshToken: refreshToken.present ? refreshToken.value : this.refreshToken,
+    passwordLoginAt: passwordLoginAt ?? this.passwordLoginAt,
+    failedPins: failedPins ?? this.failedPins,
+  );
+  LocalSession copyWithCompanion(LocalSessionsCompanion data) {
+    return LocalSession(
+      userId: data.userId.present ? data.userId.value : this.userId,
+      refreshToken: data.refreshToken.present
+          ? data.refreshToken.value
+          : this.refreshToken,
+      passwordLoginAt: data.passwordLoginAt.present
+          ? data.passwordLoginAt.value
+          : this.passwordLoginAt,
+      failedPins: data.failedPins.present
+          ? data.failedPins.value
+          : this.failedPins,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSession(')
+          ..write('userId: $userId, ')
+          ..write('refreshToken: $refreshToken, ')
+          ..write('passwordLoginAt: $passwordLoginAt, ')
+          ..write('failedPins: $failedPins')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(userId, refreshToken, passwordLoginAt, failedPins);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LocalSession &&
+          other.userId == this.userId &&
+          other.refreshToken == this.refreshToken &&
+          other.passwordLoginAt == this.passwordLoginAt &&
+          other.failedPins == this.failedPins);
+}
+
+class LocalSessionsCompanion extends UpdateCompanion<LocalSession> {
+  final Value<String> userId;
+  final Value<String?> refreshToken;
+  final Value<DateTime> passwordLoginAt;
+  final Value<int> failedPins;
+  final Value<int> rowid;
+  const LocalSessionsCompanion({
+    this.userId = const Value.absent(),
+    this.refreshToken = const Value.absent(),
+    this.passwordLoginAt = const Value.absent(),
+    this.failedPins = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LocalSessionsCompanion.insert({
+    required String userId,
+    this.refreshToken = const Value.absent(),
+    required DateTime passwordLoginAt,
+    this.failedPins = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : userId = Value(userId),
+       passwordLoginAt = Value(passwordLoginAt);
+  static Insertable<LocalSession> custom({
+    Expression<String>? userId,
+    Expression<String>? refreshToken,
+    Expression<DateTime>? passwordLoginAt,
+    Expression<int>? failedPins,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (userId != null) 'user_id': userId,
+      if (refreshToken != null) 'refresh_token': refreshToken,
+      if (passwordLoginAt != null) 'password_login_at': passwordLoginAt,
+      if (failedPins != null) 'failed_pins': failedPins,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LocalSessionsCompanion copyWith({
+    Value<String>? userId,
+    Value<String?>? refreshToken,
+    Value<DateTime>? passwordLoginAt,
+    Value<int>? failedPins,
+    Value<int>? rowid,
+  }) {
+    return LocalSessionsCompanion(
+      userId: userId ?? this.userId,
+      refreshToken: refreshToken ?? this.refreshToken,
+      passwordLoginAt: passwordLoginAt ?? this.passwordLoginAt,
+      failedPins: failedPins ?? this.failedPins,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (userId.present) {
+      map['user_id'] = Variable<String>(userId.value);
+    }
+    if (refreshToken.present) {
+      map['refresh_token'] = Variable<String>(refreshToken.value);
+    }
+    if (passwordLoginAt.present) {
+      map['password_login_at'] = Variable<DateTime>(passwordLoginAt.value);
+    }
+    if (failedPins.present) {
+      map['failed_pins'] = Variable<int>(failedPins.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LocalSessionsCompanion(')
+          ..write('userId: $userId, ')
+          ..write('refreshToken: $refreshToken, ')
+          ..write('passwordLoginAt: $passwordLoginAt, ')
+          ..write('failedPins: $failedPins, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -4038,6 +4377,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DevicesTable devices = $DevicesTable(this);
   late final $SettingsTable settings = $SettingsTable(this);
   late final $SyncStateTable syncState = $SyncStateTable(this);
+  late final $LocalSessionsTable localSessions = $LocalSessionsTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -4054,6 +4394,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     devices,
     settings,
     syncState,
+    localSessions,
   ];
 }
 
@@ -6361,6 +6702,202 @@ typedef $$SyncStateTableProcessedTableManager =
       SyncStateData,
       PrefetchHooks Function()
     >;
+typedef $$LocalSessionsTableCreateCompanionBuilder =
+    LocalSessionsCompanion Function({
+      required String userId,
+      Value<String?> refreshToken,
+      required DateTime passwordLoginAt,
+      Value<int> failedPins,
+      Value<int> rowid,
+    });
+typedef $$LocalSessionsTableUpdateCompanionBuilder =
+    LocalSessionsCompanion Function({
+      Value<String> userId,
+      Value<String?> refreshToken,
+      Value<DateTime> passwordLoginAt,
+      Value<int> failedPins,
+      Value<int> rowid,
+    });
+
+class $$LocalSessionsTableFilterComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get refreshToken => $composableBuilder(
+    column: $table.refreshToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get passwordLoginAt => $composableBuilder(
+    column: $table.passwordLoginAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get failedPins => $composableBuilder(
+    column: $table.failedPins,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$LocalSessionsTableOrderingComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get userId => $composableBuilder(
+    column: $table.userId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get refreshToken => $composableBuilder(
+    column: $table.refreshToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get passwordLoginAt => $composableBuilder(
+    column: $table.passwordLoginAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get failedPins => $composableBuilder(
+    column: $table.failedPins,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LocalSessionsTableAnnotationComposer
+    extends Composer<_$AppDatabase, $LocalSessionsTable> {
+  $$LocalSessionsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get userId =>
+      $composableBuilder(column: $table.userId, builder: (column) => column);
+
+  GeneratedColumn<String> get refreshToken => $composableBuilder(
+    column: $table.refreshToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get passwordLoginAt => $composableBuilder(
+    column: $table.passwordLoginAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get failedPins => $composableBuilder(
+    column: $table.failedPins,
+    builder: (column) => column,
+  );
+}
+
+class $$LocalSessionsTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $LocalSessionsTable,
+          LocalSession,
+          $$LocalSessionsTableFilterComposer,
+          $$LocalSessionsTableOrderingComposer,
+          $$LocalSessionsTableAnnotationComposer,
+          $$LocalSessionsTableCreateCompanionBuilder,
+          $$LocalSessionsTableUpdateCompanionBuilder,
+          (
+            LocalSession,
+            BaseReferences<_$AppDatabase, $LocalSessionsTable, LocalSession>,
+          ),
+          LocalSession,
+          PrefetchHooks Function()
+        > {
+  $$LocalSessionsTableTableManager(_$AppDatabase db, $LocalSessionsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LocalSessionsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LocalSessionsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LocalSessionsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> userId = const Value.absent(),
+                Value<String?> refreshToken = const Value.absent(),
+                Value<DateTime> passwordLoginAt = const Value.absent(),
+                Value<int> failedPins = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSessionsCompanion(
+                userId: userId,
+                refreshToken: refreshToken,
+                passwordLoginAt: passwordLoginAt,
+                failedPins: failedPins,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String userId,
+                Value<String?> refreshToken = const Value.absent(),
+                required DateTime passwordLoginAt,
+                Value<int> failedPins = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LocalSessionsCompanion.insert(
+                userId: userId,
+                refreshToken: refreshToken,
+                passwordLoginAt: passwordLoginAt,
+                failedPins: failedPins,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable<$LocalSessionsTable, LocalSession>(table),
+                  BaseReferences<
+                    _$AppDatabase,
+                    $LocalSessionsTable,
+                    LocalSession
+                  >(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$LocalSessionsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $LocalSessionsTable,
+      LocalSession,
+      $$LocalSessionsTableFilterComposer,
+      $$LocalSessionsTableOrderingComposer,
+      $$LocalSessionsTableAnnotationComposer,
+      $$LocalSessionsTableCreateCompanionBuilder,
+      $$LocalSessionsTableUpdateCompanionBuilder,
+      (
+        LocalSession,
+        BaseReferences<_$AppDatabase, $LocalSessionsTable, LocalSession>,
+      ),
+      LocalSession,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -6387,4 +6924,6 @@ class $AppDatabaseManager {
       $$SettingsTableTableManager(_db, _db.settings);
   $$SyncStateTableTableManager get syncState =>
       $$SyncStateTableTableManager(_db, _db.syncState);
+  $$LocalSessionsTableTableManager get localSessions =>
+      $$LocalSessionsTableTableManager(_db, _db.localSessions);
 }

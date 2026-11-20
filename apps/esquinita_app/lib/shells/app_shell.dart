@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../app/form_factor.dart';
 import '../app/providers.dart';
 import '../app/theme.dart';
+import '../features/auth/application/auth_providers.dart';
 import '../prototype/demo_store.dart';
 import '../prototype/widgets/common.dart';
 
@@ -281,14 +282,8 @@ class _DesktopShellState extends State<_DesktopShell> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      'Usuario: ${store.role.label}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: _UserMenu(fallback: store.role.label),
                   ),
                 ],
               ),
@@ -365,4 +360,49 @@ class _SideItem extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// PC: who is logged in, with "Cambiar usuario" and "Cerrar sesión".
+class _UserMenu extends ConsumerWidget {
+  const _UserMenu({required this.fallback});
+
+  /// The prototype's role, when there is no real session (widget tests).
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(currentSessionProvider);
+    final notifier = ref.read(currentSessionProvider.notifier);
+    return PopupMenuButton<VoidCallback>(
+      tooltip: 'Usuario',
+      onSelected: (action) => action(),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: notifier.lock,
+          child: const Text('Cambiar usuario'),
+        ),
+        PopupMenuItem(
+          value: notifier.logout,
+          child: const Text('Cerrar sesión'),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            const Icon(Icons.account_circle_outlined, color: Colors.white70),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Usuario: ${session?.fullName ?? fallback}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
