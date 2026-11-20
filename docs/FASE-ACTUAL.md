@@ -5,10 +5,10 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 ## Tareas (cada una con pruebas y un PR pequeño)
 
 - [x] 1. Migraciones (usuarios, roles, permisos, dispositivos, series, ajustes, auditoría, refresh, conflictos, log, estado de equipos) y seed: roles Administrador y Trabajo, permisos de `docs/modelo-datos.md` §4, ajustes del negocio (RUC 10409288419, "Gracias por su preferencia"). Pruebas contra PostgreSQL. Los **usuarios** se crean en la tarea 2: sus contraseñas necesitan Argon2id
-- [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. **PR abierto para revisión del usuario** (autenticación)
-- [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. **PR abierto para revisión del usuario** (sincronización)
-- [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). **PR abierto para revisión del usuario** (seguridad)
-- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
+- [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. PR #12, aprobado y fusionado
+- [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. PR #13, aprobado y fusionado
+- [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). **PR #15 abierto para revisión del usuario** (seguridad)
+- [ ] 5. **En curso** (PR #16 en borrador). App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
@@ -145,3 +145,29 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - APK de depuración compilado, con `libsqlcipher.so` para arm64, armeabi-v7a y x86_64. Migración aplicada a la base de desarrollo.
 - **Pendiente de prueba en dispositivo**: abrir la base cifrada y la llave del Keystore en la tablet SM-X133; la app Windows completa en la PC; el aviso al cerrar la ventana en Windows.
 - El `.env` local quedó completo: `TEST_DATABASE_URL`, `SERVER_HOST` vacío, `sslmode=disable` y un `JWT_SECRET` nuevo. Las claves iniciales ya están; se les quitó un espacio que quedaba al final de las dos contraseñas.
+
+### 2026-11-20 (cierre) — Estado
+
+- **Tareas 1 a 3:** fusionadas en `main` (PR #12 y #13, aprobados por el usuario). La documentación del ADR-0004 entró con el PR #14.
+- **Tarea 4:** terminada, en el **PR #15**, abierto para revisión del usuario (seguridad).
+  - Probada en los equipos: la tablet y la PC abren su base cifrada, y el aviso al salir con pendientes funciona en las dos.
+  - Comprobado: ninguna base empieza con «SQLite format 3», ninguna guarda texto en claro y ninguna abre sin su llave.
+- **Tarea 5:** **en curso**, en la rama `phase-1/app-login` (PR #16 en borrador, sobre el #15).
+  - Hecho:
+    - el servidor arranca con `SERVER_HOST` vacío (antes fallaba);
+    - el menú de la PC cabe al 125 % de escala y tiene la entrada «Pruebas»;
+    - registro del equipo en el primer arranque;
+    - ingreso con contraseña y cambio obligatorio de la contraseña inicial;
+    - PIN sin conexión: el contador sube antes de verificar y sobrevive a reiniciar la app, 5 fallos exigen contraseña, la sesión dura 7 días y no se confía en un reloj atrasado;
+    - «Cambiar usuario» y «Cerrar sesión»;
+    - pruebas: app 200 en verde, 20 de ellas de sesión.
+  - **Decisión del usuario:** Argon2id tarda **1028 ms** en la tablet (modo profile, mismos parámetros). `cryptography_flutter` no tiene Argon2id nativo, así que el usuario aceptó ~1 s. La verificación corre en segundo plano. Falta anotarlo en el ADR-0004.
+  - **Incidente:** `flutter drive --profile` desinstaló la app de la tablet y borró su base local: 32 operaciones de prueba del Spike 6, sin datos del negocio. Al registrarla de nuevo, la tablet recibirá la serie `T2`. No volver a usar `flutter drive` en un equipo con datos sin preguntar.
+  - **Pendiente:**
+    1. prueba de punta a punta de las pantallas (registro → ingreso → cambio de contraseña → PIN);
+    2. probar la migración de la base v1 a v2 con la base real de la PC;
+    3. poner en `SERVER_HOST` la IP de la PC en la red local y probar en la tablet y la PC con el usuario;
+    4. anotar en el ADR-0004 la decisión de ~1 s;
+    5. sacar el PR #16 de borrador para revisión (autenticación: no se fusiona sin aprobación).
+- El servidor local se detuvo: el sistema lo cerró por falta de memoria. Se vuelve a arrancar con `dart_frog build` y `dart build/bin/server.dart`, cargando el `.env`.
+- **Tareas 6 a 8:** sin empezar.
