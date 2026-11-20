@@ -1,6 +1,6 @@
 # Plan de la Fase 1 — Fundamentos
 
-Estado: **propuesta** (2026-11-19), pendiente de aprobación del usuario. Semanas 3–6 de `docs/PLAN.md`.
+Estado: **aprobado por el usuario el 2026-11-19**. Semanas 3–6 de `docs/PLAN.md`.
 
 ## Objetivo
 
@@ -116,12 +116,18 @@ Que la tablet y la PC **inicien sesión con usuarios reales** y trabajen con su 
   - ni contraseñas ni tokens aparecen en logs ni en respuestas;
   - `password_hash` nunca baja al equipo.
 
-## Decisiones que necesito del usuario
+## Decisiones del usuario (2026-11-19)
 
-1. **Vencimiento de la sesión sin conexión.** Propuesta: **7 días**; después de eso, el equipo pide conectarse una vez.
-2. **PIN.** Propuesta: **4 a 6 dígitos**, por usuario.
-3. **Usuarios iniciales.** El modelo dice que al inicio hay **un solo Administrador**. Necesito el nombre de usuario y quién más usará la app (rol Trabajo), si ya se sabe.
-4. **Datos del negocio** para Ajustes y el ticket: teléfono, WhatsApp, mensaje final y RUC (si se mostrará). Si faltan, quedan como `TODO(config)`.
+1. **Sesión sin conexión: 7 días.** Después de eso, el equipo pide conectarse una vez.
+2. **PIN de 4 a 6 dígitos**, uno por usuario.
+3. **Dos usuarios iniciales**:
+   - `Administrador` (rol Administrador);
+   - un usuario con rol **Trabajo**. Su nombre de usuario provisional es `Trabajo` y se puede cambiar en Usuarios.
+   - Las contraseñas y los PIN iniciales se toman de `.env` (nunca de git) y se cambian en el primer ingreso.
+4. **Datos del ticket**:
+   - **RUC 10409288419** (dígito verificador correcto);
+   - mensaje final **"Gracias por su preferencia"**;
+   - **sin** teléfono ni WhatsApp (decisión del usuario: "nada más").
 
 ## Riesgos
 
