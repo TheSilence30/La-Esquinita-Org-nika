@@ -24,7 +24,12 @@ Fecha: 2026-11-20 · Estado: **aceptada** (decisión del usuario del 2026-11-20)
 - **Tablet (Android):** SQLCipher, con una llave aleatoria de 256 bits guardada en el **almacén seguro de Android** (Keystore).
 - **PC (Windows):** SQLCipher, con la llave protegida con **DPAPI** (atada a la cuenta de Windows).
 - La llave se crea en el primer arranque y nunca sale del equipo. Si se pierde, la base local se descarta y se vuelve a bajar del servidor: lo que aún no se envió se pierde, así que la app avisa antes de cualquier reinstalación.
-- Los paquetes concretos se eligen y prueban en la tarea 4 de la Fase 1.
+- **Implementación** (aprobada por el usuario el 2026-11-20; sin paquetes nuevos):
+  - SQLCipher: el `sqlite3` que ya usa drift trae SQLCipher; se activa con `hooks: user_defines: sqlite3: source: sqlcipher` en el `pubspec.yaml` raíz (reemplaza a `sqlcipher_flutter_libs`, retirado). Llave cruda de 32 bytes (`PRAGMA key = "x'…'"`), sin derivación.
+  - Android: código propio en Kotlin (`DbKeyChannel.kt`). Una llave AES-256-GCM del Keystore, **sin `setUserAuthenticationRequired`**, envuelve la llave; el archivo envuelto va en **`noBackupFilesDir`**. `allowBackup="false"` y reglas de extracción que excluyen el respaldo en la nube y la copia a otro equipo.
+  - Windows: DPAPI (`CryptProtectData`, con `CRYPTPROTECT_UI_FORBIDDEN`) del paquete `win32`, ya instalado. La base y la llave protegida van en **`%LOCALAPPDATA%\LaEsquinita`**, nunca en Documentos ni en una carpeta que sincronice OneDrive.
+- **Si la llave no se puede recuperar**, la app **no borra nada sola**: muestra un aviso claro y solo un Administrador, con su contraseña verificada en el servidor y una segunda confirmación, puede descartar la base. Descartar **renombra** la base y la llave (no las borra); el equipo vuelve a bajar todo del servidor.
+- **Al cerrar**, la app avisa si quedan operaciones sin enviar: en Windows al cerrar la ventana; en Android con «Atrás» en la pantalla inicial. Cerrar desde las apps recientes de Android no se puede interceptar; las operaciones siguen guardadas y se envían al volver.
 
 ### 3. Administración desde la PC
 
