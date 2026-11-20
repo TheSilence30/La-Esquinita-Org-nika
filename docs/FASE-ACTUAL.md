@@ -7,10 +7,10 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 1. Migraciones (usuarios, roles, permisos, dispositivos, series, ajustes, auditoría, refresh, conflictos, log, estado de equipos) y seed: roles Administrador y Trabajo, permisos de `docs/modelo-datos.md` §4, ajustes del negocio (RUC 10409288419, "Gracias por su preferencia"). Pruebas contra PostgreSQL. Los **usuarios** se crean en la tarea 2: sus contraseñas necesitan Argon2id
 - [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. **PR abierto para revisión del usuario** (autenticación)
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. **PR abierto para revisión del usuario** (sincronización)
-- [ ] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas)
-- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión, sesión de 7 días
+- [ ] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004)
+- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
-- [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador)
+- [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
 ## Pendientes heredados de la Fase 0
@@ -112,3 +112,12 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - Pruebas: servidor **58 en verde** contra PostgreSQL 16 (11 nuevas). Migración aplicada a la base de desarrollo con dbmate.
 - No hecho aquí: `last_pull_at` en `device_sync_status` (con el latido, Fase 4) y el campo `status` del push (tarea 6).
 - Siguen pendientes las decisiones 1 y 2 del día anterior, y las cuatro claves del `.env` (el usuario aún no las crea; sin ellas el servidor no arranca, pero las pruebas no las necesitan).
+
+### 2026-11-20 — PR fusionados y decisiones
+
+- El usuario revisó y aprobó los PR #12 (autenticación) y #13 (equipos y pull). Se fusionaron en `main` en ese orden, con la CI en verde; el #13, contra `main`.
+- Decisiones del usuario (ADR-0004), que cierran los pendientes 1 y 2 del 2026-11-19:
+  - `pin_hash` baja solo a los equipos donde el usuario ya entró con contraseña; 5 PIN fallidos exigen contraseña; sesión local de 7 días; medir Argon2id en la tablet y pasar a `cryptography_flutter` si tarda más de 1 s;
+  - SQLCipher en la tablet (Keystore) y en la PC (DPAPI);
+  - desde la PC: cambiar el PIN de un usuario y cerrar las sesiones de un equipo perdido.
+- Sigue pendiente del usuario: las cuatro claves iniciales del `.env`.

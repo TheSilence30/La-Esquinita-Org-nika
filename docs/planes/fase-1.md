@@ -142,6 +142,14 @@ Que la tablet y la PC **inicien sesión con usuarios reales** y trabajen con su 
   - por ejemplo, limitando la respuesta a las versiones por debajo de las transacciones aún abiertas (`pg_snapshot_xmin`), o serializando las escrituras de maestros;
   - con una prueba de ese caso.
 
+## Decisiones del usuario (2026-11-20)
+
+Detalle en `docs/adr/0004-pin-y-cifrado-local.md`.
+
+1. **`pin_hash` baja al equipo**, pero solo a los equipos donde ese usuario ya entró con contraseña. 5 PIN fallidos exigen contraseña, y la sesión local dura 7 días. Se mide la verificación Argon2id en la tablet: si pasa de 1 s, se usa `cryptography_flutter`, sin bajar los parámetros.
+2. **Base local cifrada con SQLCipher**: en la tablet, con la llave en el almacén seguro de Android; en la PC, con la llave protegida con DPAPI.
+3. **Desde la PC**, el Administrador cambia el PIN de un usuario y cierra las sesiones de un equipo perdido.
+
 ## Riesgos
 
 - **Wi-Fi de la tienda**: si la tablet no ve la PC, solo funciona sin conexión hasta que se reconecte, que es el diseño offline-first. Para la prueba de aceptación hace falta que estén en la misma red.
