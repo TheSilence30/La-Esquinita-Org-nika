@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../app/providers.dart';
 
 import 'print_spike_page.dart';
 import 'scan_spike_page.dart';
 import 'sync_spike_page.dart';
 
 /// Fase 0 entry point: one tile per hardware spike.
-class SpikesHomePage extends StatelessWidget {
+class SpikesHomePage extends ConsumerWidget {
   const SpikesHomePage({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
       children: [
         ListTile(
@@ -37,7 +40,9 @@ class SpikesHomePage extends StatelessWidget {
             'Operaciones sin conexión (drift + outbox) contra el servidor',
           ),
           onTap: () => Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute<void>(builder: (_) => const SyncSpikePage()),
+            MaterialPageRoute<void>(
+              builder: (_) => SyncSpikePage(db: ref.read(appDatabaseProvider)),
+            ),
           ),
         ),
       ],

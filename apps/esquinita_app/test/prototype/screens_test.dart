@@ -1,3 +1,7 @@
+import 'package:drift/drift.dart' show DatabaseConnection;
+import 'package:drift/native.dart';
+import 'package:esquinita_app/app/providers.dart';
+import 'package:esquinita_app/data/local/database.dart';
 import 'package:esquinita_app/devices/scanner/camera_scan_view.dart';
 import 'package:esquinita_app/main.dart';
 import 'package:esquinita_app/prototype/demo_store.dart';
@@ -5,10 +9,14 @@ import 'package:esquinita_app/prototype/pos/pos_page.dart';
 import 'package:esquinita_app/prototype/widgets/keypad.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
 final _today = DateTime(2026, 11, 17, 15);
+
+/// The in-memory local database of the last [pumpApp].
+late AppDatabase _db;
 
 Future<DemoStore> pumpApp(WidgetTester tester, Size size) async {
   debugDisableCameraScan = true;
@@ -18,7 +26,20 @@ Future<DemoStore> pumpApp(WidgetTester tester, Size size) async {
     ..devicePixelRatio = 1;
   addTearDown(tester.view.reset);
   final store = DemoStore(clock: () => _today);
-  await tester.pumpWidget(EsquinitaApp(store: store));
+  // Synchronous streams: the fake clock drives everything.
+  final db = _db = AppDatabase(
+    DatabaseConnection(
+      NativeDatabase.memory(),
+      closeStreamsSynchronously: true,
+    ),
+  );
+  addTearDown(db.close);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      child: EsquinitaApp(store: store),
+    ),
+  );
   await tester.pumpAndSettle();
   return store;
 }
@@ -55,6 +76,35 @@ Future<void> pad(WidgetTester tester, String digits) async {
 }
 
 void main() {
+  testWidgets('leaving the app warns about operations not sent yet', (
+    tester,
+  ) async {
+    await pumpApp(tester, const Size(533, 893));
+    for (final id in ['op-1', 'op-2']) {
+      await _db
+          .into(_db.outbox)
+          .insert(
+            OutboxCompanion.insert(
+              opId: id,
+              deviceId: 'd',
+              userId: 'u',
+              createdAt: DateTime.utc(2026, 11, 20),
+              type: 'Test',
+              payload: '{}',
+            ),
+          );
+    }
+    await tester.binding.handlePopRoute(); // Android back on the home screen
+    await tester.pumpAndSettle();
+    expect(find.text('¿Salir de la app?'), findsOneWidget);
+    expect(
+      find.text('Quedan 2 operaciones sin enviar al servidor.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('No'));
+    await tester.pumpAndSettle();
+  });
+
   for (final size in const [Size(533, 893), Size(893, 533)]) {
     testWidgets('Atrás $size: Más page → Más → home → asks to exit', (
       tester,

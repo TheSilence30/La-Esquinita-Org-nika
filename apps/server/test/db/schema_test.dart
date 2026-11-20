@@ -3,6 +3,7 @@
 @Tags(['db'])
 library;
 
+import 'package:esquinita_core/esquinita_core.dart';
 import 'package:esquinita_server/db.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
@@ -60,6 +61,11 @@ void main() {
     final all = await db.execute('select count(*) from permissions');
     expect(await permsOf(_admin), hasLength(all.single[0]! as int));
     expect(all.single[0], 34);
+  });
+
+  test('seed permissions are exactly the core catalog', () async {
+    final rows = await db.execute('select code from permissions');
+    expect({for (final r in rows) r[0]}, Permissions.all);
   });
 
   test('seed: Trabajo sells, counts and receives, but no costs, '

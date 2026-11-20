@@ -1,12 +1,78 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'app/providers.dart';
 import 'app/router.dart';
 import 'app/theme.dart';
+import 'data/local/local_database.dart';
+import 'features/auth/widgets/key_lost_page.dart';
 import 'prototype/demo_store.dart';
 import 'prototype/widgets/notice.dart';
+import 'shells/app_shell.dart';
 
-void main() => runApp(EsquinitaApp(store: DemoStore()));
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const _Startup());
+}
+
+const _locale = Locale('es', 'PE');
+const _locales = [Locale('es', 'PE'), Locale('es')];
+
+/// Opens the encrypted local database, then the app; or, if its key is
+/// lost, the screen where an Administrador decides (ADR-0004).
+class _Startup extends StatefulWidget {
+  const _Startup();
+
+  @override
+  State<_Startup> createState() => _StartupState();
+}
+
+class _StartupState extends State<_Startup> {
+  LocalDbOpen? _open;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    final place = await localDatabasePlace();
+    final open = await openLocalDatabase(place.db, place.keys);
+    if (mounted) setState(() => _open = open);
+  }
+
+  Future<void> _discard() async {
+    final place = await localDatabasePlace();
+    await discardLocalDatabase(place.db, place.keys);
+    if (!mounted) return;
+    setState(() => _open = null);
+    await _start();
+  }
+
+  @override
+  Widget build(BuildContext context) => switch (_open) {
+    null => MaterialApp(
+      theme: buildTheme(),
+      home: const Scaffold(body: Center(child: CircularProgressIndicator())),
+    ),
+    LocalDbKeyLost(:final reason) => MaterialApp(
+      theme: buildTheme(),
+      debugShowCheckedModeBanner: false,
+      locale: _locale,
+      supportedLocales: _locales,
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      home: KeyLostPage(reason: reason, onDiscard: _discard),
+    ),
+    LocalDbReady(:final db) => ProviderScope(
+      overrides: [appDatabaseProvider.overrideWithValue(db)],
+      child: EsquinitaApp(store: DemoStore()),
+    ),
+  };
+}
 
 class EsquinitaApp extends StatefulWidget {
   const EsquinitaApp({super.key, required this.store});
@@ -20,6 +86,29 @@ class EsquinitaApp extends StatefulWidget {
 class _EsquinitaAppState extends State<EsquinitaApp> {
   late final _router = buildRouter(widget.store);
 
+  late final AppLifecycleListener _exit;
+
+  @override
+  void initState() {
+    super.initState();
+    // Windows: closing the window warns when commands are still unsent.
+    _exit = AppLifecycleListener(
+      onExitRequested: () async {
+        final context = _router.routerDelegate.navigatorKey.currentContext;
+        if (context == null) return AppExitResponse.exit;
+        return await confirmLeave(context, onlyIfPending: true)
+            ? AppExitResponse.exit
+            : AppExitResponse.cancel;
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _exit.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => DemoScope(
     store: widget.store,
@@ -28,8 +117,8 @@ class _EsquinitaAppState extends State<EsquinitaApp> {
       theme: buildTheme(),
       debugShowCheckedModeBanner: false,
       routerConfig: _router,
-      locale: const Locale('es', 'PE'),
-      supportedLocales: const [Locale('es', 'PE'), Locale('es')],
+      locale: _locale,
+      supportedLocales: _locales,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       builder: (_, child) => NoticeHost(child: child!),
     ),

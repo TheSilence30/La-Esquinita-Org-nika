@@ -7,8 +7,8 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 1. Migraciones (usuarios, roles, permisos, dispositivos, series, ajustes, auditoría, refresh, conflictos, log, estado de equipos) y seed: roles Administrador y Trabajo, permisos de `docs/modelo-datos.md` §4, ajustes del negocio (RUC 10409288419, "Gracias por su preferencia"). Pruebas contra PostgreSQL. Los **usuarios** se crean en la tarea 2: sus contraseñas necesitan Argon2id
 - [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. **PR abierto para revisión del usuario** (autenticación)
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. **PR abierto para revisión del usuario** (sincronización)
-- [ ] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004)
-- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
+- [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). **PR abierto para revisión del usuario** (seguridad)
+- [ ] 5. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
@@ -121,3 +121,27 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - SQLCipher en la tablet (Keystore) y en la PC (DPAPI);
   - desde la PC: cambiar el PIN de un usuario y cerrar las sesiones de un equipo perdido.
 - Sigue pendiente del usuario: las cuatro claves iniciales del `.env`.
+
+### 2026-11-20 — Tarea 4: permisos en el core, réplicas y base local cifrada (PR abierto para revisión)
+
+- El usuario agregó al ADR-0004 que el contador de PIN fallidos vive en la base cifrada y sobrevive a reiniciar la app (se implementa en la tarea 5). Aprobó la propuesta de paquetes con condiciones, anotadas en el ADR.
+- **Core**: catálogo `Permissions` (34 códigos) y `effectivePermissions`. Un permiso cuenta solo si toda su cadena está activa (rol del usuario, rol, permiso del rol y permiso). El servidor ya calcula los permisos con esta regla, y una prueba verifica que el seed coincide con el catálogo.
+- **Servidor**:
+  - el pull baja `pin_hash` solo al equipo donde el usuario tiene un ingreso con contraseña (`refresh_tokens`);
+  - el login guarda `last_login_at` (migración `20261120000002`), lo que sube la versión del usuario y hace que ese equipo reciba el PIN en su siguiente pull.
+- **App**:
+  - **SQLCipher** 4.20.0 community, activado en el `sqlite3` existente. Base nueva `local.db`; el archivo sin cifrar de la Fase 0 queda donde estaba, sin tocarlo.
+  - **Llaves**: Kotlin propio con Keystore en Android; DPAPI con `win32` en Windows, en `%LOCALAPPDATA%\LaEsquinita`.
+  - `allowBackup="false"` y reglas de extracción.
+  - **Réplicas drift** de usuarios (sin contraseña), roles, permisos, equipos, ajustes y `sync_state`. `ReplicaStore` aplica un pull en una sola transacción (filas y cursor juntos) y calcula los permisos sin conexión con la regla del core.
+  - **Riverpod** (con generador): providers de la base, el outbox y las réplicas. El prototipo sigue con `DemoStore`.
+  - **Llave perdida**: pantalla con aviso; nada se borra sin la contraseña de un Administrador verificada en el servidor y una segunda confirmación; descartar renombra.
+  - **Aviso al cerrar** con operaciones sin enviar: Windows (cerrar ventana) y Android («Atrás» en el inicio).
+  - Paquetes nuevos: solo Riverpod (`flutter_riverpod`, `riverpod_annotation`, `riverpod_generator`), que ya estaba en el stack. `sqlite3` y `path_provider` pasan a dependencia directa; ya venían con drift.
+- Pruebas (todas en verde, en local):
+  - core 67, servidor 61 contra PostgreSQL y app 185;
+  - cifrado: `PRAGMA cipher_version` tiene valor; el archivo no empieza con «SQLite format 3» ni guarda el texto en claro; no abre sin la llave ni con otra; si la llave falta, no sirve o es otra, no se borra ni se cambia nada;
+  - DPAPI real en esta PC: 5 pruebas, que en la CI (Linux) se saltan.
+- APK de depuración compilado, con `libsqlcipher.so` para arm64, armeabi-v7a y x86_64. Migración aplicada a la base de desarrollo.
+- **Pendiente de prueba en dispositivo**: abrir la base cifrada y la llave del Keystore en la tablet SM-X133; la app Windows completa en la PC; el aviso al cerrar la ventana en Windows.
+- El `.env` local quedó completo: `TEST_DATABASE_URL`, `SERVER_HOST` vacío, `sslmode=disable` y un `JWT_SECRET` nuevo. Las claves iniciales ya están; se les quitó un espacio que quedaba al final de las dos contraseñas.

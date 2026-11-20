@@ -10,12 +10,14 @@ Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.get) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
   }
-  return withAuth(context, (_) async {
+  return withAuth(context, (user) async {
     final raw = context.request.uri.queryParameters['since'] ?? '0';
     final since = int.tryParse(raw);
     if (since == null || since < 0) {
       return badRequest('since: a cursor (integer >= 0)');
     }
-    return Response.json(body: await context.read<PullService>().pull(since));
+    return Response.json(
+      body: await context.read<PullService>().pull(since, user.deviceId),
+    );
   });
 }

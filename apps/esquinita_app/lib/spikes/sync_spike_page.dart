@@ -11,10 +11,10 @@ import '../data/sync/sync_client.dart';
 /// Spike 6 (Fase 0): operations recorded offline in SQLite (drift) survive
 /// a restart and reach the local server exactly once.
 class SyncSpikePage extends StatefulWidget {
-  const SyncSpikePage({super.key, this.db, this.transportFor});
+  const SyncSpikePage({super.key, required this.db, this.transportFor});
 
-  /// Overrides the on-disk database (widget tests).
-  final AppDatabase? db;
+  /// The app's encrypted local database.
+  final AppDatabase db;
 
   /// Overrides the HTTP transport (widget tests).
   final PushTransport Function(String url)? transportFor;
@@ -24,7 +24,7 @@ class SyncSpikePage extends StatefulWidget {
 }
 
 class _SyncSpikePageState extends State<SyncSpikePage> {
-  late final AppDatabase _db = widget.db ?? AppDatabase();
+  late final AppDatabase _db = widget.db;
   late final _store = OutboxStore(_db);
   late final _pending = _store.watchPendingCount();
   late final _outbox = _store.watchOutbox();
@@ -104,7 +104,6 @@ class _SyncSpikePageState extends State<SyncSpikePage> {
     unawaited(_stateSub?.cancel());
     _scheduler?.dispose();
     _url.dispose();
-    if (widget.db == null) unawaited(_db.close());
     super.dispose();
   }
 
