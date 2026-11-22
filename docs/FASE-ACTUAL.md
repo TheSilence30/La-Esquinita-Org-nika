@@ -205,3 +205,21 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - **Reconexión sin paquetes nuevos**: mientras haya pendientes, reintentos con espera creciente de **60 s como máximo** (antes, 5 min). Además se sincroniza **justo después de registrar cada operación**, si hay conexión, y **al volver la app al primer plano** (`AppLifecycleState.resumed`). Esto reemplaza el pendiente de la Fase 0 «detectar al instante cuando vuelve la conexión».
   - **Refresh perdido** (la app se cerró justo al rotarlo y el servidor revocó la sesión): se pide la contraseña para volver a sincronizar. El PIN sigue funcionando sin conexión, los pendientes esperan sin perderse y el indicador dice «Entra con tu contraseña para sincronizar». No se relaja la regla del refresh rotativo.
 - **Pendiente nuevo de la Fase 1** (tarea 5b): `last_seen_at` contra el reloj atrasado, con su prueba.
+
+### 2026-11-22 — Tarea 6: motor de sincronización (PR en borrador)
+
+- **Servidor**: `POST /sync/push` recibe `status.pending_ops` (lo que el equipo aún tiene por enviar después de ese envío) y lo guarda en `device_sync_status` (`last_push_at`, `pending_ops`, `reported_at`). Un valor inválido es un 400 y no toca la base.
+- **App**:
+  - `ServerSync`: envío y bajada con la sesión guardada del usuario en pantalla. El token de acceso (15 min) sale del refresh rotativo; el refresh nuevo se guarda en la base cifrada antes de usarlo. Ante un 401, renueva una vez y reintenta.
+  - **Refresh revocado** (decisión del usuario): el refresh muerto se borra y nunca se reenvía. El indicador pide la contraseña, los pendientes esperan y no se programan reintentos hasta entrar con contraseña. El PIN sigue funcionando.
+  - **Motor**: cada ronda envía por lotes y luego baja los maestros. Corre al iniciar sesión, al registrar una operación, al volver la app al primer plano, con el botón y cada 30 s **solo si hay pendientes**. Ante errores reintenta a los 5, 10, 20 y 40 s, y luego cada 60 s como máximo. Si se le pide una ronda durante otra, corre una más al terminar.
+  - **Indicador real** en los dos shells: «Sincronizado», «Pendientes N», «Error · pendientes N», «Contraseña · pendientes N» o «Sincronizando…». Al tocarlo sincroniza y dice cómo fue. Se quitó el estado simulado del prototipo.
+  - La página *Pruebas › Sincronización* usa el motor real, con el usuario de la sesión y el servidor registrado. Conserva «Envío lento» y «Reenviar todo».
+- Pruebas: servidor 63 y app 213, en verde. `flutter analyze` sin observaciones. Nuevas:
+  - token rotado guardado; token vencido; refresh perdido y reutilizado (pide contraseña y no lo reenvía); sin sesión;
+  - pendientes informados por lote; dos equipos sin conexión; reintentos hasta 60 s; sin temporizador cuando no queda nada; ronda extra para una operación registrada a mitad; la bajada después del envío;
+  - en el servidor: `device_sync_status` contra PostgreSQL y validación de `status`.
+  - Ya existían: duplicado al reenviar, corte a mitad del envío, reinicio de la app y reloj adelantado o atrasado.
+- shortcut: el indicador no cuenta las operaciones **rechazadas** (hoy solo hay de prueba). Se agrega con las ventas (Fase 3).
+- Servidor reconstruido y corriendo en `192.168.18.12:8080`. APK instalado en la tablet (`adb install -r`) y app Windows compilada.
+- **Pendiente de prueba en dispositivo, con el usuario**: operaciones de prueba sin conexión en la tablet y la PC; al reconectar se envían solas, sin duplicados, también cerrando la app a mitad del envío.
