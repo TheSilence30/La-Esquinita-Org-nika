@@ -91,24 +91,6 @@ class DemoSettingsPage extends StatelessWidget {
             ],
           ),
         ),
-        const ListTile(title: Text('Estado de sincronización (simulado)')),
-        RadioGroup<DemoSyncState>(
-          groupValue: store.syncState,
-          onChanged: (v) => store.update(() => store.syncState = v!),
-          child: const Column(
-            children: [
-              RadioListTile(
-                value: DemoSyncState.synced,
-                title: Text('Sincronizado'),
-              ),
-              RadioListTile(
-                value: DemoSyncState.pending,
-                title: Text('Pendientes'),
-              ),
-              RadioListTile(value: DemoSyncState.error, title: Text('Error')),
-            ],
-          ),
-        ),
         ListTile(
           leading: const Icon(Icons.devices_other),
           title: const Text('Simular ventas sin enviar en la PC'),

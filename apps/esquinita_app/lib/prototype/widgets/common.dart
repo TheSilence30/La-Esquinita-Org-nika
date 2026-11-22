@@ -37,36 +37,6 @@ class BrandLogo extends StatelessWidget {
   );
 }
 
-/// Always-visible sync indicator (CLAUDE.md §7, §10). Simulated.
-class SyncChip extends StatelessWidget {
-  const SyncChip({super.key, this.onDark = false});
-
-  final bool onDark;
-
-  @override
-  Widget build(BuildContext context) {
-    final store = DemoScope.of(context);
-    final (icon, label, color) = switch (store.syncState) {
-      DemoSyncState.synced => (
-        Icons.cloud_done_outlined,
-        'Sincronizado',
-        EsquinitaColors.leaf,
-      ),
-      DemoSyncState.pending => (
-        Icons.cloud_upload_outlined,
-        'Pendientes 3',
-        EsquinitaColors.amber,
-      ),
-      DemoSyncState.error => (
-        Icons.sync_problem,
-        'Error de sync',
-        EsquinitaColors.red,
-      ),
-    };
-    return _StatusPill(icon: icon, label: label, color: color, onDark: onDark);
-  }
-}
-
 class CashChip extends StatelessWidget {
   const CashChip({super.key, this.onDark = false});
 
@@ -75,7 +45,7 @@ class CashChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final open = DemoScope.of(context).cashOpen;
-    return _StatusPill(
+    return StatusPill(
       icon: open ? Icons.point_of_sale : Icons.lock_outline,
       label: open ? 'Caja abierta' : 'Caja cerrada',
       color: open ? EsquinitaColors.leaf : EsquinitaColors.amber,
@@ -84,8 +54,10 @@ class CashChip extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  const _StatusPill({
+/// A rounded status label (sync, cash) for the top bars.
+class StatusPill extends StatelessWidget {
+  const StatusPill({
+    super.key,
     required this.icon,
     required this.label,
     required this.color,

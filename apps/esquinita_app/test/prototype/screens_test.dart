@@ -789,6 +789,6 @@ void main() {
     }
     await tester.tap(find.text('Pruebas'));
     await tester.pumpAndSettle();
-    expect(find.text('Spike 6 — Sincronización'), findsOneWidget);
+    expect(find.text('Sincronización'), findsOneWidget);
   }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

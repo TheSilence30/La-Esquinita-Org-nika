@@ -12,6 +12,7 @@ import 'features/auth/application/auth_providers.dart';
 import 'features/auth/widgets/key_lost_page.dart';
 import 'features/auth/widgets/login_page.dart';
 import 'features/auth/widgets/setup_page.dart';
+import 'features/sync/widgets/sync_chip.dart';
 import 'prototype/demo_store.dart';
 import 'prototype/widgets/notice.dart';
 import 'shells/app_shell.dart';
@@ -91,13 +92,16 @@ class AuthGate extends ConsumerWidget {
       AsyncData(value: true) when session == null => _plainApp(
         const LoginPage(),
       ),
-      AsyncData(value: true) => EsquinitaApp(
-        // A new app per login: the prototype data and the router start over.
+      AsyncData(value: true) => SyncTriggers(
+        // A new app per login: the prototype data and the router start over,
+        // and the login starts a sync round.
         key: ValueKey(session!.userId),
-        store: DemoStore()
-          ..role = session.homeView == 'dashboard'
-              ? DemoRole.admin
-              : DemoRole.staff,
+        child: EsquinitaApp(
+          store: DemoStore()
+            ..role = session.homeView == 'dashboard'
+                ? DemoRole.admin
+                : DemoRole.staff,
+        ),
       ),
       AsyncError(:final error) => _plainApp(
         Scaffold(body: Center(child: Text('Error al iniciar: $error'))),

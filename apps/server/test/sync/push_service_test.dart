@@ -126,4 +126,28 @@ void main() {
       expect(now.difference(received).inSeconds.abs(), lessThan(60));
     }
   });
+
+  test('reportStatus keeps the latest pending count per device', () async {
+    const device = '019a0000-0000-7000-8000-0000000000e1';
+    await db.execute('delete from device_sync_status');
+    await db.execute(
+      Sql.named('''
+        insert into devices (id, name, platform, series_prefix, barcode_digit,
+                             version)
+        values (@id:uuid, 'Tablet prueba', 'android', 'T9', 9, 0)
+        on conflict (id) do nothing'''),
+      parameters: {'id': device},
+    );
+    Future<List<Object?>> row() async => (await db.execute(
+      Sql.named('''
+        select pending_ops, last_push_at is not null, reported_at is not null
+        from device_sync_status where device_id = @id:uuid'''),
+      parameters: {'id': device},
+    )).single;
+    await service.reportStatus(device, 12);
+    expect(await row(), [12, true, true]);
+    await service.reportStatus(device, 0);
+    expect(await row(), [0, true, true]);
+    expect(await count('device_sync_status'), 1);
+  });
 }

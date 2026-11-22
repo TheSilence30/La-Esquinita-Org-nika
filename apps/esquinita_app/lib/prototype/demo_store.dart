@@ -24,8 +24,6 @@ enum DemoRole {
   final String label;
 }
 
-enum DemoSyncState { synced, pending, error }
-
 class LotTake {
   const LotTake(this.lot, this.qtyMilli);
 
@@ -149,7 +147,6 @@ class DemoStore extends ChangeNotifier {
   // --- Demo settings (Más › Ajustes de demostración) ---------------------
   bool mixedPayments = true;
   DemoRole role = DemoRole.admin;
-  DemoSyncState syncState = DemoSyncState.synced;
 
   void update(VoidCallback change) {
     change();

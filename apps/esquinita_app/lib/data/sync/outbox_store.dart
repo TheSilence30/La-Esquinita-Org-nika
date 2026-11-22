@@ -15,9 +15,6 @@ class OutboxStore {
   /// This device's id, created once and kept across restarts.
   Future<String> deviceId() => _setting('device_id', uuidV7);
 
-  /// Spike only: a fixed user until login exists (Fase 1).
-  Future<String> userId() => _setting('user_id', uuidV7);
-
   Future<String?> serverUrl() => _get('server_url');
 
   Future<void> setServerUrl(String url) => db
@@ -30,13 +27,14 @@ class OutboxStore {
   /// both or neither.
   Future<String> recordSpikeOperation(
     SpikeOperation op, {
+    required String userId,
     String? opId,
     DateTime? now,
   }) async {
     final cmd = SyncCommand(
       opId: opId ?? uuidV7(),
       deviceId: await deviceId(),
-      userId: await userId(),
+      userId: userId,
       createdAt: now ?? DateTime.now(),
       type: SpikeOperation.type,
       payload: op.toPayload(),

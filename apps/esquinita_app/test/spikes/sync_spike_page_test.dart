@@ -1,12 +1,17 @@
 import 'package:drift/drift.dart' show DatabaseConnection;
 import 'package:drift/native.dart';
+import 'package:esquinita_app/app/providers.dart';
 import 'package:esquinita_app/app/theme.dart';
 import 'package:esquinita_app/data/local/database.dart';
 import 'package:esquinita_app/data/sync/outbox_store.dart';
 import 'package:esquinita_app/data/sync/sync_client.dart';
+import 'package:esquinita_app/features/auth/application/auth_providers.dart';
+import 'package:esquinita_app/features/auth/application/local_auth.dart';
+import 'package:esquinita_app/features/sync/application/sync_providers.dart';
 import 'package:esquinita_app/spikes/sync_spike_page.dart';
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 Future<void> settle(WidgetTester tester) async {
@@ -27,7 +32,10 @@ class _Server implements PushTransport {
   bool offline = false;
 
   @override
-  Future<List<PushResult>> push(List<SyncCommand> commands) async {
+  Future<List<PushResult>> push(
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  }) async {
     if (offline) throw const SyncException('Sin conexión con el servidor.');
     return [
       for (final c in commands)
@@ -57,13 +65,36 @@ void main() {
       ),
     );
     final server = _Server();
-    final saved = OutboxStore(db).setServerUrl('http://192.168.1.50:8080');
+    final store = OutboxStore(db);
+    final saved = store.setServerUrl('http://192.168.1.50:8080');
     await tester.pump();
     await saved;
+    final container = ProviderContainer(
+      overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        syncEngineProvider.overrideWith((ref) {
+          final s = SyncScheduler(SyncClient(store, server));
+          ref.onDispose(s.dispose);
+          return s;
+        }),
+      ],
+    );
+    addTearDown(container.dispose);
+    container
+        .read(currentSessionProvider.notifier)
+        .open(
+          const AppSession(
+            userId: '019a0000-0000-7000-8000-0000000000a1',
+            username: 'Trabajo',
+            fullName: 'Trabajo',
+            permissions: {},
+            homeView: 'sales',
+          ),
+        );
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildTheme(),
-        home: SyncSpikePage(db: db, transportFor: (_) => server),
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(theme: buildTheme(), home: const SyncSpikePage()),
       ),
     );
     await settle(tester);
@@ -89,6 +120,7 @@ void main() {
     await tester.tap(find.text('Sincronizar'));
     await settle(tester);
     expect(find.text('Error · pendientes 2'), findsOneWidget);
+    expect(server.seen, isEmpty);
     expect(
       find.textContaining('Sin conexión con el servidor. Reintento en 5 s.'),
       findsOneWidget,

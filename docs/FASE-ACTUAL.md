@@ -8,8 +8,9 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. PR #12, aprobado y fusionado
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. PR #13, aprobado y fusionado
 - [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). PR #15, aprobado y fusionado
-- [x] 5. **PR #16 abierto para revisión del usuario** (autenticación). App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
-- [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
+- [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
+- [ ] 5b. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
+- [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
@@ -19,6 +20,10 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [ ] Spike 2 (lector USB), antes de la Fase 3
 - [ ] Spike 5 (A4 para reportes), con la Fase 6
 - [ ] Regenerar el token de decolecta antes de producción
+
+## Pendientes para fases siguientes
+
+- [ ] **Fase 3**: cada operación nueva (venta, cobro, devolución, anulación, etc.) dispara una sincronización inmediata si hay conexión (decisión del usuario, 2026-11-22). El motor de la tarea 6 ya lo hace con cualquier comando que entre al outbox, porque observa el contador de pendientes. En la Fase 3, cada operación nueva debe registrarse por el outbox y llevar una prueba de que dispara el envío.
 
 ## Bitácora
 
@@ -162,7 +167,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
     - «Cambiar usuario» y «Cerrar sesión»;
     - pruebas: app 200 en verde, 20 de ellas de sesión.
   - **Decisión del usuario:** Argon2id tarda **1028 ms** en la tablet (modo profile, mismos parámetros). `cryptography_flutter` no tiene Argon2id nativo, así que el usuario aceptó ~1 s. La verificación corre en segundo plano. Falta anotarlo en el ADR-0004.
-  - **Incidente:** `flutter drive --profile` desinstaló la app de la tablet y borró su base local: 32 operaciones de prueba del Spike 6, sin datos del negocio. Al registrarla de nuevo, la tablet recibirá la serie `T2`. No volver a usar `flutter drive` en un equipo con datos sin preguntar.
+  - **Incidente:** `flutter drive --profile` desinstaló la app de la tablet y borró su base local: 32 operaciones de prueba del Spike 6, sin datos del negocio. Al registrarla de nuevo, la tablet recibirá la serie `T2` (corregido el 2026-11-22: recibió `T1`, ver abajo). No volver a usar `flutter drive` en un equipo con datos sin preguntar.
   - **Pendiente:**
     1. prueba de punta a punta de las pantallas (registro → ingreso → cambio de contraseña → PIN);
     2. probar la migración de la base v1 a v2 con la base real de la PC;
@@ -196,3 +201,44 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - **Pedido del usuario:** escribir el usuario era incómodo. Ahora la pantalla de ingreso lista a **todos los usuarios activos** del equipo (de la réplica bajada al registrarlo): con sesión guardada se entra con PIN; sin ella, solo se escribe la contraseña. Los desactivados no aparecen. Queda un enlace «Otro usuario» para quien se cree después del último pull. Pruebas: app 201 en verde, `flutter analyze` sin observaciones.
 - Instalado en la tablet con `adb install -r` (conserva los datos). **Pendiente de prueba en dispositivo**: el selector en la tablet y en la PC.
 - **Tarea 5 probada en la tablet y la PC por el usuario** («todo perfecto»): registro, selector de usuarios, contraseña, cambio obligatorio y PIN con contador. PR #16 fuera de borrador, para revisión del usuario (autenticación: no se fusiona sin su aprobación).
+
+### 2026-11-22 — PR #16 fusionado; decisiones para la tarea 6
+
+- El usuario aprobó el PR #16 (inicio de sesión). Se fusionó en `main` (`f576e4f`) con la CI en verde. La tarea 6 sigue en la rama `phase-1/sync-engine`.
+- **Decisiones del usuario (tarea 6):**
+  - **Reconexión sin paquetes nuevos**: mientras haya pendientes, reintentos con espera creciente de **60 s como máximo** (antes, 5 min). Además se sincroniza **justo después de registrar cada operación**, si hay conexión, y **al volver la app al primer plano** (`AppLifecycleState.resumed`). Esto reemplaza el pendiente de la Fase 0 «detectar al instante cuando vuelve la conexión».
+  - **Refresh perdido** (la app se cerró justo al rotarlo y el servidor revocó la sesión): se pide la contraseña para volver a sincronizar. El PIN sigue funcionando sin conexión, los pendientes esperan sin perderse y el indicador dice «Entra con tu contraseña para sincronizar». No se relaja la regla del refresh rotativo.
+- **Pendiente nuevo de la Fase 1** (tarea 5b): `last_seen_at` contra el reloj atrasado, con su prueba.
+
+### 2026-11-22 — Tarea 6: motor de sincronización (PR en borrador)
+
+- **Servidor**: `POST /sync/push` recibe `status.pending_ops` (lo que el equipo aún tiene por enviar después de ese envío) y lo guarda en `device_sync_status` (`last_push_at`, `pending_ops`, `reported_at`). Un valor inválido es un 400 y no toca la base.
+- **App**:
+  - `ServerSync`: envío y bajada con la sesión guardada del usuario en pantalla. El token de acceso (15 min) sale del refresh rotativo; el refresh nuevo se guarda en la base cifrada antes de usarlo. Ante un 401, renueva una vez y reintenta.
+  - **Refresh revocado** (decisión del usuario): el refresh muerto se borra y nunca se reenvía. El indicador pide la contraseña, los pendientes esperan y no se programan reintentos hasta entrar con contraseña. El PIN sigue funcionando.
+  - **Motor**: cada ronda envía por lotes y luego baja los maestros. Corre al iniciar sesión, al registrar una operación, al volver la app al primer plano, con el botón y cada 30 s **solo si hay pendientes**. Ante errores reintenta a los 5, 10, 20 y 40 s, y luego cada 60 s como máximo. Si se le pide una ronda durante otra, corre una más al terminar.
+  - **Indicador real** en los dos shells: «Sincronizado», «Pendientes N», «Error · pendientes N», «Contraseña · pendientes N» o «Sincronizando…». Al tocarlo sincroniza y dice cómo fue. Se quitó el estado simulado del prototipo.
+  - La página *Pruebas › Sincronización* usa el motor real, con el usuario de la sesión y el servidor registrado. Conserva «Envío lento» y «Reenviar todo».
+- Pruebas: servidor 63 y app 213, en verde. `flutter analyze` sin observaciones. Nuevas:
+  - token rotado guardado; token vencido; refresh perdido y reutilizado (pide contraseña y no lo reenvía); sin sesión;
+  - pendientes informados por lote; dos equipos sin conexión; reintentos hasta 60 s; sin temporizador cuando no queda nada; ronda extra para una operación registrada a mitad; la bajada después del envío;
+  - en el servidor: `device_sync_status` contra PostgreSQL y validación de `status`.
+  - Ya existían: duplicado al reenviar, corte a mitad del envío, reinicio de la app y reloj adelantado o atrasado.
+- shortcut: el indicador no cuenta las operaciones **rechazadas** (hoy solo hay de prueba). Se agrega con las ventas (Fase 3).
+- Servidor reconstruido y corriendo en `192.168.18.12:8080`. APK instalado en la tablet (`adb install -r`) y app Windows compilada.
+- **Pendiente de prueba en dispositivo, con el usuario**: operaciones de prueba sin conexión en la tablet y la PC; al reconectar se envían solas, sin duplicados, también cerrando la app a mitad del envío.
+- **Probado en la tablet y la PC con el usuario (2026-11-22):**
+  - **Los dos sin conexión** (servidor apagado): la tablet creó 30 operaciones y la PC 3. Los dos indicadores mostraron «Error · pendientes N». Al encender el servidor a las 14:32:32, la tablet envió las 30 al instante y la PC las 3 once segundos después (14:32:43), **sin tocar nada**. En el servidor: 30 y 4 (con 1 anterior), todas distintas, y `pending_ops` = 0 en los dos. Los indicadores pasaron a «Sincronizado».
+  - **Cierre a mitad del envío** (tablet, «Envío lento», «Crear 30»): llegaron 7 y luego hubo una pausa de 16,6 s (app cerrada y abierta de nuevo, entrada con PIN). Las 23 restantes llegaron solas: **30 de 30, ninguna repetida**. La tablet suma 60 en el servidor, 60 distintas.
+- Corrección: la tablet recibió la serie `T1`, no `T2`. El registro de equipos se estrenó en la tarea 5, después del incidente, y su primer registro en el servidor es el de hoy. Las 67 operaciones viejas del Spike 6 son de equipos de prueba de la Fase 0, sin registrar.
+- PR #17 fuera de borrador, para revisión del usuario (sincronización: no se fusiona sin su aprobación).
+
+### 2026-11-22 (cierre) — Estado y siguiente paso
+
+- El usuario revisó y aprobó el PR #17 (sincronización). Se fusiona en `main` solo con la CI en verde; si falla, queda abierto y se anota aquí.
+- Servidor de desarrollo **apagado**. PostgreSQL (Docker) sigue encendido. Para volver a arrancar el servidor: `dart pub global run dart_frog_cli:dart_frog build` en `apps/server`, y luego `dart build/bin/server.dart` con el `.env` cargado. `SERVER_HOST=192.168.18.12` (Wi-Fi de la tienda); revisarlo con `ipconfig` si cambia la red.
+- Pendiente anotado para la Fase 3: sincronización inmediata por cada operación nueva (sección «Pendientes para fases siguientes»).
+- **Siguiente paso exacto**, en este orden y cada uno en su propia rama desde `main`:
+  1. **Tarea 5b**, rama `phase-1/clock-guard`: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`). Se actualiza al abrir la app, al entrar y en cada ronda de sincronización, y nunca baja. El PIN se bloquea (pide contraseña) si el reloj del equipo está más de 5 min por detrás de esa hora. Pruebas: reloj atrasado 6 min (bloquea), 4 min (no bloquea), y la hora vista que sobrevive a reiniciar la app. Es de autenticación: PR para revisión del usuario.
+  2. **Tarea 7**, rama `phase-1/admin-screens`: pantallas de Usuarios (crear, rol, contraseña, PIN, desactivar) y Ajustes del negocio, solo Administrador, en el servidor y en la app. Más el cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo). Antes de programar, presentar el plan al usuario.
+  3. **Tarea 8**: prueba de aceptación en la tablet y la PC con el usuario e informe en `docs/informes/fase-1.md`.

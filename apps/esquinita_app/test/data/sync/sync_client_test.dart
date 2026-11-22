@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/drift.dart' show driftRuntimeOptions;
@@ -20,9 +21,24 @@ class FakeServer implements PushTransport {
   /// Apply the next request but lose its response.
   bool loseNextResponse = false;
 
+  /// `pending_ops` of each request.
+  final reported = <int>[];
+
+  /// Throw this instead of answering (e.g. the saved login was revoked).
+  SyncException? fail;
+
+  /// Called inside each request, before answering.
+  Future<void> Function()? during;
+
   @override
-  Future<List<PushResult>> push(List<SyncCommand> commands) async {
+  Future<List<PushResult>> push(
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  }) async {
     requests++;
+    if (fail case final e?) throw e;
+    await during?.call();
+    reported.add(pendingOps);
     if (onlineFor case final n? when requests > n) {
       throw const SyncException('Sin conexión con el servidor.');
     }
@@ -42,6 +58,8 @@ class FakeServer implements PushTransport {
 }
 
 SpikeOperation op(int i) => SpikeOperation(note: 'Op $i', amountCents: i);
+
+const user = '019a0000-0000-7000-8000-0000000000a1';
 
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
@@ -68,13 +86,13 @@ void main() {
 
   test('an operation and its command are written together or not at '
       'all', () async {
-    final id = await store.recordSpikeOperation(op(1));
+    final id = await store.recordSpikeOperation(op(1), userId: user);
     expect(await db.select(db.spikeOperations).get(), hasLength(1));
     expect((await store.pending()).single.opId, id);
 
     // The command insert fails (same op_id): the projection rolls back too.
     await expectLater(
-      store.recordSpikeOperation(op(2), opId: id),
+      store.recordSpikeOperation(op(2), userId: user, opId: id),
       throwsA(isA<SqliteException>()),
     );
     expect(await db.select(db.spikeOperations).get(), hasLength(1));
@@ -90,7 +108,7 @@ void main() {
     var local = AppDatabase(NativeDatabase(file));
     final deviceId = await OutboxStore(local).deviceId();
     for (var i = 0; i < 3; i++) {
-      await OutboxStore(local).recordSpikeOperation(op(i));
+      await OutboxStore(local).recordSpikeOperation(op(i), userId: user);
     }
     await local.close(); // app closed
 
@@ -107,7 +125,7 @@ void main() {
 
   test('a lost response is resent and counted once', () async {
     for (var i = 0; i < 3; i++) {
-      await store.recordSpikeOperation(op(i));
+      await store.recordSpikeOperation(op(i), userId: user);
     }
     server.loseNextResponse = true;
     final client = SyncClient(store, server);
@@ -126,7 +144,7 @@ void main() {
   test('30 operations, connection lost halfway: the rest stays pending and '
       'the next sync completes with exactly 30', () async {
     for (var i = 0; i < 30; i++) {
-      await store.recordSpikeOperation(op(i));
+      await store.recordSpikeOperation(op(i), userId: user);
     }
     final client = SyncClient(store, server, batchSize: 1);
     server.onlineFor = 15;
@@ -141,7 +159,7 @@ void main() {
 
   test('"Reenviar todo" gets duplicates and keeps the verdicts', () async {
     for (var i = 0; i < 2; i++) {
-      await store.recordSpikeOperation(op(i));
+      await store.recordSpikeOperation(op(i), userId: user);
     }
     final client = SyncClient(store, server);
     await client.sync();
@@ -151,23 +169,125 @@ void main() {
   });
 
   test('a server answer for other commands is refused', () async {
-    await store.recordSpikeOperation(op(1));
+    await store.recordSpikeOperation(op(1), userId: user);
     final client = SyncClient(store, _WrongAnswers());
     await expectLater(client.sync(), throwsA(isA<SyncException>()));
     expect(await store.watchPendingCount().first, 1);
   });
 
-  test('retries wait longer after each failure, up to 5 minutes', () {
+  test('retries wait longer after each failure, up to 60 s (user, '
+      '2026-11-22)', () {
     expect(
       [for (var n = 1; n <= 8; n++) retryDelay(n).inSeconds],
-      [5, 10, 20, 40, 80, 160, 300, 300],
+      [5, 10, 20, 40, 60, 60, 60, 60],
     );
+    expect(retryDelay(1000).inSeconds, 60);
+  });
+
+  test('each request reports what is still pending after it', () async {
+    for (var i = 0; i < 3; i++) {
+      await store.recordSpikeOperation(op(i), userId: user);
+    }
+    await SyncClient(store, server, batchSize: 1).sync();
+    expect(server.reported, [2, 1, 0]);
+  });
+
+  test('two devices offline, then both online: every operation once', () async {
+    final other = AppDatabase(NativeDatabase.memory());
+    addTearDown(other.close);
+    final stores = [store, OutboxStore(other)];
+    expect(await stores[0].deviceId(), isNot(await stores[1].deviceId()));
+    server.onlineFor = 0; // both offline
+    for (final st in stores) {
+      for (var i = 0; i < 5; i++) {
+        await st.recordSpikeOperation(op(i), userId: user);
+      }
+      await expectLater(
+        SyncClient(st, server).sync(),
+        throwsA(isA<SyncException>()),
+      );
+    }
+    server.onlineFor = null;
+    for (final st in stores) {
+      expect(await SyncClient(st, server).sync(), 5);
+      expect(await st.pendingCount(), 0);
+    }
+    expect(server.inbox, hasLength(10));
+  });
+
+  group('scheduler', () {
+    Future<SyncRunState> round(SyncScheduler s) async {
+      final next = s.states.firstWhere((r) => !r.running);
+      await s.syncNow();
+      return next;
+    }
+
+    test('nothing pending after a round: no 30 s timer; a failure retries '
+        'in 5 s', () async {
+      final s = SyncScheduler(SyncClient(store, server));
+      addTearDown(s.dispose);
+      expect((await round(s)).nextIn, isNull);
+      await store.recordSpikeOperation(op(1), userId: user);
+      server.onlineFor = 0;
+      final failed = await round(s);
+      expect(failed.error, isNotNull);
+      expect(failed.nextIn, const Duration(seconds: 5));
+    });
+
+    test(
+      'a revoked login stops the retries until someone asks again',
+      () async {
+        await store.recordSpikeOperation(op(1), userId: user);
+        server.fail = const SyncException('x', needsPassword: true);
+        final s = SyncScheduler(SyncClient(store, server));
+        addTearDown(s.dispose);
+        final r = await round(s);
+        expect(r.error!.needsPassword, isTrue);
+        expect(r.nextIn, isNull);
+        expect(await store.pendingCount(), 1, reason: 'nothing is lost');
+      },
+    );
+
+    test(
+      'an operation recorded during a round is sent right after it',
+      () async {
+        await store.recordSpikeOperation(op(1), userId: user);
+        final s = SyncScheduler(SyncClient(store, server));
+        addTearDown(s.dispose);
+        var recorded = false;
+        server.during = () async {
+          if (recorded) return;
+          recorded = true;
+          await store.recordSpikeOperation(op(2), userId: user);
+          unawaited(s.syncNow()); // what the pending-count trigger does
+        };
+        final done = s.states.where((r) => !r.running).take(2).toList();
+        await s.syncNow();
+        await done;
+        expect(await store.pendingCount(), 0);
+        expect(server.inbox, hasLength(2));
+      },
+    );
+
+    test('pull runs after the push, in the same round', () async {
+      final order = <String>[];
+      await store.recordSpikeOperation(op(1), userId: user);
+      server.during = () async => order.add('push');
+      final s = SyncScheduler(
+        SyncClient(store, server),
+        pull: () async => order.add('pull'),
+      );
+      addTearDown(s.dispose);
+      await round(s);
+      expect(order, ['push', 'pull']);
+    });
   });
 }
 
 class _WrongAnswers implements PushTransport {
   @override
-  Future<List<PushResult>> push(List<SyncCommand> commands) async => [
-    PushResult(uuidV7(), PushStatus.applied),
-  ];
+  Future<List<PushResult>> push(
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  }) async => [PushResult(uuidV7(), PushStatus.applied)];
 }
