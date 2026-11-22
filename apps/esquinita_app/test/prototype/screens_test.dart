@@ -779,4 +779,16 @@ void main() {
     expect(find.text('Dashboard'), findsNothing);
     expect(find.text('Reportes'), findsNothing);
   }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
+
+  testWidgets('PC menu: every item, Pruebas included, fits a normal window '
+      '(user, 2026-11-20: it was hidden below Ajustes)', (tester) async {
+    // The user's window: 1560×846 px at 125 % scaling.
+    await pumpApp(tester, const Size(1248, 677));
+    for (final label in ['Ajustes', 'Demostración', 'Pruebas']) {
+      expect(find.text(label).hitTestable(), findsOneWidget, reason: label);
+    }
+    await tester.tap(find.text('Pruebas'));
+    await tester.pumpAndSettle();
+    expect(find.text('Spike 6 — Sincronización'), findsOneWidget);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.windows));
 }

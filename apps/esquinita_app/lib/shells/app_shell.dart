@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../app/form_factor.dart';
 import '../app/providers.dart';
 import '../app/theme.dart';
+import '../features/auth/application/auth_providers.dart';
 import '../prototype/demo_store.dart';
 import '../prototype/widgets/common.dart';
 
@@ -45,6 +46,8 @@ const desktopNav = [
   NavItem('Reportes', Icons.bar_chart, '/reportes', adminOnly: true),
   NavItem('Ajustes', Icons.settings_outlined, '/ajustes', adminOnly: true),
   NavItem('Demostración', Icons.science_outlined, '/demo'),
+  // Fase 0 spikes (sync test operations), as under Más on the tablet.
+  NavItem('Pruebas', Icons.build_outlined, '/spikes'),
 ];
 
 /// Picks the tablet/phone or desktop shell (independent interfaces,
@@ -217,14 +220,29 @@ class _TouchShell extends StatelessWidget {
   }
 }
 
-class _DesktopShell extends StatelessWidget {
+class _DesktopShell extends StatefulWidget {
   const _DesktopShell({required this.location, required this.child});
 
   final String location;
   final Widget child;
 
   @override
+  State<_DesktopShell> createState() => _DesktopShellState();
+}
+
+class _DesktopShellState extends State<_DesktopShell> {
+  final _menu = ScrollController();
+
+  @override
+  void dispose() {
+    _menu.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final location = widget.location;
+    final child = widget.child;
     final store = DemoScope.of(context);
     final items = [
       for (final n in desktopNav)
@@ -241,30 +259,31 @@ class _DesktopShell extends StatelessWidget {
               child: Column(
                 children: [
                   const Padding(
-                    padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
-                    child: BrandLogo(height: 70, color: Colors.white),
+                    padding: EdgeInsets.fromLTRB(16, 14, 16, 8),
+                    child: BrandLogo(height: 52, color: Colors.white),
                   ),
+                  // Always-visible bar: in a short window the last items
+                  // are below the fold, and nothing else would say so.
                   Expanded(
-                    child: ListView(
-                      children: [
-                        for (final n in items)
-                          _SideItem(
-                            item: n,
-                            selected: n == current,
-                            onTap: () => context.go(n.path),
-                          ),
-                      ],
+                    child: Scrollbar(
+                      controller: _menu,
+                      thumbVisibility: true,
+                      child: ListView(
+                        controller: _menu,
+                        children: [
+                          for (final n in items)
+                            _SideItem(
+                              item: n,
+                              selected: n == current,
+                              onTap: () => context.go(n.path),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Text(
-                      'Usuario: ${store.role.label}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
+                    padding: const EdgeInsets.all(8),
+                    child: _UserMenu(fallback: store.role.label),
                   ),
                 ],
               ),
@@ -326,11 +345,64 @@ class _SideItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: ListTile(
         dense: true,
+        // Mouse, not touch: 40 lets all 12 items fit a maximized window at
+        // 125 % scaling (1536×864).
+        minTileHeight: 40,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         leading: Icon(item.icon, color: Colors.white),
-        title: Text(item.label, style: const TextStyle(color: Colors.white)),
+        title: Text(
+          item.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white),
+        ),
         onTap: onTap,
       ),
     ),
   );
+}
+
+/// PC: who is logged in, with "Cambiar usuario" and "Cerrar sesión".
+class _UserMenu extends ConsumerWidget {
+  const _UserMenu({required this.fallback});
+
+  /// The prototype's role, when there is no real session (widget tests).
+  final String fallback;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(currentSessionProvider);
+    final notifier = ref.read(currentSessionProvider.notifier);
+    return PopupMenuButton<VoidCallback>(
+      tooltip: 'Usuario',
+      onSelected: (action) => action(),
+      itemBuilder: (_) => [
+        PopupMenuItem(
+          value: notifier.lock,
+          child: const Text('Cambiar usuario'),
+        ),
+        PopupMenuItem(
+          value: notifier.logout,
+          child: const Text('Cerrar sesión'),
+        ),
+      ],
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            const Icon(Icons.account_circle_outlined, color: Colors.white70),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Usuario: ${session?.fullName ?? fallback}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
