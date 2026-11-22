@@ -192,3 +192,6 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - Respaldo de la base real de la PC y su llave antes de la migración v1 → v2: `%LOCALAPPDATA%\LaEsquinita\backup-2026-11-22`.
 - Compilados: app Windows (release) y APK de depuración.
 - **Pendiente de prueba en dispositivo, con el usuario**: abrir la app nueva en la PC (migra a v2), registro → ingreso → cambio de contraseña → PIN en la PC y en la tablet (que recibirá la serie `T2`). Luego, sacar el PR #16 de borrador.
+- **PC probada por el usuario**: la base migró a v2; registro, ingreso, cambio de contraseña y PIN bien; con un PIN incorrecto aparece el contador de intentos.
+- **Pedido del usuario:** escribir el usuario era incómodo. Ahora la pantalla de ingreso lista a **todos los usuarios activos** del equipo (de la réplica bajada al registrarlo): con sesión guardada se entra con PIN; sin ella, solo se escribe la contraseña. Los desactivados no aparecen. Queda un enlace «Otro usuario» para quien se cree después del último pull. Pruebas: app 201 en verde, `flutter analyze` sin observaciones.
+- Instalado en la tablet con `adb install -r` (conserva los datos). **Pendiente de prueba en dispositivo**: el selector en la tablet y en la PC.
