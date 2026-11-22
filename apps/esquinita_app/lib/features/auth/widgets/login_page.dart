@@ -6,8 +6,8 @@ import '../application/auth_providers.dart';
 import '../application/local_auth.dart';
 import 'auth_layout.dart';
 
-/// Login: the PIN of someone who already logged in here (works offline), or
-/// username and password (needs the server). Shared by tablet and PC.
+/// Login: pick your name, then the PIN (works offline) or the password
+/// (needs the server). Shared by tablet and PC.
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({super.key});
 
@@ -23,9 +23,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _pin = TextEditingController();
   final _new = TextEditingController();
   final _repeat = TextEditingController();
-  late Future<List<PinUser>> _users = ref.read(localAuthProvider).pinUsers();
+  late Future<List<LoginUser>> _users = ref
+      .read(localAuthProvider)
+      .loginUsers();
   _Step _step = _Step.choose;
-  PinUser? _pinUser;
+  LoginUser? _pinUser;
+
+  /// Why the picked user needs the password (shown, not an error).
+  String? _reason;
   bool _busy = false;
   String? _error;
 
@@ -39,11 +44,13 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   LocalAuth get _auth => ref.read(localAuthProvider);
 
-  void _go(_Step step, {PinUser? user}) => setState(() {
+  void _go(_Step step, {LoginUser? user}) => setState(() {
     _step = step;
     _pinUser = user ?? _pinUser;
     _error = null;
+    _reason = null;
     _pin.clear();
+    if (step == _Step.choose) _password.clear();
   });
 
   Future<void> _run(Future<void> Function() action) async {
@@ -76,7 +83,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         );
       case PinNeedsPassword(:final reason):
         _user.text = _pinUser!.username;
-        _users = _auth.pinUsers();
+        _users = _auth.loginUsers();
         _go(_Step.password);
         setState(() => _error = reason);
     }
@@ -113,10 +120,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     _Step.choose => FutureBuilder(
       future: _users,
       builder: (context, snap) {
-        final users = snap.data ?? const <PinUser>[];
+        final users = snap.data ?? const <LoginUser>[];
         return AuthLayout(
           title: 'Ingresar',
-          subtitle: users.isEmpty ? null : 'Toca tu nombre para usar tu PIN.',
+          subtitle: users.isEmpty ? null : 'Toca tu nombre.',
           children: [
             for (final u in users)
               OutlinedButton.icon(
@@ -130,17 +137,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                     _go(_Step.pin, user: u);
                   } else {
                     _user.text = u.username;
-                    _go(_Step.password);
-                    setState(() => _error = u.blockedReason);
+                    _go(_Step.password, user: u);
+                    setState(() => _reason = u.blockedReason);
                   }
                 },
               ),
-            FilledButton.tonal(
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(52),
-              ),
-              onPressed: () => _go(_Step.password),
-              child: const Text('Entrar con usuario y contraseña'),
+            // For a user created after this device's last sync.
+            TextButton(
+              onPressed: () {
+                _user.clear();
+                _go(_Step.password);
+                setState(() => _pinUser = null);
+              },
+              child: const Text('Otro usuario'),
             ),
           ],
         );
@@ -171,16 +180,21 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       ],
     ),
     _Step.password => AuthLayout(
-      title: 'Entrar con contraseña',
-      subtitle: 'Necesita conexión con el servidor.',
+      title: _pinUser?.fullName ?? 'Entrar con contraseña',
+      subtitle: [
+        _reason,
+        'Necesita conexión con el servidor.',
+      ].nonNulls.join(' '),
       children: [
-        TextField(
-          controller: _user,
-          autofocus: _user.text.isEmpty,
-          decoration: const InputDecoration(labelText: 'Usuario'),
-        ),
+        if (_pinUser == null)
+          TextField(
+            controller: _user,
+            autofocus: true,
+            decoration: const InputDecoration(labelText: 'Usuario'),
+          ),
         TextField(
           controller: _password,
+          autofocus: _pinUser != null,
           obscureText: true,
           decoration: const InputDecoration(labelText: 'Contraseña'),
           onSubmitted: (_) => _busy ? null : _withPassword(),

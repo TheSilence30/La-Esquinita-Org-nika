@@ -147,9 +147,10 @@ void main() {
     });
 
     test('the right PIN opens the session without the server', () async {
-      final users = await auth().pinUsers();
-      expect(users.single.userId, adminId);
-      expect(users.single.blockedReason, isNull);
+      final users = {for (final u in await auth().loginUsers()) u.userId: u};
+      expect(users[adminId]!.blockedReason, isNull);
+      // Listed too, but without a login here it needs the password.
+      expect(users[staffId]!.blockedReason, contains('contraseña'));
       final r = await auth().loginWithPin(adminId, '4821');
       expect((r as PinOk).session.homeView, 'dashboard');
     });
@@ -170,7 +171,9 @@ void main() {
         isA<PinNeedsPassword>(),
       );
       expect(
-        (await auth().pinUsers()).single.blockedReason,
+        (await auth().loginUsers())
+            .firstWhere((u) => u.userId == adminId)
+            .blockedReason,
         contains('5 veces'),
       );
 
@@ -224,6 +227,11 @@ void main() {
       );
       final r = await auth().loginWithPin(adminId, '4821');
       expect((r as PinNeedsPassword).reason, contains('desactivado'));
+      expect(
+        (await auth().loginUsers()).map((u) => u.userId),
+        isNot(contains(adminId)),
+        reason: 'not offered on the login screen',
+      );
     });
 
     test('logout forgets the saved login, also offline', () async {

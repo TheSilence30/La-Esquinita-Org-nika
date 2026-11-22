@@ -72,11 +72,18 @@ void main() {
     await tap('Registrar equipo');
     expect(server.registered, [('Tablet caja', 'android')]);
 
-    // Nobody has a saved login yet: no PIN buttons.
+    // Every user is listed; nobody has a saved login yet, so tapping a name
+    // asks only for the password (no username to type).
     expect(find.text('Ingresar'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Trabajo'), findsNothing);
-    await tap('Entrar con usuario y contraseña');
-    await type('Usuario', 'Trabajo');
+    expect(find.widgetWithText(OutlinedButton, 'Administrador'), findsOne);
+    await tap('Trabajo');
+    expect(
+      find.text(
+        'Entra una vez con tu contraseña. Necesita conexión con el servidor.',
+      ),
+      findsOne,
+    );
+    expect(find.widgetWithText(TextField, 'Usuario'), findsNothing);
     await type('Contraseña', 'trabajo-1234');
     await tap('Entrar');
 

@@ -72,8 +72,9 @@ final class PinNeedsPassword extends PinLogin {
   final String reason;
 }
 
-/// A user who can be picked for a PIN login on this device.
-typedef PinUser = ({
+/// An active user on this device's login screen. [blockedReason] null: the
+/// PIN works; otherwise the password is needed and this says why.
+typedef LoginUser = ({
   String userId,
   String username,
   String fullName,
@@ -181,21 +182,28 @@ class LocalAuth {
     return _open(api, await _login(api, username, next));
   }
 
-  /// Users with a saved login on this device, for the PIN screen.
-  Future<List<PinUser>> pinUsers() async {
-    final rows = await (db.select(db.localSessions).join([
-      innerJoin(db.users, db.users.id.equalsExp(db.localSessions.userId)),
-    ])..orderBy([OrderingTerm.asc(db.users.fullName)])).get();
+  /// Every active user in the local replica, so nobody types a username.
+  Future<List<LoginUser>> loginUsers() async {
+    final rows =
+        await (db.select(db.users).join([
+                leftOuterJoin(
+                  db.localSessions,
+                  db.localSessions.userId.equalsExp(db.users.id),
+                ),
+              ])
+              ..where(db.users.active)
+              ..orderBy([OrderingTerm.asc(db.users.fullName)]))
+            .get();
     return [
       for (final r in rows)
         (
           userId: r.readTable(db.users).id,
           username: r.readTable(db.users).username,
           fullName: r.readTable(db.users).fullName,
-          blockedReason: _blocked(
-            r.readTable(db.localSessions),
-            r.readTable(db.users),
-          ),
+          blockedReason: switch (r.readTableOrNull(db.localSessions)) {
+            null => 'Entra una vez con tu contraseña.',
+            final s => _blocked(s, r.readTable(db.users)),
+          },
         ),
     ];
   }
