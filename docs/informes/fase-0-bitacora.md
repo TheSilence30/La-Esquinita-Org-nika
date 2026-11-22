@@ -229,7 +229,7 @@ Spikes 1, 3 y 6 exitosos en hardware real con evidencia, prototipo y modelo de d
 
 **Tareas para la Fase 1 (pedidas por el usuario el 2026-11-17)**
 
-- [ ] Detectar al instante cuando vuelve la conexión y sincronizar en ese momento, sin esperar los 30 s.
+- [x] ~~Detectar al instante cuando vuelve la conexión y sincronizar en ese momento, sin esperar los 30 s.~~ Decisión del usuario (2026-11-22, Fase 1, tarea 6): sin paquetes nuevos. Mientras haya pendientes, reintentos con espera creciente de **60 s como máximo**; además se sincroniza **justo después de registrar cada operación** y **al volver la app al primer plano**. Ver `docs/FASE-ACTUAL.md`.
 - [ ] Limitar el tamaño de las solicitudes en el servidor (hoy solo se limita la cantidad: 100 comandos).
 - [ ] Autenticación del servidor: hoy, mientras está encendido, cualquiera en la red local podría enviarle operaciones.
 - [ ] Sincronizar cada 30 s solo cuando haya operaciones pendientes, y espaciar el chequeo cuando no haya nada que enviar.

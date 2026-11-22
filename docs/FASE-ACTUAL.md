@@ -8,8 +8,9 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 2. Autenticación en el servidor: login Argon2id, JWT de 15 min, refresh rotativo, logout, `/me`, middleware de permisos. PR #12, aprobado y fusionado
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. PR #13, aprobado y fusionado
 - [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). PR #15, aprobado y fusionado
-- [x] 5. **PR #16 abierto para revisión del usuario** (autenticación). App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
-- [ ] 6. Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
+- [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
+- [ ] 5b. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
+- [ ] 6. **En curso.** Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
@@ -196,3 +197,11 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - **Pedido del usuario:** escribir el usuario era incómodo. Ahora la pantalla de ingreso lista a **todos los usuarios activos** del equipo (de la réplica bajada al registrarlo): con sesión guardada se entra con PIN; sin ella, solo se escribe la contraseña. Los desactivados no aparecen. Queda un enlace «Otro usuario» para quien se cree después del último pull. Pruebas: app 201 en verde, `flutter analyze` sin observaciones.
 - Instalado en la tablet con `adb install -r` (conserva los datos). **Pendiente de prueba en dispositivo**: el selector en la tablet y en la PC.
 - **Tarea 5 probada en la tablet y la PC por el usuario** («todo perfecto»): registro, selector de usuarios, contraseña, cambio obligatorio y PIN con contador. PR #16 fuera de borrador, para revisión del usuario (autenticación: no se fusiona sin su aprobación).
+
+### 2026-11-22 — PR #16 fusionado; decisiones para la tarea 6
+
+- El usuario aprobó el PR #16 (inicio de sesión). Se fusionó en `main` (`f576e4f`) con la CI en verde. La tarea 6 sigue en la rama `phase-1/sync-engine`.
+- **Decisiones del usuario (tarea 6):**
+  - **Reconexión sin paquetes nuevos**: mientras haya pendientes, reintentos con espera creciente de **60 s como máximo** (antes, 5 min). Además se sincroniza **justo después de registrar cada operación**, si hay conexión, y **al volver la app al primer plano** (`AppLifecycleState.resumed`). Esto reemplaza el pendiente de la Fase 0 «detectar al instante cuando vuelve la conexión».
+  - **Refresh perdido** (la app se cerró justo al rotarlo y el servidor revocó la sesión): se pide la contraseña para volver a sincronizar. El PIN sigue funcionando sin conexión, los pendientes esperan sin perderse y el indicador dice «Entra con tu contraseña para sincronizar». No se relaja la regla del refresh rotativo.
+- **Pendiente nuevo de la Fase 1** (tarea 5b): `last_seen_at` contra el reloj atrasado, con su prueba.
