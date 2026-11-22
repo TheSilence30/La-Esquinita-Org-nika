@@ -21,6 +21,10 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [ ] Spike 5 (A4 para reportes), con la Fase 6
 - [ ] Regenerar el token de decolecta antes de producción
 
+## Pendientes para fases siguientes
+
+- [ ] **Fase 3**: cada operación nueva (venta, cobro, devolución, anulación, etc.) dispara una sincronización inmediata si hay conexión (decisión del usuario, 2026-11-22). El motor de la tarea 6 ya lo hace con cualquier comando que entre al outbox, porque observa el contador de pendientes. En la Fase 3, cada operación nueva debe registrarse por el outbox y llevar una prueba de que dispara el envío.
+
 ## Bitácora
 
 ### 2026-11-19 — Inicio
@@ -228,3 +232,13 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - **Cierre a mitad del envío** (tablet, «Envío lento», «Crear 30»): llegaron 7 y luego hubo una pausa de 16,6 s (app cerrada y abierta de nuevo, entrada con PIN). Las 23 restantes llegaron solas: **30 de 30, ninguna repetida**. La tablet suma 60 en el servidor, 60 distintas.
 - Corrección: la tablet recibió la serie `T1`, no `T2`. El registro de equipos se estrenó en la tarea 5, después del incidente, y su primer registro en el servidor es el de hoy. Las 67 operaciones viejas del Spike 6 son de equipos de prueba de la Fase 0, sin registrar.
 - PR #17 fuera de borrador, para revisión del usuario (sincronización: no se fusiona sin su aprobación).
+
+### 2026-11-22 (cierre) — Estado y siguiente paso
+
+- El usuario revisó y aprobó el PR #17 (sincronización). Se fusiona en `main` solo con la CI en verde; si falla, queda abierto y se anota aquí.
+- Servidor de desarrollo **apagado**. PostgreSQL (Docker) sigue encendido. Para volver a arrancar el servidor: `dart pub global run dart_frog_cli:dart_frog build` en `apps/server`, y luego `dart build/bin/server.dart` con el `.env` cargado. `SERVER_HOST=192.168.18.12` (Wi-Fi de la tienda); revisarlo con `ipconfig` si cambia la red.
+- Pendiente anotado para la Fase 3: sincronización inmediata por cada operación nueva (sección «Pendientes para fases siguientes»).
+- **Siguiente paso exacto**, en este orden y cada uno en su propia rama desde `main`:
+  1. **Tarea 5b**, rama `phase-1/clock-guard`: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`). Se actualiza al abrir la app, al entrar y en cada ronda de sincronización, y nunca baja. El PIN se bloquea (pide contraseña) si el reloj del equipo está más de 5 min por detrás de esa hora. Pruebas: reloj atrasado 6 min (bloquea), 4 min (no bloquea), y la hora vista que sobrevive a reiniciar la app. Es de autenticación: PR para revisión del usuario.
+  2. **Tarea 7**, rama `phase-1/admin-screens`: pantallas de Usuarios (crear, rol, contraseña, PIN, desactivar) y Ajustes del negocio, solo Administrador, en el servidor y en la app. Más el cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo). Antes de programar, presentar el plan al usuario.
+  3. **Tarea 8**: prueba de aceptación en la tablet y la PC con el usuario e informe en `docs/informes/fase-1.md`.
