@@ -184,3 +184,11 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   2. en la Wi-Fi de la tienda: verificar la IP con `ipconfig`, ponerla en `SERVER_HOST` del `.env` y arrancar el servidor;
   3. probar con el usuario en la tablet y la PC (la base real de la PC migra a v2 al abrir la app nueva);
   4. sacar el PR #16 de borrador para revisión.
+
+### 2026-11-22 — Tarea 5: de vuelta en la tienda
+
+- PC en la Wi-Fi `LA/ESQUINITA-2.4G` (perfil privado). `ipconfig`: **192.168.18.12**. Puesta en `SERVER_HOST` del `.env` (no va a git).
+- PostgreSQL arrancado; migraciones al día (última `20261120000002`). Servidor compilado y escuchando en `http://192.168.18.12:8080`; el firewall solo lo abre en redes privadas (regla «Esquinita dev server (8080)»).
+- Respaldo de la base real de la PC y su llave antes de la migración v1 → v2: `%LOCALAPPDATA%\LaEsquinita\backup-2026-11-22`.
+- Compilados: app Windows (release) y APK de depuración.
+- **Pendiente de prueba en dispositivo, con el usuario**: abrir la app nueva en la PC (migra a v2), registro → ingreso → cambio de contraseña → PIN en la PC y en la tablet (que recibirá la serie `T2`). Luego, sacar el PR #16 de borrador.
