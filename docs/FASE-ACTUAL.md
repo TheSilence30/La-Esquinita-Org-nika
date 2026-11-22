@@ -10,7 +10,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). PR #15, aprobado y fusionado
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [ ] 5b. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
-- [ ] 6. **En curso.** Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
+- [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
@@ -163,7 +163,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
     - «Cambiar usuario» y «Cerrar sesión»;
     - pruebas: app 200 en verde, 20 de ellas de sesión.
   - **Decisión del usuario:** Argon2id tarda **1028 ms** en la tablet (modo profile, mismos parámetros). `cryptography_flutter` no tiene Argon2id nativo, así que el usuario aceptó ~1 s. La verificación corre en segundo plano. Falta anotarlo en el ADR-0004.
-  - **Incidente:** `flutter drive --profile` desinstaló la app de la tablet y borró su base local: 32 operaciones de prueba del Spike 6, sin datos del negocio. Al registrarla de nuevo, la tablet recibirá la serie `T2`. No volver a usar `flutter drive` en un equipo con datos sin preguntar.
+  - **Incidente:** `flutter drive --profile` desinstaló la app de la tablet y borró su base local: 32 operaciones de prueba del Spike 6, sin datos del negocio. Al registrarla de nuevo, la tablet recibirá la serie `T2` (corregido el 2026-11-22: recibió `T1`, ver abajo). No volver a usar `flutter drive` en un equipo con datos sin preguntar.
   - **Pendiente:**
     1. prueba de punta a punta de las pantallas (registro → ingreso → cambio de contraseña → PIN);
     2. probar la migración de la base v1 a v2 con la base real de la PC;
@@ -223,3 +223,8 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - shortcut: el indicador no cuenta las operaciones **rechazadas** (hoy solo hay de prueba). Se agrega con las ventas (Fase 3).
 - Servidor reconstruido y corriendo en `192.168.18.12:8080`. APK instalado en la tablet (`adb install -r`) y app Windows compilada.
 - **Pendiente de prueba en dispositivo, con el usuario**: operaciones de prueba sin conexión en la tablet y la PC; al reconectar se envían solas, sin duplicados, también cerrando la app a mitad del envío.
+- **Probado en la tablet y la PC con el usuario (2026-11-22):**
+  - **Los dos sin conexión** (servidor apagado): la tablet creó 30 operaciones y la PC 3. Los dos indicadores mostraron «Error · pendientes N». Al encender el servidor a las 14:32:32, la tablet envió las 30 al instante y la PC las 3 once segundos después (14:32:43), **sin tocar nada**. En el servidor: 30 y 4 (con 1 anterior), todas distintas, y `pending_ops` = 0 en los dos. Los indicadores pasaron a «Sincronizado».
+  - **Cierre a mitad del envío** (tablet, «Envío lento», «Crear 30»): llegaron 7 y luego hubo una pausa de 16,6 s (app cerrada y abierta de nuevo, entrada con PIN). Las 23 restantes llegaron solas: **30 de 30, ninguna repetida**. La tablet suma 60 en el servidor, 60 distintas.
+- Corrección: la tablet recibió la serie `T1`, no `T2`. El registro de equipos se estrenó en la tarea 5, después del incidente, y su primer registro en el servidor es el de hoy. Las 67 operaciones viejas del Spike 6 son de equipos de prueba de la Fase 0, sin registrar.
+- PR #17 fuera de borrador, para revisión del usuario (sincronización: no se fusiona sin su aprobación).
