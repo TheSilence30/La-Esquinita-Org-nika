@@ -24,7 +24,8 @@ class FakeUser {
   bool active = true;
 }
 
-/// In-memory server: logins, /me, register, pull and logout.
+/// In-memory server: logins, /me, register, pull, logout, refresh (rotating,
+/// a reuse revokes the user's logins) and push (idempotent by op_id).
 class FakeServer implements ServerApi {
   FakeServer(this.pinHash);
 
@@ -38,6 +39,20 @@ class FakeServer implements ServerApi {
   final loggedOut = <String>[];
   final logins = <String>[]; // device ids
   int _n = 0;
+
+  /// Refresh tokens that still work.
+  final liveRefresh = <String>{};
+
+  /// Access tokens the server treats as expired (401).
+  final expired = <String>{};
+  final refreshes = <String>[];
+  final inbox = <String, SyncCommand>{};
+  final reported = <int>[];
+  int pulls = 0;
+
+  /// Apply the next refresh but lose its answer (the app never sees the new
+  /// token).
+  bool loseNextRefresh = false;
 
   void _check() {
     if (offline) throw const ApiException(ApiFailure.offline);
@@ -54,12 +69,69 @@ class FakeServer implements ServerApi {
       throw const ApiException(ApiFailure.unauthorized);
     }
     logins.add(deviceId);
+    return _issue(user);
+  }
+
+  /// The access token issued last.
+  String? lastAccess;
+
+  LoginTokens _issue(FakeUser user) {
     _n++;
+    lastAccess = 'a-${user.id}-$_n';
+    liveRefresh.add('r-${user.id}-$_n');
     return (
       accessToken: 'a-${user.id}-$_n',
       refreshToken: 'r-${user.id}-$_n',
       mustChangePassword: user.mustChange,
     );
+  }
+
+  FakeUser _authorized(String token) {
+    if (expired.contains(token) || !token.startsWith('a-')) {
+      throw const ApiException(ApiFailure.unauthorized);
+    }
+    return _byToken(token);
+  }
+
+  @override
+  Future<LoginTokens> refresh(String refreshToken) async {
+    _check();
+    refreshes.add(refreshToken);
+    final user = users.values.firstWhere(
+      (u) => refreshToken.startsWith('r-${u.id}-'),
+    );
+    if (!liveRefresh.remove(refreshToken)) {
+      // Reused: revoke every login of the user, as the real server does.
+      liveRefresh.removeWhere((t) => t.startsWith('r-${user.id}-'));
+      throw const ApiException(ApiFailure.unauthorized);
+    }
+    final t = _issue(user);
+    if (loseNextRefresh) {
+      loseNextRefresh = false;
+      throw const ApiException(ApiFailure.offline, 'timeout');
+    }
+    return t;
+  }
+
+  @override
+  Future<List<PushResult>> push(
+    String token,
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  }) async {
+    _check();
+    _authorized(token);
+    reported.add(pendingOps);
+    return [
+      for (final c in commands)
+        inbox.containsKey(c.opId)
+            ? PushResult(
+                c.opId,
+                PushStatus.duplicate,
+                originalStatus: PushStatus.applied,
+              )
+            : PushResult((inbox[c.opId] = c).opId, PushStatus.applied),
+    ];
   }
 
   @override
@@ -94,6 +166,8 @@ class FakeServer implements ServerApi {
   @override
   Future<Map<String, Object?>> pull(String token, int since) async {
     _check();
+    _authorized(token);
+    pulls++;
     Map<String, Object?> role(String id, String view) => {
       'id': id,
       'code': id,
@@ -151,5 +225,6 @@ class FakeServer implements ServerApi {
   Future<void> logout(String refreshToken) async {
     _check();
     loggedOut.add(refreshToken);
+    liveRefresh.remove(refreshToken);
   }
 }

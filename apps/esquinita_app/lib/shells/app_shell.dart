@@ -7,6 +7,7 @@ import '../app/form_factor.dart';
 import '../app/providers.dart';
 import '../app/theme.dart';
 import '../features/auth/application/auth_providers.dart';
+import '../features/sync/widgets/sync_chip.dart';
 import '../prototype/demo_store.dart';
 import '../prototype/widgets/common.dart';
 

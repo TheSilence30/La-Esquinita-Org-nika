@@ -26,6 +26,21 @@ class PushService {
     return results;
   }
 
+  /// What the device says it still has to send, after this request
+  /// (`device_sync_status`, so the PC can see who is behind).
+  Future<void> reportStatus(String deviceId, int pendingOps) => _db.run(
+    (db) => db.execute(
+      Sql.named('''
+      insert into device_sync_status
+        (device_id, last_push_at, pending_ops, reported_at)
+      values (@device:uuid, now(), @pending:int4, now())
+      on conflict (device_id) do update
+        set last_push_at = now(), pending_ops = @pending:int4,
+            reported_at = now()'''),
+      parameters: {'device': deviceId, 'pending': pendingOps},
+    ),
+  );
+
   Future<PushResult> _pushOne(SyncCommand c) => _db.runTx((tx) async {
     final (status, message) = _validate(c);
     // Blocks while a concurrent transaction holds the same op_id, then

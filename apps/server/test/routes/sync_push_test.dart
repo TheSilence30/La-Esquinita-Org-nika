@@ -102,12 +102,24 @@ void main() {
           {..._command(), 'op_id': 'nope'},
         ],
       },
+      for (final status in <Object?>[
+        'x',
+        <String, Object?>{},
+        {'pending_ops': -1},
+        {'pending_ops': '3'},
+        {'pending_ops': 1.5},
+      ])
+        {
+          'commands': [_command()],
+          'status': status,
+        },
     ];
     for (final body in bad) {
       final r = await send('POST', body);
       expect(r.statusCode, HttpStatus.badRequest, reason: '$body');
     }
     verifyNever(() => service.push(any()));
+    verifyNever(() => service.reportStatus(any(), any()));
   });
 
   test('returns one result per command', () async {
@@ -124,5 +136,20 @@ void main() {
         {'op_id': c['op_id'], 'status': 'applied'},
       ],
     });
+    verifyNever(() => service.reportStatus(any(), any()));
+  });
+
+  test("stores the device's pending count, for the session's device", () async {
+    final c = _command();
+    when(() => service.push(any())).thenAnswer(
+      (_) async => [PushResult(c['op_id']! as String, PushStatus.applied)],
+    );
+    when(() => service.reportStatus(any(), any())).thenAnswer((_) async {});
+    final r = await send('POST', {
+      'commands': [c],
+      'status': {'pending_ops': 7},
+    });
+    expect(r.statusCode, HttpStatus.ok);
+    verify(() => service.reportStatus(_device, 7)).called(1);
   });
 }

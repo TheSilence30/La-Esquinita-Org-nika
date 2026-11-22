@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../app/providers.dart';
-
 import 'print_spike_page.dart';
 import 'scan_spike_page.dart';
 import 'sync_spike_page.dart';
@@ -35,14 +33,12 @@ class SpikesHomePage extends ConsumerWidget {
         ),
         ListTile(
           leading: const Icon(Icons.sync),
-          title: const Text('Spike 6 — Sincronización'),
+          title: const Text('Sincronización'),
           subtitle: const Text(
-            'Operaciones sin conexión (drift + outbox) contra el servidor',
+            'Operaciones de prueba sin conexión contra el servidor',
           ),
           onTap: () => Navigator.of(context, rootNavigator: true).push(
-            MaterialPageRoute<void>(
-              builder: (_) => SyncSpikePage(db: ref.read(appDatabaseProvider)),
-            ),
+            MaterialPageRoute<void>(builder: (_) => const SyncSpikePage()),
           ),
         ),
       ],

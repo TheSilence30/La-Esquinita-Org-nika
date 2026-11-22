@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:esquinita_core/esquinita_core.dart';
 import 'package:http/http.dart' as http;
 
 /// Why a call to the server failed.
@@ -58,6 +59,17 @@ abstract interface class ServerApi {
 
   /// Ends the login of [refreshToken] on the server.
   Future<void> logout(String refreshToken);
+
+  /// `POST /auth/refresh`: new tokens; [refreshToken] stops working.
+  Future<LoginTokens> refresh(String refreshToken);
+
+  /// `POST /sync/push`: one result per command, in order. [pendingOps]: what
+  /// the device still has to send after these (`device_sync_status`).
+  Future<List<PushResult>> push(
+    String accessToken,
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  });
 }
 
 /// [ServerApi] over HTTP.
@@ -86,11 +98,34 @@ class HttpServerApi implements ServerApi {
       'password': password,
       'device_id': deviceId,
     });
-    return (
-      accessToken: b['access_token']! as String,
-      refreshToken: b['refresh_token']! as String,
-      mustChangePassword: b['must_change_password'] == true,
-    );
+    return _tokens(b);
+  }
+
+  static LoginTokens _tokens(Map<String, Object?> b) => (
+    accessToken: b['access_token']! as String,
+    refreshToken: b['refresh_token']! as String,
+    mustChangePassword: b['must_change_password'] == true,
+  );
+
+  @override
+  Future<LoginTokens> refresh(String refreshToken) async => _tokens(
+    await _send('POST', '/auth/refresh', {'refresh_token': refreshToken}),
+  );
+
+  @override
+  Future<List<PushResult>> push(
+    String accessToken,
+    List<SyncCommand> commands, {
+    required int pendingOps,
+  }) async {
+    final b = await _send('POST', '/sync/push', {
+      'commands': [for (final c in commands) c.toJson()],
+      'status': {'pending_ops': pendingOps},
+    }, token: accessToken);
+    return [
+      for (final r in b['results']! as List<Object?>)
+        PushResult.fromJson(r! as Map<String, Object?>),
+    ];
   }
 
   @override

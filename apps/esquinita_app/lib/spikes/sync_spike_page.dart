@@ -1,38 +1,33 @@
 import 'dart:async';
 
 import 'package:esquinita_core/esquinita_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../app/providers.dart';
 import '../data/local/database.dart';
 import '../data/sync/outbox_store.dart';
 import '../data/sync/sync_client.dart';
+import '../features/auth/application/auth_providers.dart';
+import '../features/sync/application/sync_providers.dart';
+import '../features/sync/widgets/sync_chip.dart';
 
-/// Spike 6 (Fase 0): operations recorded offline in SQLite (drift) survive
-/// a restart and reach the local server exactly once.
-class SyncSpikePage extends StatefulWidget {
-  const SyncSpikePage({super.key, required this.db, this.transportFor});
-
-  /// The app's encrypted local database.
-  final AppDatabase db;
-
-  /// Overrides the HTTP transport (widget tests).
-  final PushTransport Function(String url)? transportFor;
+/// Sync test page (Spike 6, now on the real engine): test operations
+/// recorded offline survive a restart and reach the server exactly once.
+/// They never touch sales or stock (plan Fase 1 §B).
+class SyncSpikePage extends ConsumerStatefulWidget {
+  const SyncSpikePage({super.key});
 
   @override
-  State<SyncSpikePage> createState() => _SyncSpikePageState();
+  ConsumerState<SyncSpikePage> createState() => _SyncSpikePageState();
 }
 
-class _SyncSpikePageState extends State<SyncSpikePage> {
-  late final AppDatabase _db = widget.db;
-  late final _store = OutboxStore(_db);
-  late final _pending = _store.watchPendingCount();
+class _SyncSpikePageState extends ConsumerState<SyncSpikePage> {
+  late final OutboxStore _store = ref.read(outboxStoreProvider);
   late final _outbox = _store.watchOutbox();
-  final _url = TextEditingController();
-  SyncScheduler? _scheduler;
-  StreamSubscription<SyncRunState>? _stateSub;
-  SyncRunState _state = const SyncRunState(running: false);
+  late final SyncScheduler _engine = ref.read(syncEngineProvider);
   String _deviceId = '';
+  String? _url;
   bool _slow = false;
   int _created = 0;
 
@@ -44,114 +39,64 @@ class _SyncSpikePageState extends State<SyncSpikePage> {
 
   Future<void> _init() async {
     final id = await _store.deviceId();
-    final saved = await _store.serverUrl();
-    if (!mounted) return;
-    setState(() => _deviceId = id);
-    _url.text =
-        saved ??
-        (defaultTargetPlatform == TargetPlatform.windows
-            ? 'http://127.0.0.1:8080'
-            : 'http://192.168.1.');
-    if (saved != null) _restartScheduler();
-  }
-
-  /// A new scheduler per URL or pace; it syncs right away (app start or
-  /// change) and then every 30 s, with growing waits after failures.
-  void _restartScheduler() {
-    unawaited(_stateSub?.cancel());
-    _scheduler?.dispose();
-    final url = _url.text.trim();
-    final scheduler = SyncScheduler(
-      SyncClient(
-        _store,
-        widget.transportFor?.call(url) ?? HttpPushTransport(url),
-        batchSize: _slow ? 1 : 100,
-        batchPause: _slow ? const Duration(milliseconds: 300) : Duration.zero,
-      ),
-    );
-    _stateSub = scheduler.states.listen((s) {
-      if (mounted) setState(() => _state = s);
-    });
-    _scheduler = scheduler..start();
-  }
-
-  Future<void> _saveUrl() async {
-    final url = _url.text.trim();
-    final uri = Uri.tryParse(url);
-    if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Dirección inválida. Ej.: http://192.168.1.50:8080'),
-        ),
-      );
-      return;
+    final url = await _store.serverUrl();
+    if (mounted) {
+      setState(() {
+        _deviceId = id;
+        _url = url;
+      });
     }
-    await _store.setServerUrl(url);
-    _restartScheduler();
+  }
+
+  void _setSlow(bool slow) {
+    setState(() => _slow = slow);
+    _engine.client
+      ..batchSize = slow ? 1 : 100
+      ..batchPause = slow ? const Duration(milliseconds: 300) : Duration.zero;
   }
 
   Future<void> _create(int count) async {
+    final userId = ref.read(currentSessionProvider)?.userId;
+    if (userId == null) return;
     for (var i = 0; i < count; i++) {
       _created++;
       await _store.recordSpikeOperation(
         SpikeOperation(note: 'Prueba $_created', amountCents: _created * 100),
+        userId: userId,
       );
     }
   }
 
   @override
   void dispose() {
-    unawaited(_stateSub?.cancel());
-    _scheduler?.dispose();
-    _url.dispose();
+    if (_slow) _setSlowQuietly();
     super.dispose();
   }
+
+  // Back to normal batches when leaving the page.
+  void _setSlowQuietly() => _engine.client
+    ..batchSize = 100
+    ..batchPause = Duration.zero;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scheduler = _scheduler;
-    final busy = _state.running;
+    final status = ref.watch(syncStatusProvider);
+    final busy = status.run.running;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Spike 6 · Sincronización'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: StreamBuilder<int>(
-              stream: _pending,
-              builder: (context, snap) =>
-                  _StatusChip(pending: snap.data, state: _state),
-            ),
-          ),
+        title: const Text('Pruebas · Sincronización'),
+        actions: const [
+          Padding(padding: EdgeInsets.only(right: 12), child: SyncChip()),
         ],
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            Text('Servidor', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _url,
-                    keyboardType: TextInputType.url,
-                    decoration: const InputDecoration(
-                      labelText: 'Dirección del servidor',
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) => _saveUrl(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FilledButton(onPressed: _saveUrl, child: const Text('Guardar')),
-              ],
-            ),
-            const SizedBox(height: 4),
             Text(
-              'Equipo: ${_deviceId.isEmpty ? '…' : _deviceId}',
+              'Servidor: ${_url ?? '…'} · Equipo: '
+              '${_deviceId.isEmpty ? '…' : _deviceId}',
               style: theme.textTheme.bodySmall,
             ),
             SwitchListTile(
@@ -162,12 +107,7 @@ class _SyncSpikePageState extends State<SyncSpikePage> {
                 'conexión a la mitad',
               ),
               value: _slow,
-              onChanged: busy
-                  ? null
-                  : (v) {
-                      setState(() => _slow = v);
-                      if (scheduler != null) _restartScheduler();
-                    },
+              onChanged: busy ? null : _setSlow,
             ),
             const SizedBox(height: 8),
             Wrap(
@@ -185,35 +125,26 @@ class _SyncSpikePageState extends State<SyncSpikePage> {
                   label: const Text('Crear 30'),
                 ),
                 FilledButton.icon(
-                  onPressed: scheduler == null || busy
-                      ? null
-                      : () => scheduler.syncNow(),
+                  onPressed: busy ? null : () => _engine.syncNow(),
                   icon: const Icon(Icons.sync),
                   label: const Text('Sincronizar'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: scheduler == null || busy
+                  onPressed: busy
                       ? null
-                      : () => scheduler.syncNow(resendAll: true),
+                      : () => _engine.syncNow(resendAll: true),
                   icon: const Icon(Icons.replay),
                   label: const Text('Reenviar todo'),
                 ),
               ],
             ),
-            if (scheduler == null)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
-                child: Text(
-                  'Guarda la dirección del servidor para sincronizar.',
-                ),
-              ),
-            if (_state.error case final e?)
+            if (status.run.error case final e?)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  '${e.message} Reintento en ${_state.nextIn?.inSeconds ?? '-'} s.',
-                  style: TextStyle(color: theme.colorScheme.error),
-                ),
+                child: Text(switch (status.run.nextIn) {
+                  final d? => '${e.message} Reintento en ${d.inSeconds} s.',
+                  null => e.message,
+                }, style: TextStyle(color: theme.colorScheme.error)),
               ),
             const SizedBox(height: 16),
             Text('Operaciones', style: theme.textTheme.titleMedium),
@@ -234,27 +165,6 @@ class _SyncSpikePageState extends State<SyncSpikePage> {
         ),
       ),
     );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  const _StatusChip({required this.pending, required this.state});
-
-  final int? pending;
-  final SyncRunState state;
-
-  @override
-  Widget build(BuildContext context) {
-    final (icon, label) = switch ((state, pending)) {
-      (SyncRunState(running: true), _) => (Icons.sync, 'Sincronizando…'),
-      (SyncRunState(error: _?), final n) => (
-        Icons.sync_problem,
-        'Error · pendientes ${n ?? '-'}',
-      ),
-      (_, 0) => (Icons.cloud_done_outlined, 'Sincronizado'),
-      (_, final n) => (Icons.cloud_upload_outlined, 'Pendientes ${n ?? '-'}'),
-    };
-    return Chip(avatar: Icon(icon, size: 18), label: Text(label));
   }
 }
 
