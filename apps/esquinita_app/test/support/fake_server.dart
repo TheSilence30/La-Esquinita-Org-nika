@@ -35,6 +35,9 @@ class FakeServer implements ServerApi {
     'Trabajo': FakeUser(staffId, 'trabajo-1234', mustChange: true),
   };
   bool offline = false;
+
+  /// What the login sends as the `Date` header; null: none.
+  DateTime? serverTime;
   final registered = <(String, String)>[];
   final loggedOut = <String>[];
   final logins = <String>[]; // device ids
@@ -83,6 +86,7 @@ class FakeServer implements ServerApi {
       accessToken: 'a-${user.id}-$_n',
       refreshToken: 'r-${user.id}-$_n',
       mustChangePassword: user.mustChange,
+      serverTime: serverTime,
     );
   }
 

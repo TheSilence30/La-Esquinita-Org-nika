@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io' show HttpDate, HttpException;
 
 import 'package:esquinita_core/esquinita_core.dart';
 import 'package:http/http.dart' as http;
@@ -36,6 +37,9 @@ typedef LoginTokens = ({
   String accessToken,
   String refreshToken,
   bool mustChangePassword,
+
+  /// The server's clock (`Date` header); null if it sent none.
+  DateTime? serverTime,
 });
 
 /// The server routes the app uses to log in and set itself up.
@@ -93,18 +97,19 @@ class HttpServerApi implements ServerApi {
     String password,
     String deviceId,
   ) async {
-    final b = await _send('POST', '/auth/login', {
+    final r = await _exchange('POST', '/auth/login', {
       'username': username,
       'password': password,
       'device_id': deviceId,
     });
-    return _tokens(b);
+    return _tokens(r.body, r.date);
   }
 
-  static LoginTokens _tokens(Map<String, Object?> b) => (
+  static LoginTokens _tokens(Map<String, Object?> b, [DateTime? date]) => (
     accessToken: b['access_token']! as String,
     refreshToken: b['refresh_token']! as String,
     mustChangePassword: b['must_change_password'] == true,
+    serverTime: date,
   );
 
   @override
@@ -165,6 +170,14 @@ class HttpServerApi implements ServerApi {
     String path,
     Map<String, Object?>? body, {
     String? token,
+  }) async => (await _exchange(method, path, body, token: token)).body;
+
+  /// [_send] plus the `Date` header of the answer.
+  Future<({Map<String, Object?> body, DateTime? date})> _exchange(
+    String method,
+    String path,
+    Map<String, Object?>? body, {
+    String? token,
   }) async {
     final http.Response res;
     try {
@@ -190,8 +203,25 @@ class HttpServerApi implements ServerApi {
       _ => ApiFailure.rejected,
     };
     if (failure != null) throw ApiException(failure, res.body);
-    if (res.body.isEmpty) return const {};
+    final date = _date(res.headers['date']);
+    if (res.body.isEmpty) return (body: const <String, Object?>{}, date: date);
     final decoded = jsonDecode(res.body);
-    return decoded is Map<String, Object?> ? decoded : const {};
+    return (
+      body: decoded is Map<String, Object?>
+          ? decoded
+          : const <String, Object?>{},
+      date: date,
+    );
+  }
+
+  static DateTime? _date(String? header) {
+    if (header == null) return null;
+    try {
+      return HttpDate.parse(header);
+    } on FormatException {
+      return null;
+    } on HttpException {
+      return null;
+    }
   }
 }

@@ -23,7 +23,14 @@ SyncScheduler syncEngine(Ref ref) {
     apiFor: ref.watch(localAuthProvider).apiFor,
     currentUserId: () => ref.read(currentSessionProvider)?.userId,
   );
-  final engine = SyncScheduler(SyncClient(store, server), pull: server.pull);
+  final auth = ref.watch(localAuthProvider);
+  final engine = SyncScheduler(
+    SyncClient(store, server),
+    pull: () async {
+      await server.pull();
+      await auth.markTimeSeen();
+    },
+  );
   var last = 0;
   final sub = store.watchPendingCount().listen((n) {
     if (n > last && ref.read(currentSessionProvider) != null) engine.start();

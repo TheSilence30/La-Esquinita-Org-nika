@@ -94,10 +94,13 @@ void main() {
     await tap('Guardar y entrar');
     expect(find.text('Las dos contraseñas no coinciden.'), findsOneWidget);
     await type('Repite la contraseña', 'nueva-clave-1');
+    // The device clock is 1 h ahead of the server: warned inside the app.
+    server.serverTime = DateTime.now().subtract(const Duration(hours: 1));
     await tap('Guardar y entrar');
     expect(server.users['Trabajo']!.password, 'nueva-clave-1');
     expect(container.read(currentSessionProvider)?.userId, staffId);
     expect(find.byType(EsquinitaApp), findsOneWidget);
+    expect(find.text(LocalAuth.clockMismatch), findsOneWidget);
 
     // "Cambiar usuario", then back in with the PIN, wrong once.
     container.read(currentSessionProvider.notifier).lock();

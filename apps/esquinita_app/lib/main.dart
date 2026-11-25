@@ -97,6 +97,7 @@ class AuthGate extends ConsumerWidget {
         // and the login starts a sync round.
         key: ValueKey(session!.userId),
         child: EsquinitaApp(
+          startWarning: session.clockWarning,
           store: DemoStore()
             ..role = session.homeView == 'dashboard'
                 ? DemoRole.admin
@@ -124,9 +125,12 @@ Widget _plainApp(Widget home) => MaterialApp(
 );
 
 class EsquinitaApp extends StatefulWidget {
-  const EsquinitaApp({super.key, required this.store});
+  const EsquinitaApp({super.key, required this.store, this.startWarning});
 
   final DemoStore store;
+
+  /// A notice for the moment the app opens (the clock warning of a login).
+  final String? startWarning;
 
   @override
   State<EsquinitaApp> createState() => _EsquinitaAppState();
@@ -169,7 +173,8 @@ class _EsquinitaAppState extends State<EsquinitaApp> {
       locale: _locale,
       supportedLocales: _locales,
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      builder: (_, child) => NoticeHost(child: child!),
+      builder: (_, child) =>
+          NoticeHost(startWarning: widget.startWarning, child: child!),
     ),
   );
 }

@@ -54,16 +54,22 @@ class _Notice {
 
 /// Goes in `MaterialApp.builder`, around the navigator.
 class NoticeHost extends StatefulWidget {
-  const NoticeHost({super.key, required this.child});
+  const NoticeHost({super.key, required this.child, this.startWarning});
 
   final Widget child;
+
+  /// Shown (amber, sticky) as soon as the app opens.
+  final String? startWarning;
 
   @override
   State<NoticeHost> createState() => NoticeHostState();
 }
 
 class NoticeHostState extends State<NoticeHost> {
-  _Notice? _current;
+  late _Notice? _current = switch (widget.startWarning) {
+    null => null,
+    final m => _Notice(m, NoticeLevel.warn, null, null, true),
+  };
   Timer? _timer;
 
   void _show(_Notice notice) {

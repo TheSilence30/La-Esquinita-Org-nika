@@ -18,6 +18,7 @@ class AppSession {
     required this.fullName,
     required this.permissions,
     required this.homeView,
+    this.clockWarning,
   });
 
   final String userId;
@@ -29,6 +30,10 @@ class AppSession {
 
   /// `dashboard` or `sales`: the first screen of the user's role.
   final String homeView;
+
+  /// Set after a password login when the device clock is more than
+  /// [LocalAuth.clockTolerance] off the server's; the screen shows it once.
+  final String? clockWarning;
 
   bool can(String permission) => permissions.contains(permission);
 }
@@ -105,8 +110,18 @@ class LocalAuth {
   /// Wrong PINs in a row that require the password.
   static const maxFailedPins = 5;
 
-  /// A device clock this far behind the last login is not trusted.
+  /// A device clock this far behind the last login, or behind the latest
+  /// time the app has seen, is not trusted.
   static const clockTolerance = Duration(minutes: 5);
+
+  /// Records the device time if it is the latest seen (`last_seen_at`, in
+  /// the encrypted database). It never goes down here, so setting the clock
+  /// back cannot stretch the 7 days of the PIN. Called when the app opens,
+  /// on every login and after every sync round.
+  Future<void> markTimeSeen() async {
+    final now = _clock().millisecondsSinceEpoch;
+    if (now > (await _lastSeen() ?? 0)) await _set(_lastSeenKey, '$now');
+  }
 
   late final _outbox = OutboxStore(db);
   late final _replicas = ReplicaStore(db);
@@ -184,6 +199,8 @@ class LocalAuth {
 
   /// Every active user in the local replica, so nobody types a username.
   Future<List<LoginUser>> loginUsers() async {
+    await markTimeSeen(); // the login screen is the app opening
+    final lastSeen = await _lastSeen();
     final rows =
         await (db.select(db.users).join([
                 leftOuterJoin(
@@ -202,7 +219,7 @@ class LocalAuth {
           fullName: r.readTable(db.users).fullName,
           blockedReason: switch (r.readTableOrNull(db.localSessions)) {
             null => 'Entra una vez con tu contraseña.',
-            final s => _blocked(s, r.readTable(db.users)),
+            final s => _blocked(s, r.readTable(db.users), lastSeen),
           },
         ),
     ];
@@ -220,12 +237,13 @@ class LocalAuth {
     if (session == null || user == null) {
       return PinNeedsPassword('Entra una vez con tu contraseña.');
     }
-    final blocked = _blocked(session, user);
+    final blocked = _blocked(session, user, await _lastSeen());
     if (blocked != null) return PinNeedsPassword(blocked);
     final failed = session.failedPins + 1;
     await _setFailedPins(userId, failed);
     if (await verifyPin(pin, user.pinHash!)) {
       await _setFailedPins(userId, 0);
+      await markTimeSeen();
       return PinOk(await _session(userId));
     }
     if (failed >= maxFailedPins) {
@@ -253,6 +271,10 @@ class LocalAuth {
 
   // --- internals -----------------------------------------------------------
 
+  static const clockMismatch =
+      'La hora de este equipo no coincide con la del servidor. Corrígela en '
+      'Ajustes.';
+
   static const _offline =
       'Sin conexión con el servidor. Revisa el Wi‑Fi y la dirección.';
 
@@ -263,13 +285,19 @@ class LocalAuth {
     _ => 'El servidor no respondió bien. Intenta de nuevo.',
   };
 
-  String? _blocked(LocalSession s, ReplicaUser u) {
+  String? _blocked(LocalSession s, ReplicaUser u, int? lastSeen) {
     if (!u.active) return 'Este usuario está desactivado.';
     if (u.pinHash == null) return 'Entra una vez con tu contraseña.';
     if (s.failedPins >= maxFailedPins) {
       return 'PIN incorrecto $maxFailedPins veces. Entra con tu contraseña.';
     }
-    final age = _clock().difference(s.passwordLoginAt);
+    final now = _clock();
+    if (lastSeen != null &&
+        now.millisecondsSinceEpoch < lastSeen - clockTolerance.inMilliseconds) {
+      return 'La hora del equipo está atrasada. Corrígela o entra con tu '
+          'contraseña.';
+    }
+    final age = now.difference(s.passwordLoginAt);
     if (age >= sessionLength || age < -clockTolerance) {
       return 'Pasaron 7 días desde tu último ingreso con contraseña. '
           'Conéctate y entra con ella.';
@@ -299,26 +327,42 @@ class LocalAuth {
   /// After a password login: user id from /me, fresh replicas (they bring
   /// this user's PIN hash) and the saved login.
   Future<AppSession> _open(ServerApi api, LoginTokens t) async {
-    final session = await _sessionOf(t.accessToken, api);
+    // The server's clock, not the device's, starts the 7 days.
+    final device = _clock();
+    final now = t.serverTime ?? device;
+    final skewed = device.difference(now).abs() > clockTolerance;
+    final session = await _sessionOf(
+      t.accessToken,
+      api,
+      clockWarning: skewed ? clockMismatch : null,
+    );
     await db
         .into(db.localSessions)
         .insertOnConflictUpdate(
           LocalSessionsCompanion.insert(
             userId: session.userId,
             refreshToken: Value(t.refreshToken),
-            passwordLoginAt: _clock(),
+            passwordLoginAt: now,
             failedPins: const Value(0),
           ),
         );
+    // The server accepted the password: trust its time, even if lower, so
+    // a clock once set forward does not block the PIN for good.
+    await _set(_lastSeenKey, '${now.millisecondsSinceEpoch}');
     return session;
   }
 
-  Future<AppSession> _sessionOf(String accessToken, ServerApi api) async {
+  Future<AppSession> _sessionOf(
+    String accessToken,
+    ServerApi api, {
+    String? clockWarning,
+  }) async {
     try {
       final me = await api.me(accessToken);
       await _pull(api, accessToken);
       return await _session(
         (me['user']! as Map<String, Object?>)['id']! as String,
+        clockWarning: clockWarning,
       );
     } on ApiException {
       throw const SetupException(_offline);
@@ -330,7 +374,7 @@ class LocalAuth {
 
   /// The session from the local replicas: the same data with or without a
   /// connection.
-  Future<AppSession> _session(String userId) async {
+  Future<AppSession> _session(String userId, {String? clockWarning}) async {
     final user = await (db.select(
       db.users,
     )..where((u) => u.id.equals(userId))).getSingle();
@@ -350,12 +394,19 @@ class LocalAuth {
       fullName: user.fullName,
       permissions: await _replicas.permissionsOf(userId),
       homeView: views.contains('dashboard') ? 'dashboard' : 'sales',
+      clockWarning: clockWarning,
     );
   }
 
   Future<void> _setFailedPins(String userId, int n) =>
       (db.update(db.localSessions)..where((s) => s.userId.equals(userId)))
           .write(LocalSessionsCompanion(failedPins: Value(n)));
+
+  static const _lastSeenKey = 'last_seen_at';
+
+  /// Milliseconds since epoch (UTC).
+  Future<int?> _lastSeen() async =>
+      int.tryParse(await _get(_lastSeenKey) ?? '');
 
   Future<String?> _get(String key) async => (await (db.select(
     db.localSettings,

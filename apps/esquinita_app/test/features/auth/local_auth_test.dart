@@ -128,6 +128,50 @@ void main() {
       expect(server.users['Trabajo']!.password, 'nueva-clave-9');
     });
 
+    Future<String?> lastSeen() async => (await (db.select(
+      db.localSettings,
+    )..where((s) => s.key.equals('last_seen_at'))).getSingleOrNull())?.value;
+
+    test('the server time, not the device clock, starts the 7 days and '
+        'sets the time seen; 4 min off gives no warning', () async {
+      server.serverTime = now.add(const Duration(minutes: 4));
+      final s = await adminLogin();
+      expect(s.clockWarning, isNull);
+      final saved = await db.select(db.localSessions).getSingle();
+      expect(
+        saved.passwordLoginAt.isAtSameMomentAs(server.serverTime!),
+        isTrue,
+      );
+      expect(await lastSeen(), '${server.serverTime!.millisecondsSinceEpoch}');
+    });
+
+    test('a device clock more than 5 min off the server warns, and a clock '
+        'behind then blocks the PIN', () async {
+      for (final off in [
+        const Duration(minutes: 6),
+        -const Duration(hours: 3),
+      ]) {
+        server.serverTime = now.add(off);
+        final s = await adminLogin();
+        expect(s.clockWarning, LocalAuth.clockMismatch);
+        expect(
+          (await db.select(db.localSessions).getSingle()).passwordLoginAt
+              .isAtSameMomentAs(server.serverTime!),
+          isTrue,
+        );
+      }
+      // The device is 3 h ahead of the server now: the PIN still works.
+      server.offline = true;
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+      server
+        ..offline = false
+        ..serverTime = now.add(const Duration(minutes: 6));
+      await adminLogin(); // device 6 min behind the server
+      server.offline = true;
+      final r = await auth().loginWithPin(adminId, '4821');
+      expect((r as PinNeedsPassword).reason, contains('hora'));
+    });
+
     test('offline: says to use the PIN', () async {
       server.offline = true;
       await expectLater(
@@ -214,6 +258,55 @@ void main() {
         await auth().loginWithPin(adminId, '4821'),
         isA<PinNeedsPassword>(),
       );
+    });
+
+    test('a clock set back more than 5 min from the latest time seen blocks '
+        'the PIN; 4 min does not; the time seen survives a restart and '
+        'never goes down', () async {
+      now = DateTime.utc(2026, 11, 22, 12);
+      await auth().loginUsers(); // the app opens at 12:00
+      now = DateTime.utc(2026, 11, 22, 11, 30);
+      await auth().markTimeSeen(); // an earlier time does not lower it
+      expect(
+        await db.select(db.localSettings).get(),
+        contains(
+          isA<LocalSetting>()
+              .having((s) => s.key, 'key', 'last_seen_at')
+              .having(
+                (s) => s.value,
+                'value',
+                '${DateTime.utc(2026, 11, 22, 12).millisecondsSinceEpoch}',
+              ),
+        ),
+      );
+
+      now = DateTime.utc(2026, 11, 22, 11, 56); // 4 min behind
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+
+      now = DateTime.utc(2026, 11, 22, 11, 54); // 6 min behind, new instance
+      final r = await auth().loginWithPin(adminId, '4821');
+      expect((r as PinNeedsPassword).reason, contains('hora'));
+      expect(await failedPins(adminId), 0, reason: 'not counted as a failure');
+      expect(
+        (await auth().loginUsers())
+            .firstWhere((u) => u.userId == adminId)
+            .blockedReason,
+        contains('hora'),
+      );
+    });
+
+    test('a password login trusts the clock again: a clock once set '
+        'forward does not block the PIN for good', () async {
+      now = DateTime.utc(2030);
+      await auth().markTimeSeen();
+      now = DateTime.utc(2026, 11, 22, 12);
+      expect(
+        await auth().loginWithPin(adminId, '4821'),
+        isA<PinNeedsPassword>(),
+      );
+      server.offline = false;
+      await adminLogin();
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
     });
 
     test('a deactivated user (after a pull) or one without a login here '

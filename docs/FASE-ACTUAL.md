@@ -9,7 +9,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. PR #13, aprobado y fusionado
 - [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). PR #15, aprobado y fusionado
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
-- [ ] 5b. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
+- [x] 5b. **PR abierto para revisión del usuario** (rama `phase-1/clock-guard`). Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
@@ -23,7 +23,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 
 ## Pendientes para fases siguientes
 
-- [ ] **Fase 3**: cada operación nueva (venta, cobro, devolución, anulación, etc.) dispara una sincronización inmediata si hay conexión (decisión del usuario, 2026-11-22). El motor de la tarea 6 ya lo hace con cualquier comando que entre al outbox, porque observa el contador de pendientes. En la Fase 3, cada operación nueva debe registrarse por el outbox y llevar una prueba de que dispara el envío.
+- [x] ~~**Fase 3**: sincronización inmediata por cada operación nueva~~. **Ya existe** (usuario, 2026-11-25): el motor de la tarea 6 arranca una ronda cuando sube el contador de pendientes del outbox, sea cual sea el comando. No queda pendiente para la Fase 3. Basta con que cada operación nueva pase por el outbox, que es la regla de siempre (CLAUDE.md §7).
 
 ## Bitácora
 
@@ -237,8 +237,20 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 
 - El usuario revisó y aprobó el PR #17 (sincronización). Se fusiona en `main` solo con la CI en verde; si falla, queda abierto y se anota aquí.
 - Servidor de desarrollo **apagado**. PostgreSQL (Docker) sigue encendido. Para volver a arrancar el servidor: `dart pub global run dart_frog_cli:dart_frog build` en `apps/server`, y luego `dart build/bin/server.dart` con el `.env` cargado. `SERVER_HOST=192.168.18.12` (Wi-Fi de la tienda); revisarlo con `ipconfig` si cambia la red.
-- Pendiente anotado para la Fase 3: sincronización inmediata por cada operación nueva (sección «Pendientes para fases siguientes»).
+- Pendiente anotado para la Fase 3: sincronización inmediata por cada operación nueva. **Corregido el 2026-11-25:** ya existe (disparador por aumento de pendientes), no queda pendiente.
 - **Siguiente paso exacto**, en este orden y cada uno en su propia rama desde `main`:
   1. **Tarea 5b**, rama `phase-1/clock-guard`: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`). Se actualiza al abrir la app, al entrar y en cada ronda de sincronización, y nunca baja. El PIN se bloquea (pide contraseña) si el reloj del equipo está más de 5 min por detrás de esa hora. Pruebas: reloj atrasado 6 min (bloquea), 4 min (no bloquea), y la hora vista que sobrevive a reiniciar la app. Es de autenticación: PR para revisión del usuario.
   2. **Tarea 7**, rama `phase-1/admin-screens`: pantallas de Usuarios (crear, rol, contraseña, PIN, desactivar) y Ajustes del negocio, solo Administrador, en el servidor y en la app. Más el cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo). Antes de programar, presentar el plan al usuario.
   3. **Tarea 8**: prueba de aceptación en la tablet y la PC con el usuario e informe en `docs/informes/fase-1.md`.
+
+### 2026-11-25 — Tarea 5b: reloj atrasado (PR para revisión)
+
+- `last_seen_at` en `local_settings` (base cifrada; sin migración): milisegundos UTC de la hora más alta vista. Se guarda al mostrar la pantalla de ingreso (abrir la app), al entrar con PIN y después de cada ronda de sincronización con éxito. Nunca baja por esas vías.
+- El PIN pide contraseña si el reloj está **más de 5 min por detrás** de esa hora: «La hora del equipo está atrasada. Corrígela o entra con tu contraseña.». No cuenta como intento fallido.
+- **Excepción (aprobada por el usuario el 2026-11-25):** el ingreso con **contraseña** (aceptado por el servidor) vuelve a fijar `last_seen_at` a la hora del equipo, aunque sea menor. Sin eso, un reloj adelantado una vez por error (por ejemplo, al año 2030) dejaría el PIN bloqueado hasta esa fecha en todos los usuarios del equipo.
+- Pruebas nuevas (`test/features/auth/local_auth_test.dart`): atrasado 4 min (entra), 6 min (bloquea, también en la lista de usuarios), la hora vista que sobrevive a una instancia nueva y no baja; la contraseña desbloquea tras un reloj adelantado. App 215 en verde; `flutter analyze` sin observaciones.
+- **Pendiente de prueba en dispositivo**: en la tablet, atrasar la hora más de 5 min y comprobar que el PIN pide contraseña.
+- **Aprobado por el usuario (2026-11-25), con una mejora en el mismo PR:**
+  - Al entrar con contraseña se usa la **hora del servidor** (cabecera `Date` de la respuesta del login) para `passwordLoginAt` y `last_seen_at`. Si el servidor no la envía, se usa el reloj del equipo.
+  - Si el reloj del equipo difiere **más de 5 min** de esa hora, la app muestra al abrirse un aviso ámbar fijo: «La hora de este equipo no coincide con la del servidor. Corrígela en Ajustes.». Si el equipo está atrasado, además el PIN queda bloqueado hasta corregir la hora o entrar con contraseña.
+  - Pruebas: hora del servidor guardada sin aviso con 4 min de diferencia; aviso con 6 min adelantado y 3 h atrasado; PIN bloqueado con el equipo 6 min atrasado; cabecera `Date` válida, ausente o mal formada; aviso visible en la app (prueba de punta a punta). App 219 en verde; `flutter analyze` sin observaciones.
