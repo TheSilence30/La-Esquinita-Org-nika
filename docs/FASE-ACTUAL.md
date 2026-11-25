@@ -11,7 +11,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
-- [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
+- [ ] 7. **PR abierto para revisión del usuario** (rama `phase-1/admin-screens`). Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
 ## Pendientes heredados de la Fase 0
@@ -265,3 +265,16 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
 - **Ajustes**: en esta tarea, solo los datos del ticket (nombre, dirección, RUC, teléfono, WhatsApp, pie). Los demás se editan en su fase.
 - Usuarios: crear, editar nombre y rol, contraseña temporal (obliga a cambiarla y cierra sus sesiones), PIN y desactivar o reactivar. No se puede desactivar ni quitar el rol al último Administrador activo, ni a uno mismo.
 - Todo con conexión (API directa, no outbox) y con `audit_log`. Es de autenticación: PR para revisión del usuario.
+
+### 2026-11-25 — Tarea 7: implementación (PR para revisión)
+
+- **Core**: `isValidRuc` (11 dígitos, prefijo 10/15/16/17/20 y dígito verificador módulo 11 de SUNAT), con su prueba.
+- **Servidor** (`AdminService`, todo en una transacción con `audit_log`, sin hashes en la auditoría):
+  - `GET/POST /users`, `PATCH /users/:id` (nombre, usuario, rol, activo), `POST /users/:id/password` (temporal: obliga a cambiarla y cierra sus sesiones), `POST /users/:id/pin`. Permiso `users.manage`.
+  - `GET/PATCH /settings`: solo los datos del ticket; solo se guardan y auditan los que cambian; un teléfono vacío queda como JSON `null`. Permiso `settings.manage`.
+  - `GET /devices` (con la última conexión: último envío, bajada o renovación de sesión) y `PATCH /devices/:id` (`active`). Permiso `settings.manage`.
+  - **Equipo dado de baja**: `authenticate`, `refresh` y `login` lo rechazan (el login, con 403 `device_blocked`, solo después de la contraseña correcta). Un equipo aún no registrado sí entra, porque se registra después de entrar.
+  - Reglas: nadie se desactiva ni se quita el rol de Administrador a sí mismo (así siempre queda un Administrador activo) ni da de baja su propio equipo (409 `self`); usuario repetido sin importar mayúsculas (409 `username_taken`).
+- **App**: *Ajustes* con tres pestañas (Negocio, Usuarios, Equipos), cada una según su permiso. En la PC desde el menú lateral; en la tablet y el celular desde *Más › Ajustes*. Usa la sesión guardada (`ServerSync.authorized`) y, tras cada cambio, una ronda de sincronización para actualizar las réplicas. Mensajes en español; un equipo dado de baja ve «Este equipo fue dado de baja. Pide al Administrador que lo reactive.» al entrar con contraseña. Fechas en hora de Lima (`limaDateTime`).
+- Pruebas: servidor **78** en verde (contra PostgreSQL: usuarios, ajustes, equipos, auditoría, revocación; rutas: 403 para Trabajo en todas, 400 por datos inválidos, 404/409); app **229** en verde (casos de uso, pantallas en PC y celular, mensaje de equipo dado de baja); `flutter analyze` y `dart analyze` sin observaciones. Servidor de desarrollo reconstruido y comprobado: las rutas nuevas responden 401 sin sesión.
+- **Pendiente de prueba en dispositivo, con el usuario**: desde la PC y la tablet, crear un usuario, cambiar un PIN (llega al otro equipo al sincronizar), editar los datos del negocio y dar de baja y reactivar un equipo.

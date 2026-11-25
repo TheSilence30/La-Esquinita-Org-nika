@@ -50,9 +50,20 @@ class ServerSync implements PushTransport {
         _replicas.apply(await api.pull(token, await _replicas.cursor())),
   );
 
-  /// Runs [f] with a valid access token; on a 401 (expired), refreshes once
-  /// and retries.
   Future<T> _call<T>(Future<T> Function(ServerApi api, String token) f) async {
+    try {
+      return await authorized(f);
+    } on ApiException catch (e) {
+      throw _syncError(e);
+    }
+  }
+
+  /// Runs [f] with a valid access token of the user on screen; on a 401
+  /// (expired), refreshes once and retries. Other server answers come back
+  /// as [ApiException]; a missing login as [SyncException].
+  Future<T> authorized<T>(
+    Future<T> Function(ServerApi api, String token) f,
+  ) async {
     final url = await _outbox.serverUrl();
     if (url == null) {
       throw const SyncException('Falta registrar el equipo.');
@@ -67,7 +78,7 @@ class ServerSync implements PushTransport {
           _access = null;
           continue;
         }
-        throw _syncError(e);
+        rethrow;
       }
     }
   }

@@ -64,7 +64,56 @@ final class SyncEngineProvider
   }
 }
 
-String _$syncEngineHash() => r'8a7d44426725d7926283484db2a06c320bf667fc';
+String _$syncEngineHash() => r'c767594f219d74fee8a70c670f9800a718c6d63b';
+
+/// The server with the saved login of the user on screen (sync and the
+/// Administrador screens).
+
+@ProviderFor(serverSync)
+final serverSyncProvider = ServerSyncProvider._();
+
+/// The server with the saved login of the user on screen (sync and the
+/// Administrador screens).
+
+final class ServerSyncProvider
+    extends $FunctionalProvider<ServerSync, ServerSync, ServerSync>
+    with $Provider<ServerSync> {
+  /// The server with the saved login of the user on screen (sync and the
+  /// Administrador screens).
+  ServerSyncProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'serverSyncProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$serverSyncHash();
+
+  @$internal
+  @override
+  $ProviderElement<ServerSync> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  ServerSync create(Ref ref) {
+    return serverSync(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(ServerSync value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<ServerSync>(value),
+    );
+  }
+}
+
+String _$serverSyncHash() => r'5746c17a0df448714343971dd900db39968f21c8';
 
 @ProviderFor(SyncStatus)
 final syncStatusProvider = SyncStatusProvider._();

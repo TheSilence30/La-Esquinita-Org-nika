@@ -275,12 +275,17 @@ class LocalAuth {
       'La hora de este equipo no coincide con la del servidor. Corrígela en '
       'Ajustes.';
 
+  /// The Administrador took this device out of service ("Dar de baja").
+  static const deviceBlocked =
+      'Este equipo fue dado de baja. Pide al Administrador que lo reactive.';
+
   static const _offline =
       'Sin conexión con el servidor. Revisa el Wi‑Fi y la dirección.';
 
   static String _loginMessage(ApiFailure f) => switch (f) {
     ApiFailure.unauthorized => 'Usuario o contraseña incorrectos.',
     ApiFailure.locked => 'Demasiados intentos. Espera 15 minutos.',
+    ApiFailure.forbidden => deviceBlocked,
     ApiFailure.offline => _offline,
     _ => 'El servidor no respondió bien. Intenta de nuevo.',
   };

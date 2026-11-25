@@ -36,6 +36,9 @@ class FakeServer implements ServerApi {
   };
   bool offline = false;
 
+  /// The Administrador took this device out of service: logins get a 403.
+  bool deviceBlocked = false;
+
   /// What the login sends as the `Date` header; null: none.
   DateTime? serverTime;
   final registered = <(String, String)>[];
@@ -71,6 +74,7 @@ class FakeServer implements ServerApi {
     if (user == null || user.password != p) {
       throw const ApiException(ApiFailure.unauthorized);
     }
+    if (deviceBlocked) throw const ApiException(ApiFailure.forbidden);
     logins.add(deviceId);
     return _issue(user);
   }
@@ -230,5 +234,108 @@ class FakeServer implements ServerApi {
     _check();
     loggedOut.add(refreshToken);
     liveRefresh.remove(refreshToken);
+  }
+
+  // --- Administrador routes (task 7) -----------------------------------------
+
+  /// Every admin request: (method, path, body).
+  final requests = <(String, String, Map<String, Object?>?)>[];
+
+  final settings = <String, Object?>{
+    'business.name': 'La Esquinita Orgánika',
+    'business.address': 'Av. Famesa',
+    'business.ruc': '10409288419',
+    'business.phone': null,
+    'business.whatsapp': null,
+    'ticket.footer': 'Gracias por su preferencia',
+  };
+
+  /// Device id → active.
+  final devices = <String, bool>{'d-tablet': true, 'd-pc': true};
+
+  static Never _refuse(String error) =>
+      throw ApiException(ApiFailure.rejected, '{"error":"$error"}');
+
+  @override
+  Future<Map<String, Object?>> request(
+    String method,
+    String path,
+    String token, {
+    Map<String, Object?>? body,
+  }) async {
+    _check();
+    final me = _authorized(token);
+    if (!me.admin) throw const ApiException(ApiFailure.forbidden);
+    requests.add((method, path, body));
+    final parts = path.split('/').skip(1).toList();
+    FakeUser byId(String id) => users.values.firstWhere(
+      (u) => u.id == id,
+      orElse: () => throw const ApiException(ApiFailure.notFound),
+    );
+    switch ((method, parts)) {
+      case ('GET', ['users']):
+        return {
+          'users': [
+            for (final MapEntry(key: name, value: u) in users.entries)
+              {
+                'id': u.id,
+                'username': name,
+                'full_name': name,
+                'role': u.admin ? 'admin' : 'staff',
+                'active': u.active,
+                'has_pin': true,
+                'must_change_password': u.mustChange,
+                'last_login_at': null,
+              },
+          ],
+        };
+      case ('POST', ['users']):
+        final name = body!['username']! as String;
+        if (users.keys.any((k) => k.toLowerCase() == name.toLowerCase())) {
+          _refuse('username_taken');
+        }
+        users[name] = FakeUser(
+          'u-$name',
+          body['password']! as String,
+          mustChange: true,
+          admin: body['role'] == 'admin',
+        );
+        return {'id': 'u-$name'};
+      case ('PATCH', ['users', final id]):
+        final u = byId(id);
+        if (id == me.id && body!['active'] == false) _refuse('self');
+        if (body!['active'] case final bool a) u.active = a;
+        return {'id': id};
+      case ('POST', ['users', final id, 'password' || 'pin']):
+        byId(id);
+        return const {};
+      case ('GET', ['settings']):
+        return settings;
+      case ('PATCH', ['settings']):
+        settings.addAll(body!);
+        return settings;
+      case ('GET', ['devices']):
+        return {
+          'devices': [
+            for (final MapEntry(key: id, value: active) in devices.entries)
+              {
+                'id': id,
+                'name': id == 'd-pc' ? 'PC caja' : 'Tablet caja',
+                'platform': id == 'd-pc' ? 'windows' : 'android',
+                'series_prefix': id == 'd-pc' ? 'P1' : 'T1',
+                'active': active,
+                'last_seen_at': '2026-11-25T17:46:00.000Z',
+                'pending_ops': 0,
+              },
+          ],
+        };
+      case ('PATCH', ['devices', final id]):
+        if (!devices.containsKey(id)) {
+          throw const ApiException(ApiFailure.notFound);
+        }
+        devices[id] = body!['active']! as bool;
+        return const {};
+    }
+    throw ApiException(ApiFailure.rejected, 'no route $method $path');
   }
 }
