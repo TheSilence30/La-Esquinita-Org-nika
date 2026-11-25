@@ -6,8 +6,8 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
 
 - [x] 1. PR #25, aprobado y fusionado. Migraciones y seed del catálogo e inventario (`modelo-datos.md` §2.1–2.2; unidades `und`, `kg`, `l` y las 6 categorías de ejemplo), con pruebas contra PostgreSQL
 - [x] 2. PR #26, aprobado y fusionado. Core: presentaciones y conversión, validación de códigos (dígito verificador, formatos, daño de Excel), saldo por movimientos y FEFO. **Pedido del usuario:** `product_costs.on_hand_milli` se actualiza en la misma transacción que cada movimiento, con una prueba de que siempre coincide con la suma de `stock_balances` del producto
-- [x] 3. **PR abierto para revisión del usuario** (rama `phase-2/create-product`, sincronización). `CreateProduct` en el servidor y en la app (outbox, `duplicate_barcode`), bajada del catálogo y réplicas en drift
-- [ ] 4. Pantallas de Productos y Registrar por escaneo (tablet y PC), con stock inicial
+- [x] 3. PR #27, aprobado y fusionado. `CreateProduct` en el servidor y en la app (outbox, `duplicate_barcode`), bajada del catálogo y réplicas en drift
+- [ ] 4. Pantallas de Productos y Registrar por escaneo (tablet y PC), con stock inicial. **Pedido del usuario:** índice sobre `version` en cada tabla replicada, para que la bajada no recorra tablas completas
 - [ ] 5. Editar producto, presentaciones, códigos y precios en línea (Administrador, `price_changes`)
 - [ ] 6. Stock local, kardex, `AdjustStock` (ajustes y mermas) y PIN de Administrador para autorizar
 - [ ] 7. Conteo físico por escaneo y `CloseInventoryCount`
@@ -97,3 +97,12 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
   - alta local atómica, contadores, código repetido, la bajada que reemplaza la copia local;
   - **migración v2 → v3 conservando los datos**.
 - shortcut: si el servidor **rechaza** un alta (caso raro: categoría inexistente o autor sin permiso), la copia local se queda en el equipo. La tarea 4 mostrará las operaciones rechazadas.
+
+### 2026-11-25 — PR #27 fusionado; pendiente para la tarea 4
+
+- El usuario revisó y aprobó el PR #27 (alta sin conexión y bajada del catálogo). Se fusionó en `main` (`d329640`) con la CI en verde.
+- La tarea 4 **no** se empieza hasta que el usuario lo indique.
+- **Pendiente para la tarea 4 (pedido del usuario):** agregar un **índice sobre `version`** en cada tabla replicada, para que `GET /sync/pull` (con su paginación) no haga recorridos completos:
+  - `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `devices`, `settings`;
+  - `categories`, `brands`, `units`, `products`, `product_costs`, `product_presentations`, `barcodes`, `lots`, `stock_balances`.
+  - Va en una migración nueva del servidor, con una prueba que verifique que cada tabla de `PullService.tables` tiene su índice.
