@@ -35,7 +35,7 @@ Fecha: 2026-11-20 · Estado: **aceptada** (decisión del usuario del 2026-11-20)
 ### 3. Administración desde la PC
 
 - El Administrador puede **cambiar el PIN** de un usuario. El nuevo `pin_hash` baja en el siguiente pull; el anterior deja de servir en ese momento en los equipos conectados.
-- El Administrador puede **cerrar las sesiones de un equipo perdido**: el servidor revoca sus refresh tokens y desactiva el equipo, que ya no puede enviar ni bajar datos. Si el equipo vuelve a conectarse, borra su sesión guardada.
+- ~~El Administrador puede **cerrar las sesiones de un equipo perdido**: el servidor revoca sus refresh tokens y desactiva el equipo. Si el equipo vuelve a conectarse, borra su sesión guardada.~~ **Reemplazado (2026-11-25, decisión del usuario):** «Dar de baja» solo bloquea el equipo (403 `device_blocked` en el login, el refresh y toda ruta con sesión), sin revocar ni borrar nada; al reactivarlo vuelve a sincronizar solo. Ver ADR-0005.
 
 ## Consecuencias
 

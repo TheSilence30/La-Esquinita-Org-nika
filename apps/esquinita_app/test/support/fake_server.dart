@@ -87,6 +87,28 @@ class FakeServer implements ServerApi {
     return _issue(user);
   }
 
+  /// User ids that renewed their session with the PIN.
+  final pinLogins = <String>[];
+
+  @override
+  Future<LoginTokens> loginWithPin(
+    String userId,
+    String pin,
+    String deviceId,
+  ) async {
+    _check();
+    if (deviceBlocked) throw _blocked;
+    final user = users.values.firstWhere(
+      (u) => u.id == userId,
+      orElse: () => throw const ApiException(ApiFailure.unauthorized),
+    );
+    if (!await testHasher.verify(pin, pinHash)) {
+      throw const ApiException(ApiFailure.unauthorized);
+    }
+    pinLogins.add(userId);
+    return _issue(user);
+  }
+
   /// The access token issued last.
   String? lastAccess;
 

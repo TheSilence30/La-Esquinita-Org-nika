@@ -181,6 +181,60 @@ class AuthService {
     );
   }
 
+  /// Renews the session of a device that lost it (e.g. a refresh answer
+  /// that never arrived) with the user's PIN instead of the password (user,
+  /// 2026-11-25, ADR-0005). Only for a registered device in service where
+  /// this user already logged in with the password, a user with a PIN who
+  /// needs no password change. Failures count with the password ones: 5 in
+  /// 15 minutes lock the username.
+  Future<LoginResult> loginWithPin(
+    String userId,
+    String pin,
+    String deviceId,
+  ) async {
+    const refused = (
+      tokens: null,
+      mustChangePassword: false,
+      failure: LoginFailure.invalidCredentials,
+    );
+    final rows = await _db.execute(
+      Sql.named('''
+        select u.username, u.pin_hash, d.active
+        from users u
+        join devices d on d.id = @d:uuid
+        where u.id = @u:uuid and u.active and not u.must_change_password
+          and u.pin_hash is not null
+          and exists (select 1 from refresh_tokens t
+                      where t.user_id = u.id and t.device_id = d.id)'''),
+      parameters: {'u': userId, 'd': deviceId},
+    );
+    if (rows.isEmpty) return refused;
+    final key = (rows.single[0]! as String).toLowerCase();
+    if (_isLocked(key)) {
+      return (
+        tokens: null,
+        mustChangePassword: false,
+        failure: LoginFailure.locked,
+      );
+    }
+    if (!await _passwords.verify(pin, rows.single[1]! as String)) {
+      (_failures[key] ??= []).add(_clock());
+      return refused;
+    }
+    _failures.remove(key);
+    if (!(rows.single[2]! as bool)) {
+      return (
+        tokens: null,
+        mustChangePassword: false,
+        failure: LoginFailure.deviceBlocked,
+      );
+    }
+    final tokens = await _db.runTx(
+      (tx) => _issue(tx, userId, deviceId, family: uuidV7()),
+    );
+    return (tokens: tokens, mustChangePassword: false, failure: null);
+  }
+
   /// New tokens for a valid refresh token, which stops working. Presenting
   /// a token that was already rotated means it was copied: the whole login
   /// (its family) is revoked. Throws [DeviceBlocked] (without rotating) for

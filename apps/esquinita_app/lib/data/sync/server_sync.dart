@@ -32,8 +32,10 @@ class ServerSync implements PushTransport {
 
   ({String userId, String token})? _access;
 
+  /// The saved login is gone (e.g. a refresh answer that never arrived):
+  /// the PIN renews it (user, 2026-11-25, ADR-0005).
   static const needsPassword = SyncException(
-    'Entra con tu contraseña para sincronizar.',
+    'Toca aquí y escribe tu PIN para volver a sincronizar.',
     needsPassword: true,
   );
 

@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../auth/application/auth_providers.dart';
+import '../../auth/application/local_auth.dart';
 
 import '../../../app/theme.dart';
 import '../../../prototype/widgets/common.dart';
@@ -26,7 +30,7 @@ class SyncChip extends ConsumerWidget {
       ),
       final r when r.error?.needsPassword ?? false => (
         Icons.lock_clock_outlined,
-        'Contraseña · pendientes ${n ?? '-'}',
+        'PIN · pendientes ${n ?? '-'}',
         EsquinitaColors.red,
       ),
       final r when r.error != null => (
@@ -64,6 +68,13 @@ class SyncChip extends ConsumerWidget {
   Future<void> _syncNow(BuildContext context, WidgetRef ref) async {
     final engine = ref.read(syncEngineProvider);
     final messenger = ScaffoldMessenger.maybeOf(context);
+    if (engine.lastError?.needsPassword ?? false) {
+      final message = await renewWithPin(context, ref);
+      if (message != null) {
+        messenger?.showSnackBar(SnackBar(content: Text(message)));
+        return;
+      }
+    }
     await engine.syncNow();
     final e = engine.lastError;
     messenger?.showSnackBar(
@@ -78,6 +89,75 @@ class SyncChip extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Asks the PIN of the user on screen to get a new saved login (ADR-0005).
+/// Null when it went through (then sync); otherwise what to tell them.
+Future<String?> renewWithPin(BuildContext context, WidgetRef ref) async {
+  final userId = ref.read(currentSessionProvider)?.userId;
+  if (userId == null) return null;
+  final pin = await showDialog<String>(
+    context: context,
+    builder: (_) => const _PinDialog(),
+  );
+  if (pin == null) return 'Sin el PIN no se puede sincronizar.';
+  final r = await ref.read(localAuthProvider).loginWithPin(userId, pin);
+  return switch (r) {
+    PinOk() => null,
+    WrongPin(:final attemptsLeft) =>
+      attemptsLeft == 1
+          ? 'PIN incorrecto. Te queda 1 intento.'
+          : 'PIN incorrecto. Te quedan $attemptsLeft intentos.',
+    PinNeedsPassword(:final reason) => reason,
+  };
+}
+
+class _PinDialog extends StatefulWidget {
+  const _PinDialog();
+
+  @override
+  State<_PinDialog> createState() => _PinDialogState();
+}
+
+class _PinDialogState extends State<_PinDialog> {
+  final _pin = TextEditingController();
+
+  @override
+  void dispose() {
+    _pin.dispose();
+    super.dispose();
+  }
+
+  void _ok() => Navigator.pop(context, _pin.text);
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Escribe tu PIN'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text('Para volver a sincronizar con el servidor.'),
+        TextField(
+          key: const Key('renew-pin'),
+          controller: _pin,
+          autofocus: true,
+          obscureText: true,
+          keyboardType: TextInputType.number,
+          maxLength: 6,
+          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+          decoration: const InputDecoration(labelText: 'PIN', counterText: ''),
+          onSubmitted: (_) => _ok(),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(onPressed: _ok, child: const Text('Sincronizar')),
+    ],
+  );
 }
 
 /// Starts a sync round when someone logs in (this widget is built once per

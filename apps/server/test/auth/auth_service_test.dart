@@ -246,6 +246,96 @@ void main() {
       );
     });
 
+    test('the PIN renews a lost session, only where the user already '
+        'logged in with the password (ADR-0005)', () async {
+      const tablet = '019a9a00-0000-7000-8000-0000000000d8';
+      const fresh = '019a9a00-0000-7000-8000-0000000000d7';
+      for (final (id, series, digit) in [(tablet, 'T8', 8), (fresh, 'T7', 7)]) {
+        await db.execute(
+          Sql.named('''
+            insert into devices (id, name, platform, series_prefix,
+                                 barcode_digit, version)
+            values (@d:uuid, 'Tablet', 'android', @s:text, @g:int4, 0)'''),
+          parameters: {'d': id, 's': series, 'g': digit},
+        );
+      }
+      final staffId =
+          (await db.execute(
+                "select id from users where username = 'Trabajo'",
+              )).single[0]!
+              as String;
+      // A user who must change the password needs the password.
+      expect(
+        (await auth.loginWithPin(staffId, '567890', fresh)).failure,
+        LoginFailure.invalidCredentials,
+      );
+      await db.execute(
+        'update users set must_change_password = false '
+        "where username = 'Trabajo'",
+      );
+      // Never logged in on [fresh]: the PIN alone opens nothing there.
+      expect(
+        (await auth.loginWithPin(staffId, '567890', fresh)).failure,
+        LoginFailure.invalidCredentials,
+      );
+      final first = (await auth.login(
+        'Trabajo',
+        'trabajo-inicial-1',
+        tablet,
+      )).tokens!;
+      await auth.logout(first.refreshToken); // the session is lost
+      expect(
+        (await auth.loginWithPin(staffId, '0000', tablet)).failure,
+        LoginFailure.invalidCredentials,
+      );
+      final r = await auth.loginWithPin(staffId, '567890', tablet);
+      expect(r.failure, isNull);
+      final user = await auth.authenticate(r.tokens!.accessToken);
+      expect((user!.userId, user.deviceId), (staffId, tablet));
+      expect(await auth.refresh(r.tokens!.refreshToken), isNotNull);
+
+      // Out of service: refused, but only after the right PIN.
+      await db.execute(
+        Sql.named('update devices set active = false where id = @d:uuid'),
+        parameters: {'d': tablet},
+      );
+      expect(
+        (await auth.loginWithPin(staffId, '567890', tablet)).failure,
+        LoginFailure.deviceBlocked,
+      );
+    });
+
+    test('wrong PINs count with wrong passwords: 5 lock the user', () async {
+      const tablet = '019a9a00-0000-7000-8000-0000000000d8';
+      await db.execute(
+        Sql.named('update devices set active = true where id = @d:uuid'),
+        parameters: {'d': tablet},
+      );
+      final staffId =
+          (await db.execute(
+                "select id from users where username = 'Trabajo'",
+              )).single[0]!
+              as String;
+      for (var i = 0; i < 3; i++) {
+        await auth.loginWithPin(staffId, '0000', tablet);
+      }
+      await auth.login('Trabajo', 'mal', _device);
+      await auth.login('Trabajo', 'mal', _device);
+      expect(
+        (await auth.loginWithPin(staffId, '567890', tablet)).failure,
+        LoginFailure.locked,
+      );
+      expect(
+        (await auth.login('Trabajo', 'trabajo-inicial-1', _device)).failure,
+        LoginFailure.locked,
+      );
+      // Back as the seed left it, for the tests after this one.
+      await db.execute(
+        'update users set must_change_password = true '
+        "where username = 'Trabajo'",
+      );
+    });
+
     test('/me has roles and permissions, never a hash', () async {
       final user = await auth.authenticate(
         (await login('Trabajo', 'trabajo-inicial-1')).accessToken,

@@ -120,21 +120,18 @@ void main() {
     expect(rounds, 0);
   });
 
-  test(
-    'Trabajo is refused; without a login it asks for the password',
-    () async {
-      // Trabajo must change the initial password before getting a session.
-      server.users['Trabajo']!.mustChange = false;
-      await LocalAuth(
-        db: db,
-        apiFor: (_) => server,
-        verifyPin: verifyPinArgon2,
-        platform: 'android',
-      ).loginWithPassword('Trabajo', 'trabajo-1234');
-      onScreen = staffId;
-      await expectLater(admin.users(), fails('Solo un Administrador'));
-      onScreen = null;
-      await expectLater(admin.users(), fails('contraseña'));
-    },
-  );
+  test('Trabajo is refused; without a login it asks for the PIN', () async {
+    // Trabajo must change the initial password before getting a session.
+    server.users['Trabajo']!.mustChange = false;
+    await LocalAuth(
+      db: db,
+      apiFor: (_) => server,
+      verifyPin: verifyPinArgon2,
+      platform: 'android',
+    ).loginWithPassword('Trabajo', 'trabajo-1234');
+    onScreen = staffId;
+    await expectLater(admin.users(), fails('Solo un Administrador'));
+    onScreen = null;
+    await expectLater(admin.users(), fails('escribe tu PIN'));
+  });
 }

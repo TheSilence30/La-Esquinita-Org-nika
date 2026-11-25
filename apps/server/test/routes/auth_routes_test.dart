@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import '../../routes/auth/login.dart' as login;
 import '../../routes/auth/logout.dart' as logout;
 import '../../routes/auth/password.dart' as password;
+import '../../routes/auth/pin.dart' as pin;
 import '../../routes/auth/refresh.dart' as refresh;
 import '../../routes/me.dart' as me;
 
@@ -113,6 +114,36 @@ void main() {
         expect((await login.onRequest(context)).statusCode, status);
       }
     });
+  });
+
+  test('POST /auth/pin: 400 for bad bodies, 200 with tokens, 401, 429, '
+      '403 device_blocked', () async {
+    const user = '019a9a00-0000-7000-8000-0000000000a1';
+    for (final bad in <Object?>[
+      {'user_id': user, 'pin': '12', 'device_id': _device},
+      {'user_id': 'x', 'pin': '1234', 'device_id': _device},
+      {'pin': '1234', 'device_id': _device},
+    ]) {
+      request('POST', bad);
+      expect((await pin.onRequest(context)).statusCode, 400, reason: '$bad');
+    }
+    verifyNever(() => auth.loginWithPin(any(), any(), any()));
+    for (final (failure, status) in [
+      (null, 200),
+      (LoginFailure.invalidCredentials, 401),
+      (LoginFailure.locked, 429),
+      (LoginFailure.deviceBlocked, 403),
+    ]) {
+      when(() => auth.loginWithPin(user, '1234', _device)).thenAnswer(
+        (_) async => (
+          tokens: failure == null ? _tokens : null,
+          mustChangePassword: false,
+          failure: failure,
+        ),
+      );
+      request('POST', {'user_id': user, 'pin': '1234', 'device_id': _device});
+      expect((await pin.onRequest(context)).statusCode, status);
+    }
   });
 
   test('POST /auth/refresh: 200 with new tokens, 401 for a bad one', () async {

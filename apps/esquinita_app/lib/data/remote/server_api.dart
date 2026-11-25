@@ -55,6 +55,10 @@ typedef LoginTokens = ({
 abstract interface class ServerApi {
   Future<LoginTokens> login(String username, String password, String deviceId);
 
+  /// `POST /auth/pin`: a new session with the PIN, for a device where the
+  /// user already logged in with the password (ADR-0005).
+  Future<LoginTokens> loginWithPin(String userId, String pin, String deviceId);
+
   /// `GET /me`: user, roles and permissions.
   Future<Map<String, Object?>> me(String accessToken);
 
@@ -118,6 +122,20 @@ class HttpServerApi implements ServerApi {
     final r = await _exchange('POST', '/auth/login', {
       'username': username,
       'password': password,
+      'device_id': deviceId,
+    });
+    return _tokens(r.body, r.date);
+  }
+
+  @override
+  Future<LoginTokens> loginWithPin(
+    String userId,
+    String pin,
+    String deviceId,
+  ) async {
+    final r = await _exchange('POST', '/auth/pin', {
+      'user_id': userId,
+      'pin': pin,
       'device_id': deviceId,
     });
     return _tokens(r.body, r.date);
