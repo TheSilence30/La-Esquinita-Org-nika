@@ -216,6 +216,55 @@ void main() {
       );
     });
 
+    test('a clock set back more than 5 min from the latest time seen blocks '
+        'the PIN; 4 min does not; the time seen survives a restart and '
+        'never goes down', () async {
+      now = DateTime.utc(2026, 11, 22, 12);
+      await auth().loginUsers(); // the app opens at 12:00
+      now = DateTime.utc(2026, 11, 22, 11, 30);
+      await auth().markTimeSeen(); // an earlier time does not lower it
+      expect(
+        await db.select(db.localSettings).get(),
+        contains(
+          isA<LocalSetting>()
+              .having((s) => s.key, 'key', 'last_seen_at')
+              .having(
+                (s) => s.value,
+                'value',
+                '${DateTime.utc(2026, 11, 22, 12).millisecondsSinceEpoch}',
+              ),
+        ),
+      );
+
+      now = DateTime.utc(2026, 11, 22, 11, 56); // 4 min behind
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+
+      now = DateTime.utc(2026, 11, 22, 11, 54); // 6 min behind, new instance
+      final r = await auth().loginWithPin(adminId, '4821');
+      expect((r as PinNeedsPassword).reason, contains('hora'));
+      expect(await failedPins(adminId), 0, reason: 'not counted as a failure');
+      expect(
+        (await auth().loginUsers())
+            .firstWhere((u) => u.userId == adminId)
+            .blockedReason,
+        contains('hora'),
+      );
+    });
+
+    test('a password login trusts the clock again: a clock once set '
+        'forward does not block the PIN for good', () async {
+      now = DateTime.utc(2030);
+      await auth().markTimeSeen();
+      now = DateTime.utc(2026, 11, 22, 12);
+      expect(
+        await auth().loginWithPin(adminId, '4821'),
+        isA<PinNeedsPassword>(),
+      );
+      server.offline = false;
+      await adminLogin();
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+    });
+
     test('a deactivated user (after a pull) or one without a login here '
         'cannot use the PIN', () async {
       expect(
