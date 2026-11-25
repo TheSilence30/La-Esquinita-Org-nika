@@ -315,6 +315,15 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
   - **Decisión del usuario: dejarlo como está.** Se mantiene la regla del 2026-11-22: un refresh reutilizado revoca la sesión y la sincronización pide la contraseña una vez; el PIN sigue funcionando en el equipo. Se descartó tolerar la respuesta perdida y validar el PIN en el servidor.
 - **Paso 8**: Trabajo en la tablet entra a Vender y no ve Ajustes. Bien.
 - **Prueba de aceptación completa.** Informe: `docs/informes/fase-1.md`. En espera de la aprobación de la Fase 1 y del PR #20.
+
+### 2026-11-25 — Aprobaciones y cambio sobre el PIN (ADR-0005)
+
+- El usuario aceptó las fusiones y las propuestas: **PR #20 fusionado** en `main` (`2f2b473`) con la CI en verde. Se harán: ocultar por defecto los usuarios desactivados y los equipos dados de baja («Mostrar desactivados»), y cambiar el nombre de un equipo.
+- **Cambio de decisión del usuario**: el PIN también renueva la sesión para sincronizar («queremos agilidad y operabilidad»). Reemplaza la regla del 2026-11-22 sobre el refresh perdido. Detalle en `docs/adr/0005-pin-renueva-sesion.md`.
+  - Servidor: `POST /auth/pin`, solo en un equipo en servicio donde ese usuario ya entró con contraseña. Los PIN fallidos cuentan con las contraseñas fallidas (5 en 15 min bloquean).
+  - App: el PIN se comprueba primero en el equipo; si es correcto y la sesión se perdió, pide una nueva al servidor. El indicador dice «PIN · pendientes N» y, al tocarlo, pide el PIN y sincroniza.
+  - ADR-0004 actualizado: «Dar de baja» solo bloquea (decisión del mismo día).
+  - Pruebas: servidor 82 y app 235, en verde.
 - **Propuestas aceptadas (rama `phase-1/admin-polish`)**:
   - Usuarios y Equipos ocultan por defecto los desactivados y los dados de baja; «Mostrar desactivados (N)» los vuelve a mostrar (un interruptor para las dos listas).
   - Tocar un equipo permite cambiarle el nombre (`PATCH /devices/:id` con `name`, auditado como `devices.rename`; el mismo nombre no cambia nada).

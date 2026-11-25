@@ -256,6 +256,7 @@ class LocalAuth {
     if (await verifyPin(pin, user.pinHash!)) {
       await _setFailedPins(userId, 0);
       await markTimeSeen();
+      if (session.refreshToken == null) await _renewWithPin(userId, pin);
       return PinOk(await _session(userId));
     }
     if (failed >= maxFailedPins) {
@@ -396,6 +397,24 @@ class LocalAuth {
       ).pull();
     } on SyncException {
       // Offline or no saved login: the PIN works with what is here.
+    }
+  }
+
+  /// The saved login was lost: the right PIN asks the server for a new one,
+  /// so syncing does not wait for the password (user, 2026-11-25,
+  /// ADR-0005). Offline or refused, the PIN still opens the app here. The
+  /// 7 days still count from the last password login.
+  Future<void> _renewWithPin(String userId, String pin) async {
+    final url = await _outbox.serverUrl();
+    if (url == null) return;
+    try {
+      final t = await quickApiFor(url)
+          .loginWithPin(userId, pin, await _outbox.deviceId());
+      await (db.update(db.localSessions)..where((s) => s.userId.equals(userId)))
+          .write(LocalSessionsCompanion(refreshToken: Value(t.refreshToken)));
+      // Its access token is not kept: the next round refreshes once.
+    } on ApiException {
+      // Offline, a PIN changed on the server, a device out of service...
     }
   }
 

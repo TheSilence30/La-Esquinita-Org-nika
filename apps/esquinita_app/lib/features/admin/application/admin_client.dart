@@ -138,11 +138,15 @@ class AdminClient {
     try {
       return await _server.authorized(f);
     } on SyncException catch (e) {
-      throw AdminFailure(e.message);
+      throw AdminFailure(e.needsPassword ? lostLogin : e.message);
     } on ApiException catch (e) {
       throw AdminFailure(message(e));
     }
   }
+
+  static const lostLogin =
+      'Se perdió la sesión con el servidor. Toca el indicador de '
+      'sincronización y escribe tu PIN.';
 
   /// What the screen says for a refused change.
   static String message(ApiException e) => switch (e.failure) {
@@ -150,7 +154,7 @@ class AdminClient {
     ApiFailure.offline =>
       'Sin conexión con el servidor. Estos cambios necesitan conexión.',
     ApiFailure.forbidden => 'Solo un Administrador puede hacer esto.',
-    ApiFailure.unauthorized => ServerSync.needsPassword.message,
+    ApiFailure.unauthorized => lostLogin,
     ApiFailure.notFound => 'Ya no existe. Actualiza la lista.',
     _ => switch (_code(e.detail)) {
       'username_taken' => 'Ese nombre de usuario ya existe.',

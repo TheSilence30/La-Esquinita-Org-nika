@@ -221,6 +221,27 @@ void main() {
       expect((r as PinNeedsPassword).reason, contains('desactivado'));
     });
 
+    test('a lost saved login is renewed with the right PIN, not the '
+        'password (ADR-0005); a wrong PIN never reaches the server', () async {
+      Future<String?> refresh() async =>
+          (await db.select(db.localSessions).getSingle()).refreshToken;
+      await (db.update(db.localSessions))
+          .write(const LocalSessionsCompanion(refreshToken: Value(null)));
+      server.offline = false;
+      expect(await auth().loginWithPin(adminId, '0000'), isA<WrongPin>());
+      expect(server.pinLogins, isEmpty);
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+      expect(server.pinLogins, [adminId]);
+      expect(server.liveRefresh, contains(await refresh()));
+
+      // Offline: the PIN still opens the app; the login stays lost.
+      await (db.update(db.localSessions))
+          .write(const LocalSessionsCompanion(refreshToken: Value(null)));
+      server.offline = true;
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+      expect(await refresh(), isNull);
+    });
+
     test('offline, the PIN downloaded last still works', () async {
       server.pinHash = await testHasher.hash('9999'); // not downloaded
       expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
