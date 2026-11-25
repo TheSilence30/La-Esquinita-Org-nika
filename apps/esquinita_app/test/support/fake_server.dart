@@ -263,6 +263,9 @@ class FakeServer implements ServerApi {
   /// Device id → active.
   final devices = <String, bool>{'d-tablet': true, 'd-pc': true};
 
+  /// Device id → name, once renamed.
+  final deviceNames = <String, String>{};
+
   static Never _refuse(String error) =>
       throw ApiException(ApiFailure.rejected, '{"error":"$error"}');
 
@@ -330,7 +333,9 @@ class FakeServer implements ServerApi {
             for (final MapEntry(key: id, value: active) in devices.entries)
               {
                 'id': id,
-                'name': id == 'd-pc' ? 'PC caja' : 'Tablet caja',
+                'name':
+                    deviceNames[id] ??
+                    (id == 'd-pc' ? 'PC caja' : 'Tablet caja'),
                 'platform': id == 'd-pc' ? 'windows' : 'android',
                 'series_prefix': id == 'd-pc' ? 'P1' : 'T1',
                 'active': active,
@@ -343,7 +348,8 @@ class FakeServer implements ServerApi {
         if (!devices.containsKey(id)) {
           throw const ApiException(ApiFailure.notFound);
         }
-        devices[id] = body!['active']! as bool;
+        if (body!['active'] case final bool a) devices[id] = a;
+        if (body['name'] case final String n) deviceNames[id] = n;
         return const {};
     }
     throw ApiException(ApiFailure.rejected, 'no route $method $path');

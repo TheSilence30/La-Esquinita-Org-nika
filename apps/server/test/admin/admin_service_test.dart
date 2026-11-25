@@ -318,6 +318,24 @@ void main() {
   });
 
   group('devices', () {
+    test('rename: audited; the same name changes nothing', () async {
+      await admin.renameDevice(actor, _tablet, 'Tablet caja 2');
+      await admin.renameDevice(actor, _tablet, 'Tablet caja 2');
+      final t = (await admin.devices()).firstWhere((d) => d['id'] == _tablet);
+      expect(t['name'], 'Tablet caja 2');
+      expect((await audit()).map((a) => [a[0], a[3], a[4]]), [
+        [
+          'devices.rename',
+          {'name': 'T1'},
+          {'name': 'Tablet caja 2'},
+        ],
+      ]);
+      await expectLater(
+        admin.renameDevice(actor, '019a9a00-0000-7000-8000-00000000ffff', 'X'),
+        refused(AdminRefusal.notFound),
+      );
+    });
+
     test('list with the last contact', () async {
       await auth.login('Trabajo', 'trabajo-inicial-1', _tablet);
       final ds = await admin.devices();

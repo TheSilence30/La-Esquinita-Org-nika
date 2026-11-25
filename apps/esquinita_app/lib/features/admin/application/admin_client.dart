@@ -113,6 +113,9 @@ class AdminClient {
       _device(d as Map<String, Object?>),
   ];
 
+  Future<void> renameDevice(String id, String name) =>
+      _change('PATCH', '/devices/$id', {'name': name});
+
   /// false: "Dar de baja"; true: "Reactivar".
   Future<void> setDeviceActive(String id, {required bool active}) =>
       _change('PATCH', '/devices/$id', {'active': active});

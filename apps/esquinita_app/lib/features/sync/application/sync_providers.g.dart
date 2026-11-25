@@ -64,7 +64,7 @@ final class SyncEngineProvider
   }
 }
 
-String _$syncEngineHash() => r'c767594f219d74fee8a70c670f9800a718c6d63b';
+String _$syncEngineHash() => r'6cc6c3e9e09e3d1dfcba860dc6eb0c03ce305f06';
 
 /// The server with the saved login of the user on screen (sync and the
 /// Administrador screens).

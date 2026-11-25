@@ -315,3 +315,7 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
   - **Decisión del usuario: dejarlo como está.** Se mantiene la regla del 2026-11-22: un refresh reutilizado revoca la sesión y la sincronización pide la contraseña una vez; el PIN sigue funcionando en el equipo. Se descartó tolerar la respuesta perdida y validar el PIN en el servidor.
 - **Paso 8**: Trabajo en la tablet entra a Vender y no ve Ajustes. Bien.
 - **Prueba de aceptación completa.** Informe: `docs/informes/fase-1.md`. En espera de la aprobación de la Fase 1 y del PR #20.
+- **Propuestas aceptadas (rama `phase-1/admin-polish`)**:
+  - Usuarios y Equipos ocultan por defecto los desactivados y los dados de baja; «Mostrar desactivados (N)» los vuelve a mostrar (un interruptor para las dos listas).
+  - Tocar un equipo permite cambiarle el nombre (`PATCH /devices/:id` con `name`, auditado como `devices.rename`; el mismo nombre no cambia nada).
+  - Pruebas: servidor 80 y app 235 en esta rama, en verde.

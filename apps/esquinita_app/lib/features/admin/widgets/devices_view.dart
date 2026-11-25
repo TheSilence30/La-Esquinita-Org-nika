@@ -21,6 +21,7 @@ class DevicesView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final me = ref.watch(_thisDevice).value;
+    final showInactive = ref.watch(adminShowInactiveProvider);
     return AsyncSection(
       value: ref.watch(adminDevicesProvider),
       onRetry: () => ref.invalidate(adminDevicesProvider),
@@ -37,7 +38,12 @@ class DevicesView extends ConsumerWidget {
                 'solo.',
               ),
             ),
-            for (final d in devices) _DeviceTile(device: d, isMe: d.id == me),
+            ShowInactiveSwitch(
+              inactive: devices.where((d) => !d.active).length,
+            ),
+            for (final d in devices)
+              if (d.active || showInactive)
+                _DeviceTile(device: d, isMe: d.id == me),
           ],
         ),
       ),
@@ -71,6 +77,7 @@ class _DeviceTile extends ConsumerWidget {
       ),
       title: Text(isMe ? '${d.name} (este equipo)' : d.name),
       subtitle: Text(details.join(' · ')),
+      onTap: () => _rename(context, ref),
       trailing: isMe
           ? null
           : d.active
@@ -84,6 +91,20 @@ class _DeviceTile extends ConsumerWidget {
               child: const Text('Reactivar'),
             ),
     );
+  }
+
+  Future<void> _rename(BuildContext context, WidgetRef ref) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(current: device.name),
+    );
+    if (name == null || name == device.name || !context.mounted) return;
+    final ok = await runChange(
+      context,
+      () => ref.read(adminClientProvider).renameDevice(device.id, name),
+      done: 'Nombre del equipo cambiado.',
+    );
+    if (ok) ref.invalidate(adminDevicesProvider);
   }
 
   Future<void> _setActive(
@@ -130,4 +151,57 @@ class _DeviceTile extends ConsumerWidget {
         ),
       ) ??
       false;
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.current});
+
+  final String current;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  final _form = GlobalKey<FormState>();
+  late final _name = TextEditingController(text: widget.current);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  void _ok() {
+    if (_form.currentState!.validate()) {
+      Navigator.pop(context, _name.text.trim());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Nombre del equipo'),
+    content: Form(
+      key: _form,
+      child: TextFormField(
+        controller: _name,
+        autofocus: true,
+        maxLength: 60,
+        decoration: const InputDecoration(
+          labelText: 'Nombre',
+          helperText: 'Por ejemplo: Tablet caja 2',
+        ),
+        validator: (v) =>
+            (v ?? '').trim().isEmpty ? 'Escribe un nombre.' : null,
+        onFieldSubmitted: (_) => _ok(),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancelar'),
+      ),
+      FilledButton(onPressed: _ok, child: const Text('Guardar')),
+    ],
+  );
 }

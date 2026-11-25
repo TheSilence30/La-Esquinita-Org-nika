@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../prototype/widgets/notice.dart';
 import '../../auth/application/auth_providers.dart';
 import '../application/admin_client.dart';
+import '../application/admin_providers.dart';
 import 'business_view.dart';
 import 'devices_view.dart';
 import 'users_view.dart';
@@ -113,6 +114,24 @@ class AsyncSection<T> extends StatelessWidget {
     ),
     _ => const Center(child: CircularProgressIndicator()),
   };
+}
+
+/// "Mostrar desactivados (N)", shared by Usuarios and Equipos; nothing when
+/// there is nothing hidden.
+class ShowInactiveSwitch extends ConsumerWidget {
+  const ShowInactiveSwitch({super.key, required this.inactive});
+
+  final int inactive;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => inactive == 0
+      ? const SizedBox.shrink()
+      : SwitchListTile(
+          title: Text('Mostrar desactivados ($inactive)'),
+          value: ref.watch(adminShowInactiveProvider),
+          onChanged: (v) =>
+              ref.read(adminShowInactiveProvider.notifier).set(show: v),
+        );
 }
 
 /// Keeps forms and lists readable on a wide PC window.
