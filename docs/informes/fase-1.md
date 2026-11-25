@@ -1,6 +1,6 @@
 # Informe de Fase 1 — Fundamentos
 
-Estado: **prueba de aceptación completa (2026-11-25)**, en espera de la aprobación del usuario. Plan: `docs/planes/fase-1.md`. Detalle día a día: bitácora de `docs/FASE-ACTUAL.md`.
+Estado: **aprobada por el usuario (2026-11-25)**. Prueba de aceptación completa. Plan: `docs/planes/fase-1.md`. Detalle día a día: bitácora de `docs/FASE-ACTUAL.md`.
 
 ## Qué se construyó
 
@@ -14,7 +14,9 @@ Estado: **prueba de aceptación completa (2026-11-25)**, en espera de la aprobac
 | 5b | Reloj atrasado: hora más alta vista (`last_seen_at`) y hora del servidor al entrar con contraseña, con aviso si el reloj del equipo no coincide | #18 |
 | 6 | Motor de sincronización: envío por lotes, bajada, reintentos (hasta 60 s), recuperación tras reinicio e indicador real | #17 |
 | 7 | *Ajustes* (solo Administrador) en PC, tablet y celular: datos del ticket (RUC con dígito verificador), usuarios y equipos («Dar de baja» solo bloquea); «Entrar con contraseña» en la pantalla del PIN | #19 |
-| 8 | Hallazgo de la aceptación: el equipo baja los cambios del Administrador cada 60 s y antes de comprobar el PIN | #20 (en revisión) |
+| 8 | Hallazgo de la aceptación: el equipo baja los cambios del Administrador cada 60 s y antes de comprobar el PIN | #20 |
+| — | El PIN renueva una sesión perdida, sin contraseña (ADR-0005) | #21 |
+| — | Ocultar usuarios y equipos desactivados; cambiar el nombre de un equipo | #22 |
 
 ## Criterios de aceptación
 
@@ -23,7 +25,7 @@ Estado: **prueba de aceptación completa (2026-11-25)**, en espera de la aprobac
 | 1 | Ingreso en la tablet y la PC: con contraseña cuando hay conexión y con PIN cuando no la hay, con sesión guardada y vencimiento | ✅ Probado (pasos 1 a 3) |
 | 2 | Operaciones de prueba hechas sin conexión en los dos equipos se sincronizan sin duplicados, también cerrando la app a mitad del envío | ✅ Probado (pasos 4 a 6) |
 | 3 | Indicador de sincronización real y siempre visible | ✅ Probado («Error · pendientes N» → «Sincronizado») |
-| 4 | Pruebas automáticas de sincronización, autenticación y permisos en verde, en la CI y en local | ✅ Core 69, servidor 79 (contra PostgreSQL), app 234 |
+| 4 | Pruebas automáticas de sincronización, autenticación y permisos en verde, en la CI y en local | ✅ Core 69, servidor 83 (contra PostgreSQL), app 236 |
 
 ## Prueba de aceptación (2026-11-25, con el usuario)
 
@@ -45,7 +47,7 @@ También probado en dispositivo durante la fase: reloj atrasado (5b), crear usua
 - Sesión sin conexión de 7 días; PIN de 4 a 6 dígitos; Argon2id de ~1 s en la tablet, aceptado (ADR-0004).
 - `pin_hash` baja solo a los equipos donde el usuario entró con contraseña; base local cifrada con SQLCipher (ADR-0004).
 - Reintentos hasta 60 s; sincronizar después de cada operación y al volver la app al primer plano.
-- **Refresh perdido** (2026-11-22, confirmado el 2026-11-25): si se pierde la respuesta de una renovación y la app reenvía el token anterior, el servidor revoca la sesión y la sincronización pide la contraseña **una vez**. El PIN sigue funcionando y no se pierde nada pendiente. Se descartó tolerar la respuesta perdida y validar el PIN en el servidor.
+- **Refresh perdido**: si se pierde la respuesta de una renovación, el servidor revoca la sesión (el refresh sigue siendo rotativo). Desde el 2026-11-25 (ADR-0005), **el PIN la renueva** en el servidor, solo en un equipo en servicio donde ese usuario ya entró con contraseña y con el límite de 5 intentos. Antes pedía la contraseña. Probado en la tablet.
 - Reloj: hora del servidor al entrar con contraseña; PIN bloqueado si el reloj retrocede más de 5 min.
 - «Dar de baja» un equipo solo lo bloquea (403 `device_blocked`); al reactivarlo vuelve a sincronizar solo con el PIN. Ningún equipo se desactiva por no conectarse.
 - Usuarios y equipos **no se borran**: se desactivan o se dan de baja (CLAUDE.md §6.3).
@@ -53,10 +55,9 @@ También probado en dispositivo durante la fase: reloj atrasado (5b), crear usua
 
 ## Pendientes y riesgos conocidos
 
-- **PR #20** (bajada cada 60 s y antes del PIN): en revisión del usuario.
-- Propuesto y sin decidir: ocultar por defecto los usuarios desactivados y los equipos dados de baja, con «Mostrar desactivados»; poder cambiar el nombre de un equipo (hoy hay dos «Tablet caja»: `T1`, dada de baja, y `T2`).
+- El PIN viaja al servidor por HTTP en la red de la tienda hasta que llegue TLS con Caddy (Fase 7). El contador de intentos fallidos vive en la memoria del servidor (ADR-0005).
 - **Límite de 10 equipos registrados** en total, uno por dígito del código de barras interno (0–9), y los de baja no se reutilizan. Revisar antes de registrar muchos celulares.
 - Un equipo dado de baja **sin conexión** sigue aceptando el PIN hasta 7 días o hasta que se conecte.
-- La bajada previa al PIN espera como máximo 3 s por pedido. Si el servidor tarda más justo al renovar, la sesión pide la contraseña (ver «Refresh perdido»).
+- La bajada previa al PIN espera como máximo 3 s por pedido. Si el servidor tarda más justo al renovar, la sesión se pierde y el PIN la renueva.
 - Heredados de la Fase 0: prueba del escáner de venta con la cámara real, Spike 2 (lector USB) antes de la Fase 3, Spike 5 (A4) con la Fase 6, y regenerar el token de decolecta antes de producción.
 - El servidor corre en la PC de la tienda (desarrollo). VPS, respaldos e instaladores: Fase 7.

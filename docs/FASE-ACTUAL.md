@@ -1,6 +1,6 @@
 # Fase actual: 1 — Fundamentos
 
-Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`. La bitácora de la Fase 0 está en `docs/informes/fase-0-bitacora.md`. Actualiza esta lista al terminar cada tarea.
+Estado: **terminada y aprobada por el usuario (2026-11-25)**; en curso desde el 2026-11-19. Plan aprobado: `docs/planes/fase-1.md`. La bitácora de la Fase 0 está en `docs/informes/fase-0-bitacora.md`. Actualiza esta lista al terminar cada tarea.
 
 ## Tareas (cada una con pruebas y un PR pequeño)
 
@@ -12,7 +12,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [x] 7. PR #19, aprobado y fusionado; probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
-- [x] 8. Prueba de aceptación en la tablet y la PC con el usuario (2026-11-25, los 8 pasos bien); informe en `docs/informes/fase-1.md`. Hallazgo corregido en el PR #20, en revisión
+- [x] 8. Prueba de aceptación en la tablet y la PC con el usuario (2026-11-25, los 8 pasos bien); informe en `docs/informes/fase-1.md`. Hallazgo corregido en el PR #20; después, PR #21 (ADR-0005) y #22
 
 ## Pendientes heredados de la Fase 0
 
@@ -332,3 +332,9 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
   - Sesiones de la tablet canceladas en el servidor a las 15:14:08 para simular una pérdida. Al abrir la app y entrar con el PIN de `Leandro`, se creó una sesión nueva (15:14:58) **sin contraseña** (su último ingreso con contraseña sigue siendo el de las 14:47) y sincronizó.
   - T2 renombrada a «Tablet Principal» desde la PC (auditado); T1, dada de baja, queda oculta.
 - PR #22 fusionado con la CI en verde. PR #21 (autenticación) en espera de la aprobación del usuario.
+
+### 2026-11-25 (cierre) — Fase 1 aprobada
+
+- PR #21 (el PIN renueva la sesión, ADR-0005) aprobado por el usuario y fusionado (`a2f8d8f`); PR #22 fusionado (`ac613ea`). CI en verde.
+- **Fase 1 aprobada por el usuario.** Informe final: `docs/informes/fase-1.md`.
+- Siguiente: **Fase 2 (catálogo e inventario)**. Antes de programar, se presenta su plan al usuario.
