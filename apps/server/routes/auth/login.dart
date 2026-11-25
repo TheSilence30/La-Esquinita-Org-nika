@@ -37,10 +37,7 @@ Future<Response> onRequest(RequestContext context) async {
         statusCode: HttpStatus.tooManyRequests,
         body: {'error': 'too_many_attempts'},
       ),
-      LoginFailure.deviceBlocked => Response.json(
-        statusCode: HttpStatus.forbidden,
-        body: {'error': 'device_blocked'},
-      ),
+      LoginFailure.deviceBlocked => deviceBlocked(),
       _ => Response.json(
         statusCode: HttpStatus.unauthorized,
         body: {'error': 'invalid_credentials'},

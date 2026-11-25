@@ -143,6 +143,7 @@ class AdminClient {
 
   /// What the screen says for a refused change.
   static String message(ApiException e) => switch (e.failure) {
+    _ when e.deviceBlocked => ServerSync.deviceBlocked.message,
     ApiFailure.offline =>
       'Sin conexión con el servidor. Estos cambios necesitan conexión.',
     ApiFailure.forbidden => 'Solo un Administrador puede hacer esto.',

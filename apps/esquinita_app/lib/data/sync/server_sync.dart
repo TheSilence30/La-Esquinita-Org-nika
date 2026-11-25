@@ -37,6 +37,12 @@ class ServerSync implements PushTransport {
     needsPassword: true,
   );
 
+  /// Retried like any error: once reactivated, it syncs by itself with the
+  /// same login, without the password (user, 2026-11-25).
+  static const deviceBlocked = SyncException(
+    'Este equipo fue dado de baja. Pide al Administrador que lo reactive.',
+  );
+
   @override
   Future<List<PushResult>> push(
     List<SyncCommand> commands, {
@@ -98,6 +104,7 @@ class ServerSync implements PushTransport {
     try {
       t = await api.refresh(refresh);
     } on ApiException catch (e) {
+      if (e.deviceBlocked) throw deviceBlocked; // keep the token
       if (e.failure == ApiFailure.unauthorized) {
         // Revoked or expired: never send it again.
         await _saveRefresh(userId, null);
@@ -115,6 +122,7 @@ class ServerSync implements PushTransport {
           .write(LocalSessionsCompanion(refreshToken: Value(token)));
 
   static SyncException _syncError(ApiException e) => switch (e.failure) {
+    _ when e.deviceBlocked => deviceBlocked,
     ApiFailure.offline => SyncException(
       'Sin conexión con el servidor. Revisa el Wi‑Fi.',
       detail: e.detail,

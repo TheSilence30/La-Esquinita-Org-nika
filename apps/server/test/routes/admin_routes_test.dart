@@ -47,6 +47,7 @@ void main() {
     when(
       () => auth.authenticate('staff'),
     ).thenAnswer((_) async => _user({'sales.create'}));
+    when(() => auth.authenticate('blocked')).thenThrow(DeviceBlocked());
   });
 
   void request(String method, Object? body, {String token = 'admin'}) =>
@@ -124,6 +125,15 @@ void main() {
       request(method, body ?? '', token: 'staff');
       expect((await call()).statusCode, 403, reason: name);
     }
+    verifyZeroInteractions(admin);
+  });
+
+  test('a device taken out of service gets 403 device_blocked (not 401, '
+      'so it keeps its login)', () async {
+    request('GET', '', token: 'blocked');
+    final r = await users.onRequest(context);
+    expect(r.statusCode, 403);
+    expect(jsonDecode(await r.body()), {'error': 'device_blocked'});
     verifyZeroInteractions(admin);
   });
 

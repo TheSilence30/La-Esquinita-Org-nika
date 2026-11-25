@@ -36,8 +36,15 @@ class FakeServer implements ServerApi {
   };
   bool offline = false;
 
-  /// The Administrador took this device out of service: logins get a 403.
+  /// The Administrador took this device out of service: 403
+  /// `device_blocked` on login, refresh and every route with a session;
+  /// nothing is revoked.
   bool deviceBlocked = false;
+
+  static const _blocked = ApiException(
+    ApiFailure.forbidden,
+    '{"error":"device_blocked"}',
+  );
 
   /// What the login sends as the `Date` header; null: none.
   DateTime? serverTime;
@@ -74,7 +81,7 @@ class FakeServer implements ServerApi {
     if (user == null || user.password != p) {
       throw const ApiException(ApiFailure.unauthorized);
     }
-    if (deviceBlocked) throw const ApiException(ApiFailure.forbidden);
+    if (deviceBlocked) throw _blocked;
     logins.add(deviceId);
     return _issue(user);
   }
@@ -95,6 +102,7 @@ class FakeServer implements ServerApi {
   }
 
   FakeUser _authorized(String token) {
+    if (deviceBlocked) throw _blocked;
     if (expired.contains(token) || !token.startsWith('a-')) {
       throw const ApiException(ApiFailure.unauthorized);
     }
@@ -104,6 +112,7 @@ class FakeServer implements ServerApi {
   @override
   Future<LoginTokens> refresh(String refreshToken) async {
     _check();
+    if (deviceBlocked) throw _blocked; // before rotating, as the server
     refreshes.add(refreshToken);
     final user = users.values.firstWhere(
       (u) => refreshToken.startsWith('r-${u.id}-'),

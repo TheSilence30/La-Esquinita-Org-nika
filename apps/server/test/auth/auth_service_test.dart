@@ -202,8 +202,9 @@ void main() {
       await setActive('Trabajo', active: true);
     });
 
-    test('a device taken out of service loses access at once; an '
-        'unregistered device still logs in (it registers after)', () async {
+    test('a device taken out of service is refused at once (DeviceBlocked, '
+        'not a dead session); an unregistered device still logs in (it '
+        'registers after)', () async {
       const other = '019a9a00-0000-7000-8000-0000000000d9';
       final r = await auth.login('Trabajo', 'trabajo-inicial-1', other);
       expect(r.failure, isNull, reason: 'not registered yet');
@@ -214,8 +215,14 @@ void main() {
           values (@d:uuid, 'Perdido', 'android', 'T9', 9, false, 0)'''),
         parameters: {'d': other},
       );
-      expect(await auth.authenticate(r.tokens!.accessToken), isNull);
-      expect(await auth.refresh(r.tokens!.refreshToken), isNull);
+      expect(
+        () => auth.authenticate(r.tokens!.accessToken),
+        throwsA(isA<DeviceBlocked>()),
+      );
+      expect(
+        () => auth.refresh(r.tokens!.refreshToken),
+        throwsA(isA<DeviceBlocked>()),
+      );
       final again = await auth.login('Trabajo', 'trabajo-inicial-1', other);
       expect(again.failure, LoginFailure.deviceBlocked);
       final wrong = await auth.login('Trabajo', 'mal', other);
@@ -224,6 +231,12 @@ void main() {
         LoginFailure.invalidCredentials,
         reason: 'says nothing about the device without the password',
       );
+      // Back in service: the same refresh token still works (not rotated).
+      await db.execute(
+        Sql.named('update devices set active = true where id = @d:uuid'),
+        parameters: {'d': other},
+      );
+      expect(await auth.refresh(r.tokens!.refreshToken), isNotNull);
       // Other devices are not affected.
       expect(
         await auth.authenticate(

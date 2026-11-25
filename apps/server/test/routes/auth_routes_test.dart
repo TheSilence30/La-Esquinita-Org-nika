@@ -122,6 +122,12 @@ void main() {
     expect((await refresh.onRequest(context)).statusCode, 200);
     request('POST', {'refresh_token': 'old-r'});
     expect((await refresh.onRequest(context)).statusCode, 401);
+    // A device taken out of service: 403, so the app keeps the token.
+    when(() => auth.refresh('blocked-r')).thenThrow(DeviceBlocked());
+    request('POST', {'refresh_token': 'blocked-r'});
+    final blocked = await refresh.onRequest(context);
+    expect(blocked.statusCode, 403);
+    expect(await blocked.body(), contains('device_blocked'));
     request('POST', {'refresh': 'x'});
     expect((await refresh.onRequest(context)).statusCode, 400);
   });

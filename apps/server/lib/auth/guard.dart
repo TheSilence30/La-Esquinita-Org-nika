@@ -4,7 +4,8 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:esquinita_server/auth/auth_service.dart';
 
 /// Runs [handler] for the user of the `Authorization: Bearer` token: 401
-/// without a valid session, 403 without [permission] (`modulo.accion`).
+/// without a valid session, 403 without [permission] (`modulo.accion`),
+/// 403 `device_blocked` for a device taken out of service.
 Future<Response> withAuth(
   RequestContext context,
   Future<Response> Function(AuthUser user) handler, {
@@ -12,11 +13,16 @@ Future<Response> withAuth(
 }) async {
   final header = context.request.headers[HttpHeaders.authorizationHeader];
   const prefix = 'Bearer ';
-  final user = header == null || !header.startsWith(prefix)
-      ? null
-      : await context.read<AuthService>().authenticate(
-          header.substring(prefix.length),
-        );
+  final AuthUser? user;
+  try {
+    user = header == null || !header.startsWith(prefix)
+        ? null
+        : await context.read<AuthService>().authenticate(
+            header.substring(prefix.length),
+          );
+  } on DeviceBlocked {
+    return deviceBlocked();
+  }
   if (user == null) {
     return Response.json(
       statusCode: HttpStatus.unauthorized,
@@ -49,6 +55,12 @@ String requireString(Map<String, Object?> body, String field) {
   }
   return v;
 }
+
+/// 403 for a device taken out of service ("Dar de baja").
+Response deviceBlocked() => Response.json(
+  statusCode: HttpStatus.forbidden,
+  body: {'error': 'device_blocked'},
+);
 
 /// 400 with [message] as the error.
 Response badRequest(String message) => Response.json(

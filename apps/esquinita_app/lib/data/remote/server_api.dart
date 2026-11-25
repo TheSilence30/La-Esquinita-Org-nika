@@ -31,6 +31,12 @@ final class ApiException implements Exception {
   final ApiFailure failure;
   final String? detail;
 
+  /// The Administrador took this device out of service ("Dar de baja"): a
+  /// 403 `device_blocked`. The login stays valid for when it is reactivated.
+  bool get deviceBlocked =>
+      failure == ApiFailure.forbidden &&
+      (detail?.contains('device_blocked') ?? false);
+
   @override
   String toString() => 'ApiException($failure, $detail)';
 }

@@ -173,6 +173,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         ),
         if (_error != null) AuthError(_error!),
         AuthButton(label: 'Entrar', busy: _busy, onPressed: _withPin),
+        // When the sync indicator asks for the password (user, 2026-11-25).
+        TextButton(
+          onPressed: () {
+            _user.text = _pinUser!.username;
+            _go(_Step.password);
+          },
+          child: const Text('Entrar con contraseña'),
+        ),
         TextButton(
           onPressed: () => _go(_Step.choose),
           child: const Text('Atrás'),

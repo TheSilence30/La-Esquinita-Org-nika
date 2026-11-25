@@ -32,8 +32,9 @@ class DevicesView extends ConsumerWidget {
               padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
               child: Text(
                 '«Dar de baja» es para un equipo perdido o que ya no se usa: '
-                'se cierran sus sesiones y el servidor lo rechaza. Lo que '
-                'guarda el equipo no se borra.',
+                'el servidor lo rechaza hasta que lo reactives. Lo que guarda '
+                'el equipo no se borra, y al reactivarlo vuelve a sincronizar '
+                'solo.',
               ),
             ),
             for (final d in devices) _DeviceTile(device: d, isMe: d.id == me),
@@ -108,10 +109,10 @@ class _DeviceTile extends ConsumerWidget {
         builder: (d) => AlertDialog(
           title: Text('¿Dar de baja «${device.name}»?'),
           content: Text(
-            'Se cierran todas sus sesiones y el servidor lo rechazará. '
-            'Lo que guarda el equipo no se borra'
+            'El servidor lo rechazará hasta que lo reactives. Lo que guarda '
+            'el equipo no se borra'
             '${device.pendingOps > 0 ? ', pero sus ${device.pendingOps} operaciones pendientes no llegarán mientras esté de baja' : ''}. '
-            'Puedes reactivarlo después.',
+            'Al reactivarlo vuelve a sincronizar solo, sin contraseña.',
           ),
           actions: [
             TextButton(

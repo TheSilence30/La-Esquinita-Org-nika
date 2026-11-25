@@ -57,6 +57,11 @@ typedef LoginResult = ({
   LoginFailure? failure,
 });
 
+/// The session is valid but its device was taken out of service ("Dar de
+/// baja"): a 403 `device_blocked`, not a 401, so the device keeps its login
+/// and syncs again by itself once reactivated (user, 2026-11-25).
+class DeviceBlocked implements Exception {}
+
 /// Outcome of a password change.
 enum PasswordChange {
   /// Saved; every login of the user ended.
@@ -178,7 +183,8 @@ class AuthService {
 
   /// New tokens for a valid refresh token, which stops working. Presenting
   /// a token that was already rotated means it was copied: the whole login
-  /// (its family) is revoked.
+  /// (its family) is revoked. Throws [DeviceBlocked] (without rotating) for
+  /// a device taken out of service.
   Future<Tokens?> refresh(String refreshToken) => _db.runTx((tx) async {
     final rows = await tx.execute(
       Sql.named('''
@@ -196,11 +202,11 @@ class AuthService {
       await _revokeFamily(tx, family);
       return null;
     }
-    if (!(r[4]! as DateTime).isAfter(_clock()) ||
-        !(r[6]! as bool) ||
-        await _deviceBlocked(tx, r[3]! as String)) {
+    if (!(r[4]! as DateTime).isAfter(_clock()) || !(r[6]! as bool)) {
       return null;
     }
+    // Not rotated: the same token works again after "Reactivar".
+    if (await _deviceBlocked(tx, r[3]! as String)) throw DeviceBlocked();
     await tx.execute(
       Sql.named(
         'update refresh_tokens set revoked_at = @now:timestamptz '
@@ -222,19 +228,17 @@ class AuthService {
     if (rows.isNotEmpty) await _revokeFamily(tx, rows.single[0]! as String);
   });
 
-  /// The user of a valid access token, if still active and on a device in
-  /// service; null otherwise.
+  /// The user of a valid access token, if still active; null otherwise.
+  /// Throws [DeviceBlocked] for a device taken out of service.
   Future<AuthUser?> authenticate(String accessToken) async {
     final claims = _jwt.verify(accessToken);
     if (claims == null) return null;
     final rows = await _db.execute(
-      Sql.named('''
-        select username from users
-        where id = @u:uuid and active and not exists (
-          select 1 from devices where id = @d:uuid and not active)'''),
-      parameters: {'u': claims.userId, 'd': claims.deviceId},
+      Sql.named('select username from users where id = @u:uuid and active'),
+      parameters: {'u': claims.userId},
     );
     if (rows.isEmpty) return null;
+    if (await _deviceBlocked(_db, claims.deviceId)) throw DeviceBlocked();
     return AuthUser(
       userId: claims.userId,
       deviceId: claims.deviceId,

@@ -5,6 +5,7 @@ import '../../../data/local/database.dart';
 import '../../../data/remote/server_api.dart';
 import '../../../data/sync/outbox_store.dart';
 import '../../../data/sync/replica_store.dart';
+import '../../../data/sync/server_sync.dart';
 
 /// Whether [pin] matches [hash] (Argon2id). Production runs it in a
 /// background isolate: it takes about 1 s on the tablet (user, 2026-11-20).
@@ -276,8 +277,7 @@ class LocalAuth {
       'Ajustes.';
 
   /// The Administrador took this device out of service ("Dar de baja").
-  static const deviceBlocked =
-      'Este equipo fue dado de baja. Pide al Administrador que lo reactive.';
+  static final deviceBlocked = ServerSync.deviceBlocked.message;
 
   static const _offline =
       'Sin conexión con el servidor. Revisa el Wi‑Fi y la dirección.';

@@ -257,9 +257,10 @@ class AdminService {
     ];
   }
 
-  /// "Dar de baja" ([active] false): every login on the device ends and the
-  /// server refuses it from now on; what the device keeps is not touched.
-  /// "Reactivar" ([active] true) lets it log in again.
+  /// "Dar de baja" ([active] false): the server refuses the device from now
+  /// on (403 `device_blocked`); its logins are kept, not revoked, so after
+  /// "Reactivar" ([active] true) it syncs again by itself with the PIN
+  /// (user, 2026-11-25). What the device keeps is never touched.
   Future<void> setDeviceActive(
     AuthUser actor,
     String id, {
@@ -279,7 +280,6 @@ class AdminService {
       await _exists(tx, id, table: 'devices');
       return; // already so
     }
-    if (!active) await _revoke(tx, 'device_id', id);
     await _audit(
       tx,
       actor,

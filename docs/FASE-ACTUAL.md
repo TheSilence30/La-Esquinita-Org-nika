@@ -278,3 +278,14 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
 - **App**: *Ajustes* con tres pestañas (Negocio, Usuarios, Equipos), cada una según su permiso. En la PC desde el menú lateral; en la tablet y el celular desde *Más › Ajustes*. Usa la sesión guardada (`ServerSync.authorized`) y, tras cada cambio, una ronda de sincronización para actualizar las réplicas. Mensajes en español; un equipo dado de baja ve «Este equipo fue dado de baja. Pide al Administrador que lo reactive.» al entrar con contraseña. Fechas en hora de Lima (`limaDateTime`).
 - Pruebas: servidor **78** en verde (contra PostgreSQL: usuarios, ajustes, equipos, auditoría, revocación; rutas: 403 para Trabajo en todas, 400 por datos inválidos, 404/409); app **229** en verde (casos de uso, pantallas en PC y celular, mensaje de equipo dado de baja); `flutter analyze` y `dart analyze` sin observaciones. Servidor de desarrollo reconstruido y comprobado: las rutas nuevas responden 401 sin sesión.
 - **Pendiente de prueba en dispositivo, con el usuario**: desde la PC y la tablet, crear un usuario, cambiar un PIN (llega al otro equipo al sincronizar), editar los datos del negocio y dar de baja y reactivar un equipo.
+
+### 2026-11-25 — Tarea 7: probada por el usuario y corrección de «Dar de baja»
+
+- **Probado por el usuario**: crear un usuario desde la PC (`Leandfro`) y entrar con él en la tablet, que instaló la versión nueva con `adb install -r`. «Funcionó todo».
+- **Problema que encontró el usuario**: al reactivar la tablet, la sincronización pedía la contraseña (los tokens se habían revocado al dar de baja), pero la pantalla del PIN no ofrecía entrar con contraseña.
+- **Decisiones del usuario:**
+  - **«Dar de baja» solo bloquea, sin revocar.** El servidor responde 403 `device_blocked` (no 401) en el login, el refresh y toda ruta con sesión. El refresh no se rota, así que la app conserva su sesión, el indicador dice «Este equipo fue dado de baja…» y sigue reintentando. Al reactivarlo, vuelve a sincronizar solo con el PIN, sin contraseña.
+  - **«Entrar con contraseña»** en la pantalla del PIN, sin escribir el usuario.
+- El PIN sigue verificándose solo en el equipo: no se envía al servidor, que tampoco lo valida. Así no hay forma de adivinar un PIN de 4 dígitos por la red.
+- Pruebas: servidor 79 y app 231, en verde. Nuevas: el bloqueo sin revocar, el mismo refresh que vuelve a funcionar al reactivar, 403 `device_blocked` en las rutas y el refresh, la sesión que la app conserva, el envío sin contraseña tras reactivar y el enlace «Entrar con contraseña».
+- **Pendiente de prueba en dispositivo**: dar de baja la tablet (el indicador lo dice) y reactivarla (sincroniza sola, sin contraseña).

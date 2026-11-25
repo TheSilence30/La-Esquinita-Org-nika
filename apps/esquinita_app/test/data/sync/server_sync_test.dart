@@ -84,6 +84,40 @@ void main() {
     },
   );
 
+  test('a device taken out of service keeps its login and, once '
+      'reactivated, syncs with it, without the password', () async {
+    final before = await savedRefresh();
+    server.deviceBlocked = true;
+    await record(2);
+    final s = sync();
+    await expectLater(
+      SyncClient(store, s).sync(),
+      throwsA(
+        isA<SyncException>()
+            .having((e) => e.needsPassword, 'pw', isFalse)
+            .having((e) => e.message, 'm', contains('dado de baja')),
+      ),
+    );
+    expect(await savedRefresh(), before, reason: 'kept, not dropped');
+    expect(await store.pendingCount(), 2);
+
+    server.deviceBlocked = false; // "Reactivar"
+    expect(await SyncClient(store, s).sync(), 2);
+    expect(server.inbox, hasLength(2));
+  });
+
+  test('blocked with a cached access token: the same message', () async {
+    final s = sync();
+    await s.pull(); // caches the access token
+    server.deviceBlocked = true;
+    await expectLater(
+      s.pull(),
+      throwsA(
+        isA<SyncException>().having((e) => e.message, 'm', contains('baja')),
+      ),
+    );
+  });
+
   test('offline: an error to retry; nothing changes', () async {
     final before = await savedRefresh();
     server.offline = true;

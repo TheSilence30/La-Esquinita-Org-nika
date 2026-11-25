@@ -329,25 +329,32 @@ void main() {
       expect(ds.last['last_seen_at'], isNotNull);
     });
 
-    test('"Dar de baja" ends every login on the device and blocks it; '
-        '"Reactivar" lets it in; the own device cannot be taken out', () async {
+    test('"Dar de baja" blocks the device but keeps its logins; after '
+        '"Reactivar" it syncs with the same login; the own device cannot be '
+        'taken out', () async {
       final t = (await auth.login(
         'Trabajo',
         'trabajo-inicial-1',
         _tablet,
       )).tokens!;
       await admin.setDeviceActive(actor, _tablet, active: false);
-      expect(await liveTokens('device_id', _tablet), 0);
-      expect(await auth.authenticate(t.accessToken), isNull);
+      expect(await liveTokens('device_id', _tablet), 1, reason: 'kept');
+      expect(
+        () => auth.authenticate(t.accessToken),
+        throwsA(isA<DeviceBlocked>()),
+      );
+      expect(() => auth.refresh(t.refreshToken), throwsA(isA<DeviceBlocked>()));
       expect(
         (await auth.login('Trabajo', 'trabajo-inicial-1', _tablet)).failure,
         LoginFailure.deviceBlocked,
       );
       await admin.setDeviceActive(actor, _tablet, active: false); // no-op
       await admin.setDeviceActive(actor, _tablet, active: true);
+      expect(await auth.authenticate(t.accessToken), isNotNull);
       expect(
-        (await auth.login('Trabajo', 'trabajo-inicial-1', _tablet)).failure,
-        isNull,
+        await auth.refresh(t.refreshToken),
+        isNotNull,
+        reason: 'no password',
       );
       expect((await audit()).map((a) => (a[0], a[2])), [
         ('devices.deactivate', _tablet),
