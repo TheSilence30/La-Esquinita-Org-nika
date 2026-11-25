@@ -207,6 +207,25 @@ void main() {
       server.offline = true;
     });
 
+    test('online, a PIN the Administrador changed works at once and the old '
+        'one no longer does; a deactivation too (user, 2026-11-25)', () async {
+      server
+        ..offline = false
+        ..pinHash = await testHasher.hash('9999');
+      final old = await auth().loginWithPin(adminId, '4821');
+      expect((old as WrongPin).attemptsLeft, 4);
+      expect(await auth().loginWithPin(adminId, '9999'), isA<PinOk>());
+
+      server.users['Administrador']!.active = false;
+      final r = await auth().loginWithPin(adminId, '9999');
+      expect((r as PinNeedsPassword).reason, contains('desactivado'));
+    });
+
+    test('offline, the PIN downloaded last still works', () async {
+      server.pinHash = await testHasher.hash('9999'); // not downloaded
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+    });
+
     test('the right PIN opens the session without the server', () async {
       final users = {for (final u in await auth().loginUsers()) u.userId: u};
       expect(users[adminId]!.blockedReason, isNull);

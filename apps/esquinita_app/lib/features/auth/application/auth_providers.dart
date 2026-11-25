@@ -13,6 +13,9 @@ part 'auth_providers.g.dart';
 LocalAuth localAuth(Ref ref) => LocalAuth(
   db: ref.watch(appDatabaseProvider),
   apiFor: (url) => HttpServerApi(url),
+  // shortcut: a refresh answered after 3 s is lost and the login then needs
+  // the password (as in task 6); fine on the store's Wi-Fi.
+  quickApiFor: (url) => HttpServerApi(url, timeout: const Duration(seconds: 3)),
   // ~1 s on the tablet: off the UI isolate, so the screen never freezes.
   verifyPin: (pin, hash) => Isolate.run(() => verifyPinArgon2(pin, hash)),
   platform: Platform.isWindows ? 'windows' : 'android',

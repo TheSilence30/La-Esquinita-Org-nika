@@ -4,6 +4,7 @@ import 'package:esquinita_app/data/local/database.dart';
 import 'package:esquinita_app/features/auth/application/auth_providers.dart';
 import 'package:esquinita_app/features/auth/application/local_auth.dart';
 import 'package:esquinita_app/main.dart';
+import 'package:esquinita_app/features/sync/application/sync_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -124,5 +125,8 @@ void main() {
     await type('Contraseña', 'nueva-clave-1');
     await tap('Entrar');
     expect(container.read(currentSessionProvider)?.userId, staffId);
+
+    // Logged in, the engine keeps a 60 s idle round; the app ends it on exit.
+    container.read(syncEngineProvider).dispose();
   });
 }

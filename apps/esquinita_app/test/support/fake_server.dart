@@ -29,7 +29,8 @@ class FakeUser {
 class FakeServer implements ServerApi {
   FakeServer(this.pinHash);
 
-  final String pinHash;
+  /// Every user's PIN hash in the pull (the Administrador may change it).
+  String pinHash;
   final users = {
     'Administrador': FakeUser(adminId, 'admin-1234', admin: true),
     'Trabajo': FakeUser(staffId, 'trabajo-1234', mustChange: true),
