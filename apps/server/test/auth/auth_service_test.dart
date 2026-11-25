@@ -202,6 +202,37 @@ void main() {
       await setActive('Trabajo', active: true);
     });
 
+    test('a device taken out of service loses access at once; an '
+        'unregistered device still logs in (it registers after)', () async {
+      const other = '019a9a00-0000-7000-8000-0000000000d9';
+      final r = await auth.login('Trabajo', 'trabajo-inicial-1', other);
+      expect(r.failure, isNull, reason: 'not registered yet');
+      await db.execute(
+        Sql.named('''
+          insert into devices (id, name, platform, series_prefix,
+                               barcode_digit, active, version)
+          values (@d:uuid, 'Perdido', 'android', 'T9', 9, false, 0)'''),
+        parameters: {'d': other},
+      );
+      expect(await auth.authenticate(r.tokens!.accessToken), isNull);
+      expect(await auth.refresh(r.tokens!.refreshToken), isNull);
+      final again = await auth.login('Trabajo', 'trabajo-inicial-1', other);
+      expect(again.failure, LoginFailure.deviceBlocked);
+      final wrong = await auth.login('Trabajo', 'mal', other);
+      expect(
+        wrong.failure,
+        LoginFailure.invalidCredentials,
+        reason: 'says nothing about the device without the password',
+      );
+      // Other devices are not affected.
+      expect(
+        await auth.authenticate(
+          (await login('Trabajo', 'trabajo-inicial-1')).accessToken,
+        ),
+        isNotNull,
+      );
+    });
+
     test('/me has roles and permissions, never a hash', () async {
       final user = await auth.authenticate(
         (await login('Trabajo', 'trabajo-inicial-1')).accessToken,

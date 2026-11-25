@@ -44,6 +44,10 @@ enum LoginFailure {
 
   /// Too many recent failures for this username.
   locked,
+
+  /// Right password, but the Administrador took this device out of service
+  /// ("Dar de baja").
+  deviceBlocked,
 }
 
 /// Either `tokens` (and whether the password must be changed) or `failure`.
@@ -144,6 +148,13 @@ class AuthService {
       );
     }
     _failures.remove(key);
+    if (await _deviceBlocked(_db, deviceId)) {
+      return (
+        tokens: null,
+        mustChangePassword: false,
+        failure: LoginFailure.deviceBlocked,
+      );
+    }
     final userId = row[0]! as String;
     final tokens = await _db.runTx((tx) async {
       final t = await _issue(tx, userId, deviceId, family: uuidV7());
@@ -185,7 +196,9 @@ class AuthService {
       await _revokeFamily(tx, family);
       return null;
     }
-    if (!(r[4]! as DateTime).isAfter(_clock()) || !(r[6]! as bool)) {
+    if (!(r[4]! as DateTime).isAfter(_clock()) ||
+        !(r[6]! as bool) ||
+        await _deviceBlocked(tx, r[3]! as String)) {
       return null;
     }
     await tx.execute(
@@ -209,15 +222,17 @@ class AuthService {
     if (rows.isNotEmpty) await _revokeFamily(tx, rows.single[0]! as String);
   });
 
-  /// The user of a valid access token, if still active; null otherwise.
+  /// The user of a valid access token, if still active and on a device in
+  /// service; null otherwise.
   Future<AuthUser?> authenticate(String accessToken) async {
     final claims = _jwt.verify(accessToken);
     if (claims == null) return null;
     final rows = await _db.execute(
-      Sql.named(
-        'select username from users where id = @u:uuid and active',
-      ),
-      parameters: {'u': claims.userId},
+      Sql.named('''
+        select username from users
+        where id = @u:uuid and active and not exists (
+          select 1 from devices where id = @d:uuid and not active)'''),
+      parameters: {'u': claims.userId, 'd': claims.deviceId},
     );
     if (rows.isEmpty) return null;
     return AuthUser(
@@ -295,6 +310,14 @@ class AuthService {
     });
     return PasswordChange.changed;
   }
+
+  /// A device logs in before it registers, so only a registered device that
+  /// was taken out of service is blocked.
+  static Future<bool> _deviceBlocked(Session db, String deviceId) async =>
+      (await db.execute(
+        Sql.named('select 1 from devices where id = @d:uuid and not active'),
+        parameters: {'d': deviceId},
+      )).isNotEmpty;
 
   Future<Set<String>> _permissions(String userId) async {
     final rows = await _db.execute(

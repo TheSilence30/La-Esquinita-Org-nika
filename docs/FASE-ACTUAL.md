@@ -256,3 +256,12 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - Pruebas: hora del servidor guardada sin aviso con 4 min de diferencia; aviso con 6 min adelantado y 3 h atrasado; PIN bloqueado con el equipo 6 min atrasado; cabecera `Date` válida, ausente o mal formada; aviso visible en la app (prueba de punta a punta). App 219 en verde; `flutter analyze` sin observaciones.
 - PR #18 fusionado en `main` (`554f8b1`) con la CI en verde.
 - **Probado en dispositivo por el usuario (2026-11-25)** en una **tablet nueva K70_PRO_US_A** (Android 16, 800×1280, IP `192.168.18.19`), instalada con `adb install -r` sin datos previos: registro, ingreso, PIN con la hora correcta; con el reloj atrasado, el PIN pide contraseña y aparece el aviso de hora. «Todo funcionó acorde a lo establecido».
+
+### 2026-11-25 — Tarea 7: plan y decisiones del usuario
+
+Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
+- **Pantallas** de Usuarios, Ajustes del negocio y Equipos (solo Administrador) en **PC, tablet y celular**; el celular usa la vista de tablet adaptada.
+- **Equipos**: ninguno se desactiva solo por no conectarse; la lista muestra su última conexión, como dato. Solo **«Dar de baja»** (acción explícita del Administrador, auditada) lo bloquea: se revocan sus tokens y el servidor rechaza su login, refresh, push y pull. La app **no borra nada**: solo deja de sincronizar y lo dice. Hay «Reactivar», porque nada se borra.
+- **Ajustes**: en esta tarea, solo los datos del ticket (nombre, dirección, RUC, teléfono, WhatsApp, pie). Los demás se editan en su fase.
+- Usuarios: crear, editar nombre y rol, contraseña temporal (obliga a cambiarla y cierra sus sesiones), PIN y desactivar o reactivar. No se puede desactivar ni quitar el rol al último Administrador activo, ni a uno mismo.
+- Todo con conexión (API directa, no outbox) y con `audit_log`. Es de autenticación: PR para revisión del usuario.

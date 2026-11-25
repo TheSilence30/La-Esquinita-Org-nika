@@ -7,7 +7,8 @@ import 'package:esquinita_server/auth/guard.dart';
 
 /// `POST /auth/login` — `{username, password, device_id}` → tokens.
 /// 401 for a wrong username or password (the same answer for both), 429
-/// after too many failures.
+/// after too many failures, 403 `device_blocked` for a device taken out of
+/// service (only after the right password).
 Future<Response> onRequest(RequestContext context) async {
   if (context.request.method != HttpMethod.post) {
     return Response(statusCode: HttpStatus.methodNotAllowed);
@@ -31,15 +32,20 @@ Future<Response> onRequest(RequestContext context) async {
   );
   final tokens = r.tokens;
   if (tokens == null) {
-    return r.failure == LoginFailure.locked
-        ? Response.json(
-            statusCode: HttpStatus.tooManyRequests,
-            body: {'error': 'too_many_attempts'},
-          )
-        : Response.json(
-            statusCode: HttpStatus.unauthorized,
-            body: {'error': 'invalid_credentials'},
-          );
+    return switch (r.failure) {
+      LoginFailure.locked => Response.json(
+        statusCode: HttpStatus.tooManyRequests,
+        body: {'error': 'too_many_attempts'},
+      ),
+      LoginFailure.deviceBlocked => Response.json(
+        statusCode: HttpStatus.forbidden,
+        body: {'error': 'device_blocked'},
+      ),
+      _ => Response.json(
+        statusCode: HttpStatus.unauthorized,
+        body: {'error': 'invalid_credentials'},
+      ),
+    };
   }
   return Response.json(
     body: {...tokensJson(tokens), 'must_change_password': r.mustChangePassword},
