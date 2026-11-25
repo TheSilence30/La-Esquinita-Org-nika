@@ -48,7 +48,7 @@ final class LocalAuthProvider
   }
 }
 
-String _$localAuthHash() => r'5fcdd5474a39de315fc8b77d4f4db9e13ab7a511';
+String _$localAuthHash() => r'045fbc5f00503923012210b8f88d1191d4eb52a6';
 
 /// Whether this device finished its first-start setup.
 

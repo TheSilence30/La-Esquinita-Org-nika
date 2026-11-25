@@ -167,6 +167,8 @@ void main() {
     when(
       () => admin.setDeviceActive(any(), any(), active: any(named: 'active')),
     ).thenAnswer((_) async {});
+    when(() => admin.renameDevice(any(), any(), any()))
+        .thenAnswer((_) async {});
     for (final (method, name, body, call) in routes) {
       request(method, body ?? '');
       expect(
@@ -175,6 +177,9 @@ void main() {
         reason: name,
       );
     }
+    request('PATCH', {'name': ' Tablet caja 2 '});
+    expect((await device.onRequest(context, _id)).statusCode, 204);
+    verify(() => admin.renameDevice(any(), _id, 'Tablet caja 2')).called(1);
     verify(
       () => admin.createUser(
         any(),

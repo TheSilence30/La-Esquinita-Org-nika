@@ -11,6 +11,16 @@ AdminClient adminClient(Ref ref) => AdminClient(
   afterChange: () => ref.read(syncEngineProvider).syncNow(),
 );
 
+/// Whether the lists show deactivated users and devices out of service
+/// too; hidden by default (user, 2026-11-25).
+@riverpod
+class AdminShowInactive extends _$AdminShowInactive {
+  @override
+  bool build() => false;
+
+  void set({required bool show}) => state = show;
+}
+
 /// Every user, from the server (needs a connection).
 @riverpod
 Future<List<AdminUser>> adminUsers(Ref ref) =>
