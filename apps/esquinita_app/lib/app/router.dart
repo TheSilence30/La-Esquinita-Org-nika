@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/admin/widgets/admin_page.dart';
 import '../prototype/cash/cash_page.dart';
 import '../prototype/checkout/checkout_view.dart';
 import '../prototype/checkout/sale_done.dart';
@@ -61,10 +62,7 @@ GoRouter buildRouter(DemoStore store) => GoRouter(
           '/reportes',
           (_) => const ComingSoon('Reportes', phase: 'Fase 6'),
         ),
-        _page(
-          '/ajustes',
-          (_) => const ComingSoon('Ajustes del negocio', phase: 'Fase 1'),
-        ),
+        _page('/ajustes', (_) => const AdminPage()),
       ],
     ),
     // Touch devices: full screen, without the bottom bar.

@@ -113,5 +113,16 @@ void main() {
     await tap('Entrar');
     expect(container.read(currentSessionProvider)?.userId, staffId);
     expect(find.byType(EsquinitaApp), findsOneWidget);
+
+    // With a saved login, the password is still one tap away (for when the
+    // sync indicator asks for it), without typing the username.
+    container.read(currentSessionProvider.notifier).lock();
+    await settle();
+    await tap('Trabajo');
+    await tap('Entrar con contraseña');
+    expect(find.widgetWithText(TextField, 'Usuario'), findsNothing);
+    await type('Contraseña', 'nueva-clave-1');
+    await tap('Entrar');
+    expect(container.read(currentSessionProvider)?.userId, staffId);
   });
 }

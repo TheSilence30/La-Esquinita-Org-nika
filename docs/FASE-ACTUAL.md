@@ -9,9 +9,9 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 3. Registro de dispositivos, series y `GET /sync/pull` con cursor. PR #13, aprobado y fusionado
 - [x] 4. Permisos en el core (misma regla en el servidor y en el equipo); Riverpod y drift (réplicas) con **SQLCipher** (llave en Keystore en Android, DPAPI en Windows); el pull baja `pin_hash` solo a los equipos donde el usuario entró con contraseña (ADR-0004). PR #15, aprobado y fusionado
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
-- [x] 5b. **PR abierto para revisión del usuario** (rama `phase-1/clock-guard`). Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
+- [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
-- [ ] 7. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
+- [x] 7. **PR #19 para revisión del usuario** (rama `phase-1/admin-screens`); probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
 ## Pendientes heredados de la Fase 0
@@ -254,3 +254,41 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
   - Al entrar con contraseña se usa la **hora del servidor** (cabecera `Date` de la respuesta del login) para `passwordLoginAt` y `last_seen_at`. Si el servidor no la envía, se usa el reloj del equipo.
   - Si el reloj del equipo difiere **más de 5 min** de esa hora, la app muestra al abrirse un aviso ámbar fijo: «La hora de este equipo no coincide con la del servidor. Corrígela en Ajustes.». Si el equipo está atrasado, además el PIN queda bloqueado hasta corregir la hora o entrar con contraseña.
   - Pruebas: hora del servidor guardada sin aviso con 4 min de diferencia; aviso con 6 min adelantado y 3 h atrasado; PIN bloqueado con el equipo 6 min atrasado; cabecera `Date` válida, ausente o mal formada; aviso visible en la app (prueba de punta a punta). App 219 en verde; `flutter analyze` sin observaciones.
+- PR #18 fusionado en `main` (`554f8b1`) con la CI en verde.
+- **Probado en dispositivo por el usuario (2026-11-25)** en una **tablet nueva K70_PRO_US_A** (Android 16, 800×1280, IP `192.168.18.19`), instalada con `adb install -r` sin datos previos: registro, ingreso, PIN con la hora correcta; con el reloj atrasado, el PIN pide contraseña y aparece el aviso de hora. «Todo funcionó acorde a lo establecido».
+
+### 2026-11-25 — Tarea 7: plan y decisiones del usuario
+
+Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
+- **Pantallas** de Usuarios, Ajustes del negocio y Equipos (solo Administrador) en **PC, tablet y celular**; el celular usa la vista de tablet adaptada.
+- **Equipos**: ninguno se desactiva solo por no conectarse; la lista muestra su última conexión, como dato. Solo **«Dar de baja»** (acción explícita del Administrador, auditada) lo bloquea: se revocan sus tokens y el servidor rechaza su login, refresh, push y pull. La app **no borra nada**: solo deja de sincronizar y lo dice. Hay «Reactivar», porque nada se borra.
+- **Ajustes**: en esta tarea, solo los datos del ticket (nombre, dirección, RUC, teléfono, WhatsApp, pie). Los demás se editan en su fase.
+- Usuarios: crear, editar nombre y rol, contraseña temporal (obliga a cambiarla y cierra sus sesiones), PIN y desactivar o reactivar. No se puede desactivar ni quitar el rol al último Administrador activo, ni a uno mismo.
+- Todo con conexión (API directa, no outbox) y con `audit_log`. Es de autenticación: PR para revisión del usuario.
+
+### 2026-11-25 — Tarea 7: implementación (PR para revisión)
+
+- **Core**: `isValidRuc` (11 dígitos, prefijo 10/15/16/17/20 y dígito verificador módulo 11 de SUNAT), con su prueba.
+- **Servidor** (`AdminService`, todo en una transacción con `audit_log`, sin hashes en la auditoría):
+  - `GET/POST /users`, `PATCH /users/:id` (nombre, usuario, rol, activo), `POST /users/:id/password` (temporal: obliga a cambiarla y cierra sus sesiones), `POST /users/:id/pin`. Permiso `users.manage`.
+  - `GET/PATCH /settings`: solo los datos del ticket; solo se guardan y auditan los que cambian; un teléfono vacío queda como JSON `null`. Permiso `settings.manage`.
+  - `GET /devices` (con la última conexión: último envío, bajada o renovación de sesión) y `PATCH /devices/:id` (`active`). Permiso `settings.manage`.
+  - **Equipo dado de baja**: `authenticate`, `refresh` y `login` lo rechazan (el login, con 403 `device_blocked`, solo después de la contraseña correcta). Un equipo aún no registrado sí entra, porque se registra después de entrar.
+  - Reglas: nadie se desactiva ni se quita el rol de Administrador a sí mismo (así siempre queda un Administrador activo) ni da de baja su propio equipo (409 `self`); usuario repetido sin importar mayúsculas (409 `username_taken`).
+- **App**: *Ajustes* con tres pestañas (Negocio, Usuarios, Equipos), cada una según su permiso. En la PC desde el menú lateral; en la tablet y el celular desde *Más › Ajustes*. Usa la sesión guardada (`ServerSync.authorized`) y, tras cada cambio, una ronda de sincronización para actualizar las réplicas. Mensajes en español; un equipo dado de baja ve «Este equipo fue dado de baja. Pide al Administrador que lo reactive.» al entrar con contraseña. Fechas en hora de Lima (`limaDateTime`).
+- Pruebas: servidor **78** en verde (contra PostgreSQL: usuarios, ajustes, equipos, auditoría, revocación; rutas: 403 para Trabajo en todas, 400 por datos inválidos, 404/409); app **229** en verde (casos de uso, pantallas en PC y celular, mensaje de equipo dado de baja); `flutter analyze` y `dart analyze` sin observaciones. Servidor de desarrollo reconstruido y comprobado: las rutas nuevas responden 401 sin sesión.
+- **Pendiente de prueba en dispositivo, con el usuario**: desde la PC y la tablet, crear un usuario, cambiar un PIN (llega al otro equipo al sincronizar), editar los datos del negocio y dar de baja y reactivar un equipo.
+
+### 2026-11-25 — Tarea 7: probada por el usuario y corrección de «Dar de baja»
+
+- **Probado por el usuario**: crear un usuario desde la PC (`Leandfro`) y entrar con él en la tablet, que instaló la versión nueva con `adb install -r`. «Funcionó todo».
+- **Problema que encontró el usuario**: al reactivar la tablet, la sincronización pedía la contraseña (los tokens se habían revocado al dar de baja), pero la pantalla del PIN no ofrecía entrar con contraseña.
+- **Decisiones del usuario:**
+  - **«Dar de baja» solo bloquea, sin revocar.** El servidor responde 403 `device_blocked` (no 401) en el login, el refresh y toda ruta con sesión. El refresh no se rota, así que la app conserva su sesión, el indicador dice «Este equipo fue dado de baja…» y sigue reintentando. Al reactivarlo, vuelve a sincronizar solo con el PIN, sin contraseña.
+  - **«Entrar con contraseña»** en la pantalla del PIN, sin escribir el usuario.
+- El PIN sigue verificándose solo en el equipo: no se envía al servidor, que tampoco lo valida. Así no hay forma de adivinar un PIN de 4 dígitos por la red.
+- Pruebas: servidor 79 y app 231, en verde. Nuevas: el bloqueo sin revocar, el mismo refresh que vuelve a funcionar al reactivar, 403 `device_blocked` en las rutas y el refresh, la sesión que la app conserva, el envío sin contraseña tras reactivar y el enlace «Entrar con contraseña».
+- **Pendiente de prueba en dispositivo**: dar de baja la tablet (el indicador lo dice) y reactivarla (sincroniza sola, sin contraseña).
+- **Probado en dispositivo por el usuario (2026-11-25)**: la tablet en uso (`T2`) se dio de baja y se reactivó varias veces desde la PC (auditoría: 13:34 a 13:52, hora de Lima). Bloqueada, mostraba el aviso; reactivada, volvió a sincronizar con el PIN. La tablet vieja (`T1`) quedó **dada de baja** (13:53). «Todo ok».
+- PR #19 fuera de borrador, para revisión del usuario (autenticación: no se fusiona sin su aprobación).
+- Siguiente: **tarea 8**, prueba de aceptación en la tablet y la PC con el usuario, e informe `docs/informes/fase-1.md`.

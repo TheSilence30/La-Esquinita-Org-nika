@@ -5,6 +5,7 @@ import '../../../data/local/database.dart';
 import '../../../data/remote/server_api.dart';
 import '../../../data/sync/outbox_store.dart';
 import '../../../data/sync/replica_store.dart';
+import '../../../data/sync/server_sync.dart';
 
 /// Whether [pin] matches [hash] (Argon2id). Production runs it in a
 /// background isolate: it takes about 1 s on the tablet (user, 2026-11-20).
@@ -275,12 +276,16 @@ class LocalAuth {
       'La hora de este equipo no coincide con la del servidor. Corrígela en '
       'Ajustes.';
 
+  /// The Administrador took this device out of service ("Dar de baja").
+  static final deviceBlocked = ServerSync.deviceBlocked.message;
+
   static const _offline =
       'Sin conexión con el servidor. Revisa el Wi‑Fi y la dirección.';
 
   static String _loginMessage(ApiFailure f) => switch (f) {
     ApiFailure.unauthorized => 'Usuario o contraseña incorrectos.',
     ApiFailure.locked => 'Demasiados intentos. Espera 15 minutos.',
+    ApiFailure.forbidden => deviceBlocked,
     ApiFailure.offline => _offline,
     _ => 'El servidor no respondió bien. Intenta de nuevo.',
   };

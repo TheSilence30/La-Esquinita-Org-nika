@@ -19,6 +19,9 @@ enum ApiFailure {
   /// The user lacks the permission (403).
   forbidden,
 
+  /// No such user or device (404).
+  notFound,
+
   /// The server refused the data (400, 409) or failed (5xx).
   rejected,
 }
@@ -27,6 +30,12 @@ final class ApiException implements Exception {
   const ApiException(this.failure, [this.detail]);
   final ApiFailure failure;
   final String? detail;
+
+  /// The Administrador took this device out of service ("Dar de baja"): a
+  /// 403 `device_blocked`. The login stays valid for when it is reactivated.
+  bool get deviceBlocked =>
+      failure == ApiFailure.forbidden &&
+      (detail?.contains('device_blocked') ?? false);
 
   @override
   String toString() => 'ApiException($failure, $detail)';
@@ -73,6 +82,15 @@ abstract interface class ServerApi {
     String accessToken,
     List<SyncCommand> commands, {
     required int pendingOps,
+  });
+
+  /// Any other route with a session (the Administrador screens): [method]
+  /// on [path] with an optional JSON [body]; the JSON object answered.
+  Future<Map<String, Object?>> request(
+    String method,
+    String path,
+    String accessToken, {
+    Map<String, Object?>? body,
   });
 }
 
@@ -165,6 +183,14 @@ class HttpServerApi implements ServerApi {
   Future<void> logout(String refreshToken) =>
       _send('POST', '/auth/logout', {'refresh_token': refreshToken});
 
+  @override
+  Future<Map<String, Object?>> request(
+    String method,
+    String path,
+    String accessToken, {
+    Map<String, Object?>? body,
+  }) => _send(method, path, body, token: accessToken);
+
   Future<Map<String, Object?>> _send(
     String method,
     String path,
@@ -200,6 +226,7 @@ class HttpServerApi implements ServerApi {
       401 => ApiFailure.unauthorized,
       403 => ApiFailure.forbidden,
       429 => ApiFailure.locked,
+      404 => ApiFailure.notFound,
       _ => ApiFailure.rejected,
     };
     if (failure != null) throw ApiException(failure, res.body);

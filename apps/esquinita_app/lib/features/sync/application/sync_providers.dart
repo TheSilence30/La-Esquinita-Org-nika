@@ -16,13 +16,8 @@ part 'sync_providers.g.dart';
 /// the app coming back to the foreground start a round too (`SyncTriggers`).
 @Riverpod(keepAlive: true)
 SyncScheduler syncEngine(Ref ref) {
-  final db = ref.watch(appDatabaseProvider);
   final store = ref.watch(outboxStoreProvider);
-  final server = ServerSync(
-    db: db,
-    apiFor: ref.watch(localAuthProvider).apiFor,
-    currentUserId: () => ref.read(currentSessionProvider)?.userId,
-  );
+  final server = ref.watch(serverSyncProvider);
   final auth = ref.watch(localAuthProvider);
   final engine = SyncScheduler(
     SyncClient(store, server),
@@ -42,6 +37,15 @@ SyncScheduler syncEngine(Ref ref) {
   });
   return engine;
 }
+
+/// The server with the saved login of the user on screen (sync and the
+/// Administrador screens).
+@Riverpod(keepAlive: true)
+ServerSync serverSync(Ref ref) => ServerSync(
+  db: ref.watch(appDatabaseProvider),
+  apiFor: ref.watch(localAuthProvider).apiFor,
+  currentUserId: () => ref.read(currentSessionProvider)?.userId,
+);
 
 /// What the indicator shows. [pending] is null until the first count.
 typedef SyncView = ({int? pending, SyncRunState run});

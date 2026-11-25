@@ -32,7 +32,14 @@ const touchNav = [
 ];
 
 /// Routes reached from "Más" on touch devices.
-const _underMore = ['/mas', '/dashboard', '/caja', '/demo', '/spikes'];
+const _underMore = [
+  '/mas',
+  '/dashboard',
+  '/caja',
+  '/ajustes',
+  '/demo',
+  '/spikes',
+];
 
 /// PC: side menu.
 const desktopNav = [

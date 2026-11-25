@@ -37,6 +37,12 @@ class ServerSync implements PushTransport {
     needsPassword: true,
   );
 
+  /// Retried like any error: once reactivated, it syncs by itself with the
+  /// same login, without the password (user, 2026-11-25).
+  static const deviceBlocked = SyncException(
+    'Este equipo fue dado de baja. Pide al Administrador que lo reactive.',
+  );
+
   @override
   Future<List<PushResult>> push(
     List<SyncCommand> commands, {
@@ -50,9 +56,20 @@ class ServerSync implements PushTransport {
         _replicas.apply(await api.pull(token, await _replicas.cursor())),
   );
 
-  /// Runs [f] with a valid access token; on a 401 (expired), refreshes once
-  /// and retries.
   Future<T> _call<T>(Future<T> Function(ServerApi api, String token) f) async {
+    try {
+      return await authorized(f);
+    } on ApiException catch (e) {
+      throw _syncError(e);
+    }
+  }
+
+  /// Runs [f] with a valid access token of the user on screen; on a 401
+  /// (expired), refreshes once and retries. Other server answers come back
+  /// as [ApiException]; a missing login as [SyncException].
+  Future<T> authorized<T>(
+    Future<T> Function(ServerApi api, String token) f,
+  ) async {
     final url = await _outbox.serverUrl();
     if (url == null) {
       throw const SyncException('Falta registrar el equipo.');
@@ -67,7 +84,7 @@ class ServerSync implements PushTransport {
           _access = null;
           continue;
         }
-        throw _syncError(e);
+        rethrow;
       }
     }
   }
@@ -87,6 +104,7 @@ class ServerSync implements PushTransport {
     try {
       t = await api.refresh(refresh);
     } on ApiException catch (e) {
+      if (e.deviceBlocked) throw deviceBlocked; // keep the token
       if (e.failure == ApiFailure.unauthorized) {
         // Revoked or expired: never send it again.
         await _saveRefresh(userId, null);
@@ -104,6 +122,7 @@ class ServerSync implements PushTransport {
           .write(LocalSessionsCompanion(refreshToken: Value(token)));
 
   static SyncException _syncError(ApiException e) => switch (e.failure) {
+    _ when e.deviceBlocked => deviceBlocked,
     ApiFailure.offline => SyncException(
       'Sin conexión con el servidor. Revisa el Wi‑Fi.',
       detail: e.detail,

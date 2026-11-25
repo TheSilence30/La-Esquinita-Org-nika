@@ -172,6 +172,23 @@ void main() {
       expect((r as PinNeedsPassword).reason, contains('hora'));
     });
 
+    test(
+      'a device taken out of service says so on the password login',
+      () async {
+        server.deviceBlocked = true;
+        await expectLater(
+          auth().loginWithPassword('Administrador', 'admin-1234'),
+          throwsA(
+            isA<SetupException>().having(
+              (e) => e.message,
+              'm',
+              LocalAuth.deviceBlocked,
+            ),
+          ),
+        );
+      },
+    );
+
     test('offline: says to use the PIN', () async {
       server.offline = true;
       await expectLater(

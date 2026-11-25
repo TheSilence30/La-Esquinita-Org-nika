@@ -22,6 +22,13 @@ class MorePage extends StatelessWidget {
             title: const Text('Dashboard'),
             onTap: () => context.go('/dashboard'),
           ),
+        if (store.isAdmin)
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('Ajustes'),
+            subtitle: const Text('Negocio, usuarios y equipos'),
+            onTap: () => context.go('/ajustes'),
+          ),
         ListTile(
           leading: const Icon(Icons.point_of_sale),
           title: const Text('Caja: arqueo y cierre'),
