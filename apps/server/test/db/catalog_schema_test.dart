@@ -208,11 +208,12 @@ void main() {
     expect(() => move('loss', -1000, reason: '  '), violates(check));
     await move('adjustment', -1000, reason: 'Roto');
 
+    final other = await product(); // no movements, so no balance yet
     Future<void> balance() => db.execute(
       Sql.named('''
         insert into stock_balances (product_id, lot_id, qty_milli, version)
         values (@p:uuid, null, 23000, 0)'''),
-      parameters: {'p': p},
+      parameters: {'p': other},
     );
     await balance();
     expect(balance, violates(unique));

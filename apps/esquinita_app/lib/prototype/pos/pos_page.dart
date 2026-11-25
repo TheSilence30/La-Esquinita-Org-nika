@@ -1,6 +1,7 @@
 import 'dart:async';
 
-import 'package:esquinita_core/esquinita_core.dart';
+// The prototype keeps its own LotTake until Fase 3 replaces it.
+import 'package:esquinita_core/esquinita_core.dart' hide LotTake;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
