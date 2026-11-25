@@ -184,7 +184,7 @@ void main() {
   test('unknown tables and columns are ignored (newer server)', () async {
     await store.apply(
       _pull(5, {
-        'products': [
+        'future_table': [
           {'id': 'p1'},
         ],
         'users': [

@@ -32,7 +32,65 @@ class ReplicaStore {
       'version',
     ],
     'settings': ['key', 'value', 'active', 'version'],
+    'categories': ['id', 'name', 'sort_order', 'active', 'version'],
+    'brands': ['id', 'name', 'active', 'version'],
+    'units': ['id', 'code', 'name', 'kind', 'active', 'version'],
+    'products': [
+      'id',
+      'internal_code',
+      'name',
+      'description',
+      'category_id',
+      'brand_id',
+      'base_unit_id',
+      'tracks_lots',
+      'min_stock_milli',
+      'active',
+      'version',
+    ],
+    'product_costs': [
+      'product_id',
+      'avg_cost_cents',
+      'last_cost_cents',
+      'on_hand_milli',
+      'version',
+    ],
+    'product_presentations': [
+      'id',
+      'product_id',
+      'name',
+      'factor_milli',
+      'is_base',
+      'retail_price_cents',
+      'wholesale_price_cents',
+      'wholesale_min_milli',
+      'active',
+      'version',
+    ],
+    'barcodes': [
+      'code',
+      'presentation_id',
+      'format',
+      'generated',
+      'active',
+      'version',
+    ],
+    'lots': ['id', 'product_id', 'lot_code', 'expires_on', 'version'],
+    'stock_balances': ['product_id', 'lot_id', 'qty_milli', 'version'],
   };
+
+  /// Downloads every page from [cursor] on: [fetch] gets the cursor and
+  /// returns one pull answer; each page is stored before asking the next,
+  /// so an interrupted download resumes where it stopped.
+  Future<void> pullAll(
+    Future<Map<String, Object?>> Function(int since) fetch,
+  ) async {
+    while (true) {
+      final page = await fetch(await cursor());
+      await apply(page);
+      if (page['more'] != true) return;
+    }
+  }
 
   /// Where the next pull starts (0 on a new device).
   Future<int> cursor() async =>
@@ -60,10 +118,17 @@ class ReplicaStore {
           if (row is! Map<String, Object?>) {
             throw FormatException('pull: bad row in $table');
           }
+          final values = [for (final c in cols) _variable(table, c, row[c])];
+          final names = [...cols];
+          if (table == 'stock_balances') {
+            // SQLite keys treat NULLs as distinct: one key for "no lot".
+            names.add('lot_key');
+            values.add(Variable.withString(row['lot_id'] as String? ?? ''));
+          }
           await db.customInsert(
-            'INSERT OR REPLACE INTO $table (${cols.join(', ')}) '
-            'VALUES (${List.filled(cols.length, '?').join(', ')})',
-            variables: [for (final c in cols) _variable(table, c, row[c])],
+            'INSERT OR REPLACE INTO $table (${names.join(', ')}) '
+            'VALUES (${List.filled(names.length, '?').join(', ')})',
+            variables: values,
           );
           touched.add(info);
         }

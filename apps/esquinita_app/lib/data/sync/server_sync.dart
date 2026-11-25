@@ -54,8 +54,7 @@ class ServerSync implements PushTransport {
 
   /// Master data changed since the local cursor, applied in one transaction.
   Future<void> pull() => _call(
-    (api, token) async =>
-        _replicas.apply(await api.pull(token, await _replicas.cursor())),
+    (api, token) => _replicas.pullAll((since) => api.pull(token, since)),
   );
 
   Future<T> _call<T>(Future<T> Function(ServerApi api, String token) f) async {

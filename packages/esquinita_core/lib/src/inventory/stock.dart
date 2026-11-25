@@ -8,8 +8,12 @@ Quantity sumMovements(Iterable<Quantity> movements) =>
 /// A lot and its local balance, as FEFO sees it.
 typedef LotStock = ({String lotId, DateTime? expiresOn, Quantity balance});
 
-/// How much of a sale item comes out of one lot.
-typedef LotTake = ({String lotId, Quantity qty});
+/// How much of a sale item comes out of one lot; [lotId] null: "sin lote".
+typedef LotTake = ({String? lotId, Quantity qty});
+
+/// The split, and whether some lot (or "sin lote") goes negative: the sale
+/// then carries the stock warning.
+typedef FefoSplit = ({List<LotTake> takes, bool stockWarning});
 
 /// Splits [qty] (base unit, > 0) among [lots] first-expired-first-out
 /// (docs/modelo-datos.md §3.2):
@@ -20,14 +24,15 @@ typedef LotTake = ({String lotId, Quantity qty});
 /// 4. what is left goes to the sellable lot that expires last, which goes
 ///    negative (the sale then carries a stock warning).
 ///
-/// Null when no lot can be sold: the product cannot be sold until stock
-/// comes in.
-List<LotTake>? allocateFefo(
-  Iterable<LotStock> lots,
-  Quantity qty,
-  DateTime today,
-) {
+/// A product without any lot yet sells "sin lote" (null lot, negative
+/// balance) with the warning, like a sale without local stock. Null only
+/// when it has lots and every one is expired: then it cannot be sold until
+/// stock comes in (user, 2026-11-25).
+FefoSplit? allocateFefo(Iterable<LotStock> lots, Quantity qty, DateTime today) {
   if (qty.milli <= 0) throw ArgumentError.value(qty, 'qty', 'must be > 0');
+  if (lots.isEmpty) {
+    return (takes: [(lotId: null, qty: qty)], stockWarning: true);
+  }
   final day = DateTime.utc(today.year, today.month, today.day);
   final sellable = [
     for (final l in lots)
@@ -51,14 +56,18 @@ List<LotTake>? allocateFefo(
       left -= take;
     }
   }
-  if (left > 0) {
+  final short = left > 0;
+  if (short) {
     final last = sellable.last.lotId;
     takes[last] = (takes[last] ?? 0) + left;
   }
-  return [
-    for (final MapEntry(:key, :value) in takes.entries)
-      (lotId: key, qty: Quantity(value)),
-  ];
+  return (
+    takes: [
+      for (final MapEntry(:key, :value) in takes.entries)
+        (lotId: key, qty: Quantity(value)),
+    ],
+    stockWarning: short,
+  );
 }
 
 DateTime _date(DateTime d) => DateTime.utc(d.year, d.month, d.day);
