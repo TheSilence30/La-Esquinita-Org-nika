@@ -11,7 +11,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
-- [ ] 7. **PR abierto para revisión del usuario** (rama `phase-1/admin-screens`). Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
+- [x] 7. **PR #19 para revisión del usuario** (rama `phase-1/admin-screens`); probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
 ## Pendientes heredados de la Fase 0
@@ -289,3 +289,6 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
 - El PIN sigue verificándose solo en el equipo: no se envía al servidor, que tampoco lo valida. Así no hay forma de adivinar un PIN de 4 dígitos por la red.
 - Pruebas: servidor 79 y app 231, en verde. Nuevas: el bloqueo sin revocar, el mismo refresh que vuelve a funcionar al reactivar, 403 `device_blocked` en las rutas y el refresh, la sesión que la app conserva, el envío sin contraseña tras reactivar y el enlace «Entrar con contraseña».
 - **Pendiente de prueba en dispositivo**: dar de baja la tablet (el indicador lo dice) y reactivarla (sincroniza sola, sin contraseña).
+- **Probado en dispositivo por el usuario (2026-11-25)**: la tablet en uso (`T2`) se dio de baja y se reactivó varias veces desde la PC (auditoría: 13:34 a 13:52, hora de Lima). Bloqueada, mostraba el aviso; reactivada, volvió a sincronizar con el PIN. La tablet vieja (`T1`) quedó **dada de baja** (13:53). «Todo ok».
+- PR #19 fuera de borrador, para revisión del usuario (autenticación: no se fusiona sin su aprobación).
+- Siguiente: **tarea 8**, prueba de aceptación en la tablet y la PC con el usuario, e informe `docs/informes/fase-1.md`.
