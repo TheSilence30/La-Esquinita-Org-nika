@@ -128,6 +128,50 @@ void main() {
       expect(server.users['Trabajo']!.password, 'nueva-clave-9');
     });
 
+    Future<String?> lastSeen() async => (await (db.select(
+      db.localSettings,
+    )..where((s) => s.key.equals('last_seen_at'))).getSingleOrNull())?.value;
+
+    test('the server time, not the device clock, starts the 7 days and '
+        'sets the time seen; 4 min off gives no warning', () async {
+      server.serverTime = now.add(const Duration(minutes: 4));
+      final s = await adminLogin();
+      expect(s.clockWarning, isNull);
+      final saved = await db.select(db.localSessions).getSingle();
+      expect(
+        saved.passwordLoginAt.isAtSameMomentAs(server.serverTime!),
+        isTrue,
+      );
+      expect(await lastSeen(), '${server.serverTime!.millisecondsSinceEpoch}');
+    });
+
+    test('a device clock more than 5 min off the server warns, and a clock '
+        'behind then blocks the PIN', () async {
+      for (final off in [
+        const Duration(minutes: 6),
+        -const Duration(hours: 3),
+      ]) {
+        server.serverTime = now.add(off);
+        final s = await adminLogin();
+        expect(s.clockWarning, LocalAuth.clockMismatch);
+        expect(
+          (await db.select(db.localSessions).getSingle()).passwordLoginAt
+              .isAtSameMomentAs(server.serverTime!),
+          isTrue,
+        );
+      }
+      // The device is 3 h ahead of the server now: the PIN still works.
+      server.offline = true;
+      expect(await auth().loginWithPin(adminId, '4821'), isA<PinOk>());
+      server
+        ..offline = false
+        ..serverTime = now.add(const Duration(minutes: 6));
+      await adminLogin(); // device 6 min behind the server
+      server.offline = true;
+      final r = await auth().loginWithPin(adminId, '4821');
+      expect((r as PinNeedsPassword).reason, contains('hora'));
+    });
+
     test('offline: says to use the PIN', () async {
       server.offline = true;
       await expectLater(

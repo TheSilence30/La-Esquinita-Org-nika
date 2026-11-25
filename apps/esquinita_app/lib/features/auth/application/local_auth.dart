@@ -18,6 +18,7 @@ class AppSession {
     required this.fullName,
     required this.permissions,
     required this.homeView,
+    this.clockWarning,
   });
 
   final String userId;
@@ -29,6 +30,10 @@ class AppSession {
 
   /// `dashboard` or `sales`: the first screen of the user's role.
   final String homeView;
+
+  /// Set after a password login when the device clock is more than
+  /// [LocalAuth.clockTolerance] off the server's; the screen shows it once.
+  final String? clockWarning;
 
   bool can(String permission) => permissions.contains(permission);
 }
@@ -266,6 +271,10 @@ class LocalAuth {
 
   // --- internals -----------------------------------------------------------
 
+  static const clockMismatch =
+      'La hora de este equipo no coincide con la del servidor. Corrígela en '
+      'Ajustes.';
+
   static const _offline =
       'Sin conexión con el servidor. Revisa el Wi‑Fi y la dirección.';
 
@@ -318,29 +327,42 @@ class LocalAuth {
   /// After a password login: user id from /me, fresh replicas (they bring
   /// this user's PIN hash) and the saved login.
   Future<AppSession> _open(ServerApi api, LoginTokens t) async {
-    final session = await _sessionOf(t.accessToken, api);
+    // The server's clock, not the device's, starts the 7 days.
+    final device = _clock();
+    final now = t.serverTime ?? device;
+    final skewed = device.difference(now).abs() > clockTolerance;
+    final session = await _sessionOf(
+      t.accessToken,
+      api,
+      clockWarning: skewed ? clockMismatch : null,
+    );
     await db
         .into(db.localSessions)
         .insertOnConflictUpdate(
           LocalSessionsCompanion.insert(
             userId: session.userId,
             refreshToken: Value(t.refreshToken),
-            passwordLoginAt: _clock(),
+            passwordLoginAt: now,
             failedPins: const Value(0),
           ),
         );
-    // The server accepted the password: trust the clock again, even if
-    // lower, so a clock once set forward does not block the PIN for good.
-    await _set(_lastSeenKey, '${_clock().millisecondsSinceEpoch}');
+    // The server accepted the password: trust its time, even if lower, so
+    // a clock once set forward does not block the PIN for good.
+    await _set(_lastSeenKey, '${now.millisecondsSinceEpoch}');
     return session;
   }
 
-  Future<AppSession> _sessionOf(String accessToken, ServerApi api) async {
+  Future<AppSession> _sessionOf(
+    String accessToken,
+    ServerApi api, {
+    String? clockWarning,
+  }) async {
     try {
       final me = await api.me(accessToken);
       await _pull(api, accessToken);
       return await _session(
         (me['user']! as Map<String, Object?>)['id']! as String,
+        clockWarning: clockWarning,
       );
     } on ApiException {
       throw const SetupException(_offline);
@@ -352,7 +374,7 @@ class LocalAuth {
 
   /// The session from the local replicas: the same data with or without a
   /// connection.
-  Future<AppSession> _session(String userId) async {
+  Future<AppSession> _session(String userId, {String? clockWarning}) async {
     final user = await (db.select(
       db.users,
     )..where((u) => u.id.equals(userId))).getSingle();
@@ -372,6 +394,7 @@ class LocalAuth {
       fullName: user.fullName,
       permissions: await _replicas.permissionsOf(userId),
       homeView: views.contains('dashboard') ? 'dashboard' : 'sales',
+      clockWarning: clockWarning,
     );
   }
 
