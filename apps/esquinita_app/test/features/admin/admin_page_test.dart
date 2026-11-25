@@ -143,7 +143,23 @@ void main() {
     expect(find.text('¿Dar de baja «PC caja»?'), findsOne);
     await tap(tester, find.widgetWithText(FilledButton, 'Dar de baja'));
     expect(server.devices['d-pc'], isFalse);
+    // Hidden by default; the switch shows it again, with "Reactivar".
+    expect(pc, findsNothing);
+    await tap(tester, find.text('Mostrar desactivados (1)'));
     expect(find.descendant(of: pc, matching: find.text('Reactivar')), findsOne);
+  });
+
+  testWidgets('Equipos: a tap renames the device', (tester) async {
+    await start(tester);
+    await tap(tester, find.text('Equipos'));
+    await tap(tester, find.byKey(const Key('device-T1')));
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Nombre'),
+      'Tablet caja 2',
+    );
+    await tap(tester, find.text('Guardar'));
+    expect(server.deviceNames['d-tablet'], 'Tablet caja 2');
+    expect(find.textContaining('Tablet caja 2'), findsOne);
   });
 
   testWidgets('Usuarios on a phone: create one; the PIN is checked first', (

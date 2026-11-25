@@ -289,6 +289,32 @@ class AdminService {
     );
   });
 
+  /// A clearer name for the device ("Tablet caja 2"), audited.
+  Future<void> renameDevice(AuthUser actor, String id, String name) =>
+      _tx((tx) async {
+        final rows = await tx.execute(
+          Sql.named('''
+            update devices d set name = @n:text
+            from (select name from devices where id = @id:uuid for update) old
+            where d.id = @id:uuid and d.name <> @n:text
+            returning old.name'''),
+          parameters: {'id': id, 'n': name},
+        );
+        if (rows.isEmpty) {
+          await _exists(tx, id, table: 'devices');
+          return; // the same name
+        }
+        await _audit(
+          tx,
+          actor,
+          'devices.rename',
+          'devices',
+          id,
+          before: {'name': rows.single[0]},
+          after: {'name': name},
+        );
+      });
+
   // --- internals -------------------------------------------------------------
 
   Future<T> _tx<T>(Future<T> Function(TxSession tx) f) async {

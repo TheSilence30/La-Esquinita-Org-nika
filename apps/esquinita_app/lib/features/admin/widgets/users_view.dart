@@ -18,6 +18,7 @@ class UsersView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final me = ref.watch(currentSessionProvider)?.userId;
+    final showInactive = ref.watch(adminShowInactiveProvider);
     return AsyncSection(
       value: ref.watch(adminUsersProvider),
       onRetry: () => ref.invalidate(adminUsersProvider),
@@ -36,7 +37,10 @@ class UsersView extends ConsumerWidget {
                 ),
               ),
             ),
-            for (final u in users) _UserTile(user: u, isMe: u.id == me),
+            ShowInactiveSwitch(inactive: users.where((u) => !u.active).length),
+            for (final u in users)
+              if (u.active || showInactive)
+                _UserTile(user: u, isMe: u.id == me),
           ],
         ),
       ),

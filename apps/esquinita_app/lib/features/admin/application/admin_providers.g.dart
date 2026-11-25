@@ -50,6 +50,68 @@ final class AdminClientProvider
 
 String _$adminClientHash() => r'11b947e3cfd7327c78a9fdbe2b37d1afef9e9e6b';
 
+/// Whether the lists show deactivated users and devices out of service
+/// too; hidden by default (user, 2026-11-25).
+
+@ProviderFor(AdminShowInactive)
+final adminShowInactiveProvider = AdminShowInactiveProvider._();
+
+/// Whether the lists show deactivated users and devices out of service
+/// too; hidden by default (user, 2026-11-25).
+final class AdminShowInactiveProvider
+    extends $NotifierProvider<AdminShowInactive, bool> {
+  /// Whether the lists show deactivated users and devices out of service
+  /// too; hidden by default (user, 2026-11-25).
+  AdminShowInactiveProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'adminShowInactiveProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$adminShowInactiveHash();
+
+  @$internal
+  @override
+  AdminShowInactive create() => AdminShowInactive();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$adminShowInactiveHash() => r'3e86cc1ff168927089dbb4ed631e8a83d1c7b0c7';
+
+/// Whether the lists show deactivated users and devices out of service
+/// too; hidden by default (user, 2026-11-25).
+
+abstract class _$AdminShowInactive extends $Notifier<bool> {
+  bool build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<bool, bool>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<bool, bool>,
+              bool,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}
+
 /// Every user, from the server (needs a connection).
 
 @ProviderFor(adminUsers)

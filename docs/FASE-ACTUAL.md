@@ -324,3 +324,11 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
   - App: el PIN se comprueba primero en el equipo; si es correcto y la sesión se perdió, pide una nueva al servidor. El indicador dice «PIN · pendientes N» y, al tocarlo, pide el PIN y sincroniza.
   - ADR-0004 actualizado: «Dar de baja» solo bloquea (decisión del mismo día).
   - Pruebas: servidor 82 y app 235, en verde.
+- **Propuestas aceptadas (rama `phase-1/admin-polish`)**:
+  - Usuarios y Equipos ocultan por defecto los desactivados y los dados de baja; «Mostrar desactivados (N)» los vuelve a mostrar (un interruptor para las dos listas).
+  - Tocar un equipo permite cambiarle el nombre (`PATCH /devices/:id` con `name`, auditado como `devices.rename`; el mismo nombre no cambia nada).
+  - Pruebas: servidor 80 y app 235 en esta rama, en verde.
+- **Probado en la tablet por el usuario (2026-11-25)**, con una compilación local de los PR #21 y #22:
+  - Sesiones de la tablet canceladas en el servidor a las 15:14:08 para simular una pérdida. Al abrir la app y entrar con el PIN de `Leandro`, se creó una sesión nueva (15:14:58) **sin contraseña** (su último ingreso con contraseña sigue siendo el de las 14:47) y sincronizó.
+  - T2 renombrada a «Tablet Principal» desde la PC (auditado); T1, dada de baja, queda oculta.
+- PR #22 fusionado con la CI en verde. PR #21 (autenticación) en espera de la aprobación del usuario.
