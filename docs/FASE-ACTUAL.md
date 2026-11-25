@@ -12,7 +12,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
 - [x] 7. PR #19, aprobado y fusionado; probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
-- [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
+- [x] 8. Prueba de aceptación en la tablet y la PC con el usuario (2026-11-25, los 8 pasos bien); informe en `docs/informes/fase-1.md`. Hallazgo corregido en el PR #20, en revisión
 
 ## Pendientes heredados de la Fase 0
 
@@ -313,3 +313,5 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
 - **Paso 6** (cierre a mitad del envío lento): llegaron **30 de la tablet, ninguna repetida** (174 en total, todas distintas).
   - Al volver, la sincronización pidió la contraseña. Causa: a las 14:47:17 se revocó la sesión de la tablet sin emitir un token nuevo, que es lo que pasa cuando se presenta un refresh ya rotado. Lo más probable es que la respuesta de una renovación no llegara a la app (la app se cerró, o venció el tiempo máximo de 3 s del PR #20) y que la app reenviara el token anterior.
   - **Decisión del usuario: dejarlo como está.** Se mantiene la regla del 2026-11-22: un refresh reutilizado revoca la sesión y la sincronización pide la contraseña una vez; el PIN sigue funcionando en el equipo. Se descartó tolerar la respuesta perdida y validar el PIN en el servidor.
+- **Paso 8**: Trabajo en la tablet entra a Vender y no ve Ajustes. Bien.
+- **Prueba de aceptación completa.** Informe: `docs/informes/fase-1.md`. En espera de la aprobación de la Fase 1 y del PR #20.
