@@ -50,21 +50,25 @@ class OutboxStore {
               createdAt: cmd.createdAt,
             ),
           );
-      await db
-          .into(db.outbox)
-          .insert(
-            OutboxCompanion.insert(
-              opId: cmd.opId,
-              deviceId: cmd.deviceId,
-              userId: cmd.userId,
-              createdAt: cmd.createdAt,
-              type: cmd.type,
-              payload: jsonEncode(cmd.payload),
-            ),
-          );
+      await enqueue(cmd);
     });
     return cmd.opId;
   }
+
+  /// Adds [cmd] to the outbox. Call it inside the transaction that writes
+  /// the operation's local rows, so both are kept or neither.
+  Future<void> enqueue(SyncCommand cmd) => db
+      .into(db.outbox)
+      .insert(
+        OutboxCompanion.insert(
+          opId: cmd.opId,
+          deviceId: cmd.deviceId,
+          userId: cmd.userId,
+          createdAt: cmd.createdAt,
+          type: cmd.type,
+          payload: jsonEncode(cmd.payload),
+        ),
+      );
 
   /// Oldest first. [all] includes answered commands (spike "Reenviar todo").
   Future<List<SyncCommand>> commands({

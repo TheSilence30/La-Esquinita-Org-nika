@@ -11,6 +11,7 @@ export 'src/auth/password_hash.dart';
 export 'src/auth/permissions.dart';
 export 'src/business/ruc.dart';
 export 'src/catalog/barcode_check.dart';
+export 'src/catalog/create_product.dart';
 export 'src/catalog/internal_barcode.dart';
 export 'src/catalog/presentation.dart';
 export 'src/inventory/stock.dart';

@@ -5,8 +5,8 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
 ## Tareas (cada una con pruebas y un PR pequeño)
 
 - [x] 1. PR #25, aprobado y fusionado. Migraciones y seed del catálogo e inventario (`modelo-datos.md` §2.1–2.2; unidades `und`, `kg`, `l` y las 6 categorías de ejemplo), con pruebas contra PostgreSQL
-- [x] 2. **PR para revisión** (rama `phase-2/core-rules`). Core: presentaciones y conversión, validación de códigos (dígito verificador, formatos, daño de Excel), saldo por movimientos y FEFO. **Pedido del usuario:** `product_costs.on_hand_milli` se actualiza en la misma transacción que cada movimiento, con una prueba de que siempre coincide con la suma de `stock_balances` del producto
-- [ ] 3. `CreateProduct` en el servidor y en la app (outbox, `duplicate_barcode`), bajada del catálogo y réplicas en drift
+- [x] 2. PR #26, aprobado y fusionado. Core: presentaciones y conversión, validación de códigos (dígito verificador, formatos, daño de Excel), saldo por movimientos y FEFO. **Pedido del usuario:** `product_costs.on_hand_milli` se actualiza en la misma transacción que cada movimiento, con una prueba de que siempre coincide con la suma de `stock_balances` del producto
+- [x] 3. **PR abierto para revisión del usuario** (rama `phase-2/create-product`, sincronización). `CreateProduct` en el servidor y en la app (outbox, `duplicate_barcode`), bajada del catálogo y réplicas en drift
 - [ ] 4. Pantallas de Productos y Registrar por escaneo (tablet y PC), con stock inicial
 - [ ] 5. Editar producto, presentaciones, códigos y precios en línea (Administrador, `price_changes`)
 - [ ] 6. Stock local, kardex, `AdjustStock` (ajustes y mermas) y PIN de Administrador para autorizar
@@ -65,3 +65,35 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
   - modificar o borrar un movimiento falla.
 - El prototipo del POS tenía su propio `LotTake`, que choca con el del core; se oculta el del core en ese archivo hasta que la Fase 3 lo reemplace.
 - Pruebas: core 81, servidor 95 y app 236, en verde; analizadores sin observaciones.
+
+### 2026-11-25 — PR #26 fusionado; tarea 3: alta de producto sin conexión y bajada del catálogo
+
+- PR #26 aprobado por el usuario y fusionado (`3edc24f`).
+- **Cambio pedido por el usuario en FEFO** (core y `modelo-datos.md` §3.2):
+  - un producto con lotes que **todavía no tiene ninguno** se vende «sin lote» (`lot_id` nulo, saldo negativo) con el aviso de stock, como una venta sin stock local;
+  - si **tiene lotes y todos están vencidos**, sigue bloqueado.
+  - `allocateFefo` devuelve el reparto y `stockWarning`. Pruebas de los dos casos.
+- **Core**: comando `CreateProduct` con su validación, la misma en el equipo y en el servidor:
+  - una sola presentación base con factor 1000, y factores > 0;
+  - nombres y códigos sin repetir, y códigos válidos;
+  - precios ≥ 0;
+  - stock inicial > 0, con lote si el producto lo controla y sin lote si no.
+  - Mensajes en español.
+- **Servidor**:
+  - `CreateProduct` en el push, en una transacción: producto, costo inicial (promedio = último = costo del alta), presentaciones, códigos, lotes y stock inicial como movimientos `initial` (el disparador de la tarea 2 lleva los saldos), con `audit_log` `catalog.create`.
+  - Rechaza, sin dejar nada, una categoría, unidad o marca desconocida, un producto o código interno repetido, o un autor sin `catalog.create`.
+  - Un **código de barras que ya es de otro producto** (dado de alta sin conexión en dos equipos): el producto se crea igual, sin ese código; queda un conflicto `duplicate_barcode` para que el Administrador los una, y la respuesta es `conflict`.
+- **Bajada**: categorías, marcas, unidades, productos, costos, presentaciones, códigos, lotes (`expires_on` como `YYYY-MM-DD`) y saldos, **por páginas** (`more`). Cada página trae las 2000 versiones más bajas después del cursor, sin partir ni saltar filas. Se cerró el `shortcut` de la Fase 1.
+- **App**:
+  - base local **v3** con las réplicas del catálogo y los movimientos propios;
+  - `CatalogStore.recordCreateProduct` escribe el producto y su comando en **una sola transacción**;
+  - códigos internos (`T2-000001`) y `29…` con la serie y el dígito del equipo, con contadores en la base cifrada que nunca se repiten;
+  - un código que ya tiene otro producto en el equipo se rechaza antes de escribir;
+  - la bajada recorre todas las páginas y guarda cada una antes de pedir la siguiente.
+- Pruebas: core 89, servidor 101 y app 244, en verde. Nuevas:
+  - comando y validaciones;
+  - alta en el servidor (con y sin lotes), reenvío duplicado, `duplicate_barcode`, los tres rechazos guardados para el reenvío;
+  - bajada del catálogo como JSON y por páginas (cada fila una vez, en orden);
+  - alta local atómica, contadores, código repetido, la bajada que reemplaza la copia local;
+  - **migración v2 → v3 conservando los datos**.
+- shortcut: si el servidor **rechaza** un alta (caso raro: categoría inexistente o autor sin permiso), la copia local se queda en el equipo. La tarea 4 mostrará las operaciones rechazadas.

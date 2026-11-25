@@ -174,6 +174,161 @@ class LocalSessions extends Table {
   Set<Column> get primaryKey => {userId};
 }
 
+// --- Catalog and inventory (Fase 2): replicas of the server, same names and
+// columns as its pull (docs/modelo-datos.md §2.1–2.2, §5). A product
+// registered here is written into them at once (version 0) and the pull
+// replaces it with the server's copy.
+
+@DataClassName('ReplicaCategory')
+class Categories extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  IntColumn get sortOrder => integer()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ReplicaBrand')
+class Brands extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ReplicaUnit')
+class Units extends Table {
+  TextColumn get id => text()();
+  TextColumn get code => text()();
+  TextColumn get name => text()();
+
+  /// count, weight or volume.
+  TextColumn get kind => text()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ReplicaProduct')
+class Products extends Table {
+  TextColumn get id => text()();
+  TextColumn get internalCode => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get categoryId => text()();
+  TextColumn get brandId => text().nullable()();
+  TextColumn get baseUnitId => text()();
+  BoolColumn get tracksLots => boolean()();
+  IntColumn get minStockMilli => integer()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// Calculated by the server only (§3.4); shown only with
+/// `catalog.view_cost`.
+@DataClassName('ReplicaProductCost')
+class ProductCosts extends Table {
+  TextColumn get productId => text()();
+  IntColumn get avgCostCents => integer()();
+  IntColumn get lastCostCents => integer()();
+  IntColumn get onHandMilli => integer()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {productId};
+}
+
+@DataClassName('ReplicaPresentation')
+class ProductPresentations extends Table {
+  TextColumn get id => text()();
+  TextColumn get productId => text()();
+  TextColumn get name => text()();
+  IntColumn get factorMilli => integer()();
+  BoolColumn get isBase => boolean()();
+  IntColumn get retailPriceCents => integer()();
+  IntColumn get wholesalePriceCents => integer().nullable()();
+  IntColumn get wholesaleMinMilli => integer().nullable()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DataClassName('ReplicaBarcode')
+class Barcodes extends Table {
+  TextColumn get code => text()();
+  TextColumn get presentationId => text()();
+  TextColumn get format => text()();
+  BoolColumn get generated => boolean()();
+  BoolColumn get active => boolean()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {code};
+}
+
+@DataClassName('ReplicaLot')
+class Lots extends Table {
+  TextColumn get id => text()();
+  TextColumn get productId => text()();
+  TextColumn get lotCode => text()();
+
+  /// `YYYY-MM-DD`; null: does not expire.
+  TextColumn get expiresOn => text().nullable()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+/// The server's balances. [lotKey] is `lot_id` or '' (SQLite keys treat
+/// NULLs as distinct), filled by the replica store.
+@DataClassName('ReplicaStockBalance')
+class StockBalances extends Table {
+  TextColumn get productId => text()();
+  TextColumn get lotId => text().nullable()();
+  TextColumn get lotKey => text()();
+  IntColumn get qtyMilli => integer()();
+  IntColumn get version => integer()();
+
+  @override
+  Set<Column> get primaryKey => {productId, lotKey};
+}
+
+/// Movements made on this device (docs/modelo-datos.md §5: «solo
+/// propios»); each went to the outbox in the same transaction ([opId]).
+/// Never changed or deleted.
+@DataClassName('LocalStockMovement')
+@TableIndex(name: 'stock_movements_product', columns: {#productId, #lotId})
+class StockMovements extends Table {
+  TextColumn get id => text()();
+  TextColumn get productId => text()();
+  TextColumn get lotId => text().nullable()();
+
+  /// ± in the base unit.
+  IntColumn get qtyMilli => integer()();
+  TextColumn get type => text()();
+  TextColumn get reason => text().nullable()();
+  TextColumn get opId => text()();
+  TextColumn get userId => text()();
+  DateTimeColumn get occurredAt => dateTime()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 @DriftDatabase(
   tables: [
     LocalSettings,
@@ -188,6 +343,16 @@ class LocalSessions extends Table {
     Settings,
     SyncState,
     LocalSessions,
+    Categories,
+    Brands,
+    Units,
+    Products,
+    ProductCosts,
+    ProductPresentations,
+    Barcodes,
+    Lots,
+    StockBalances,
+    StockMovements,
   ],
 )
 class AppDatabase extends _$AppDatabase {
@@ -196,14 +361,31 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   // 1: the encrypted local.db (the Fase 0 unencrypted file is left where it
-  // was). 2: local_sessions.
+  // was). 2: local_sessions. 3: catalog and inventory (Fase 2).
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onUpgrade: (m, from, to) async {
       if (from < 2) await m.createTable(localSessions);
+      if (from < 3) {
+        for (final t in <TableInfo<Table, Object?>>[
+          categories,
+          brands,
+          units,
+          products,
+          productCosts,
+          productPresentations,
+          barcodes,
+          lots,
+          stockBalances,
+          stockMovements,
+        ]) {
+          await m.createTable(t);
+        }
+        await m.createIndex(stockMovementsProduct);
+      }
     },
   );
 }

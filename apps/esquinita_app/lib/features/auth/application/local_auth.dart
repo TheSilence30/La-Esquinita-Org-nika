@@ -418,8 +418,8 @@ class LocalAuth {
     }
   }
 
-  Future<void> _pull(ServerApi api, String accessToken) async =>
-      _replicas.apply(await api.pull(accessToken, await _replicas.cursor()));
+  Future<void> _pull(ServerApi api, String accessToken) =>
+      _replicas.pullAll((since) => api.pull(accessToken, since));
 
   /// The session from the local replicas: the same data with or without a
   /// connection.

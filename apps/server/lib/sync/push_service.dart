@@ -1,4 +1,5 @@
 import 'package:esquinita_core/esquinita_core.dart';
+import 'package:esquinita_server/catalog/create_product.dart';
 import 'package:postgres/postgres.dart';
 
 /// Applies pushed commands idempotently (ADR-0002).
@@ -67,10 +68,24 @@ class PushService {
       },
     );
     if (claimed.isEmpty) return _original(tx, c.opId);
-    if (status == PushStatus.applied) {
-      await _apply(tx, c, receivedAt: claimed.single[0]! as DateTime);
+    if (status != PushStatus.applied) {
+      return PushResult(c.opId, status, message: message);
     }
-    return PushResult(c.opId, status, message: message);
+    final (outcome, why) = await _apply(
+      tx,
+      c,
+      receivedAt: claimed.single[0]! as DateTime,
+    );
+    if (outcome != PushStatus.applied) {
+      // Stored like the rest, so a resend gets the same answer.
+      await tx.execute(
+        Sql.named('''
+          update sync_inbox set status = @s:text, message = @m:text
+          where op_id = @op:uuid'''),
+        parameters: {'s': outcome.name, 'm': why, 'op': c.opId},
+      );
+    }
+    return PushResult(c.opId, outcome, message: why);
   });
 
   /// Business validation; no I/O. Rejections are stored like successes so a
@@ -81,6 +96,9 @@ class PushService {
         case SpikeOperation.type:
           SpikeOperation.fromPayload(c.payload);
           return (PushStatus.applied, null);
+        case CreateProduct.type:
+          CreateProduct.fromPayload(c.payload);
+          return (PushStatus.applied, null);
         default:
           return (PushStatus.rejected, 'unknown command type: ${c.type}');
       }
@@ -89,11 +107,15 @@ class PushService {
     }
   }
 
-  Future<void> _apply(
+  /// Applies a valid command: applied, or rejected/conflict with why.
+  Future<(PushStatus, String?)> _apply(
     TxSession tx,
     SyncCommand c, {
     required DateTime receivedAt,
   }) async {
+    if (c.type == CreateProduct.type) {
+      return applyCreateProduct(tx, c, CreateProduct.fromPayload(c.payload));
+    }
     final op = SpikeOperation.fromPayload(c.payload);
     await tx.execute(
       Sql.named('''
@@ -110,6 +132,7 @@ class PushService {
         'received_at': receivedAt,
       },
     );
+    return (PushStatus.applied, null);
   }
 
   Future<PushResult> _original(TxSession tx, String opId) async {

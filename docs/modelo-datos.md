@@ -458,7 +458,7 @@ Cada equipo informa sus pendientes en cada `POST /sync/push` (campo `status` jun
   4. Si no alcanza, el resto va al lote no vencido de **vencimiento más lejano**, que queda negativo. La venta se registra con `stock_warning = true` y un aviso al usuario.
   - **Límite en el carrito** (decisión del usuario, 2026-11-19): cuando agregar (escaneo, lector, toque o **+**) supera el stock local vendible, la app pregunta "Sin stock · ¿Agregar de todas formas?". **Sí**: se agrega con aviso ámbar y no vuelve a preguntar por ese producto en la venta. **No**: no se agrega, y cada nuevo escaneo de ese código muestra el error rojo. Las respuestas se olvidan al terminar o vaciar la venta.
 - El reparto se guarda en `sale_item_lots`; el servidor **lo aplica tal cual**, sin recalcular. Si un saldo global queda negativo → `sync_conflicts` `negative_stock`.
-- Si no existe ningún lote vendible (todos vencidos o sin lotes), el producto **no se puede vender** hasta registrar un ingreso o ajuste.
+- Si el producto **no tiene ningún lote** todavía, se vende **«sin lote»** (`lot_id` NULL, saldo negativo) con `stock_warning = true`, como una venta sin stock local (decisión del usuario, 2026-11-25). Si **tiene lotes y todos están vencidos**, **no se puede vender** hasta registrar un ingreso o ajuste.
 
 ### 3.3 Pagos, caja y lo que se diferencia
 
