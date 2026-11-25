@@ -1,6 +1,6 @@
 # Plan de la Fase 2 — Productos e inventario
 
-Estado: **propuesta, en espera de la aprobación del usuario** (2026-11-25).
+Estado: **aprobado** (2026-11-25), con las decisiones del usuario de abajo.
 
 ## Objetivo
 
@@ -68,12 +68,12 @@ Que la tienda tenga su **catálogo real** en el sistema y un **stock confiable**
 9. Carga masiva CSV (PC) y etiquetas.
 10. Prueba de aceptación con el usuario: 50 productos reales, conteo de 20, kardex. Informe en `docs/informes/fase-2.md`.
 
-## Decisiones que necesito del usuario
+## Decisiones del usuario (2026-11-25)
 
-1. **Formato de etiquetas** (abierta desde la Fase 0): rollo en la **Éterma 58 mm** (sale una por una, en la tablet o la PC) u **hojas adhesivas A4** en la **Epson L4160** (muchas a la vez, desde la PC).
-2. **Imágenes de producto**: en esta fase o después. Si entran, se toman con la cámara de la tablet o se eligen en la PC, y se guardan en el servidor.
-3. **Stock inicial al registrar por escaneo**: si Trabajo también puede ponerlo al dar de alta un producto, o solo el Administrador.
-4. **Los 50 productos reales** de la prueba: cuántos tienen código de fabricante (se escanean) y cuántos no (van por CSV).
+1. **Etiquetas en rollo, en la Éterma 58 mm**: una por una, desde la tablet o la PC. Hace falta un rollo de etiquetas adhesivas de 58 mm para la prueba.
+2. **Imágenes de producto: después** de esta fase.
+3. **Stock inicial al registrar**: Trabajo también lo pone; queda como movimiento `initial` con su usuario.
+4. **Los 50 productos de la prueba**: mitad con código de fabricante (por escaneo) y mitad sin código (por CSV, con código `29…` y etiqueta).
 
 ## Riesgos
 
