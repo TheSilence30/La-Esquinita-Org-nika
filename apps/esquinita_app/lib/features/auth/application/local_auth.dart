@@ -6,6 +6,7 @@ import '../../../data/remote/server_api.dart';
 import '../../../data/sync/outbox_store.dart';
 import '../../../data/sync/replica_store.dart';
 import '../../../data/sync/server_sync.dart';
+import '../../../data/sync/sync_client.dart';
 
 /// Whether [pin] matches [hash] (Argon2id). Production runs it in a
 /// background isolate: it takes about 1 s on the tablet (user, 2026-11-20).
@@ -94,11 +95,17 @@ class LocalAuth {
     required this.apiFor,
     required this.verifyPin,
     required this.platform,
+    ServerApi Function(String serverUrl)? quickApiFor,
     DateTime Function()? clock,
-  }) : _clock = clock ?? DateTime.now;
+  }) : quickApiFor = quickApiFor ?? apiFor,
+       _clock = clock ?? DateTime.now;
 
   final AppDatabase db;
   final ServerApi Function(String serverUrl) apiFor;
+
+  /// The same server with a short timeout: the download before a PIN check
+  /// must not keep someone waiting when there is no connection.
+  final ServerApi Function(String serverUrl) quickApiFor;
   final PinVerifier verifyPin;
 
   /// `android` or `windows` (`devices.platform`).
@@ -226,9 +233,13 @@ class LocalAuth {
     ];
   }
 
-  /// Offline login. The attempt is counted before checking, so closing the
-  /// app during the check gives no free attempts.
+  /// Offline login. With a connection, the latest master data is pulled
+  /// first with the user's saved login, so a PIN the Administrador changed
+  /// (or a deactivation) applies at once (user, 2026-11-25). The attempt is
+  /// counted before checking, so closing the app during the check gives no
+  /// free attempts.
   Future<PinLogin> loginWithPin(String userId, String pin) async {
+    await _pullQuietly(userId);
     final session = await (db.select(
       db.localSessions,
     )..where((s) => s.userId.equals(userId))).getSingleOrNull();
@@ -371,6 +382,20 @@ class LocalAuth {
       );
     } on ApiException {
       throw const SetupException(_offline);
+    }
+  }
+
+  /// Awaited to the end, so it never overlaps the sync round that starts
+  /// after the login (two refreshes of one token would revoke it).
+  Future<void> _pullQuietly(String userId) async {
+    try {
+      await ServerSync(
+        db: db,
+        apiFor: quickApiFor,
+        currentUserId: () => userId,
+      ).pull();
+    } on SyncException {
+      // Offline or no saved login: the PIN works with what is here.
     }
   }
 

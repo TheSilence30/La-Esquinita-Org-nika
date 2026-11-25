@@ -96,6 +96,8 @@ class SyncScheduler {
     this.client, {
     this.pull,
     this.interval = const Duration(seconds: 30),
+    this.idleInterval = const Duration(seconds: 60),
+    this.loggedIn,
   });
 
   final SyncClient client;
@@ -103,6 +105,14 @@ class SyncScheduler {
   /// Downloads master data after the push (replicas).
   final Future<void> Function()? pull;
   final Duration interval;
+
+  /// With nothing pending, a round this often only while [loggedIn], so the
+  /// Administrador's changes (a new PIN, users, settings) reach an idle
+  /// device (user, 2026-11-25).
+  final Duration idleInterval;
+
+  /// Whether someone is logged in; null: never an idle round.
+  final bool Function()? loggedIn;
 
   final _state = StreamController<SyncRunState>.broadcast();
   Timer? _timer;
@@ -150,7 +160,11 @@ class SyncScheduler {
     } else if (failures > 0) {
       wait = retryDelay(failures);
     } else {
-      wait = await client.store.pendingCount() > 0 ? interval : null;
+      wait = await client.store.pendingCount() > 0
+          ? interval
+          : (pull != null && (loggedIn?.call() ?? false))
+          ? idleInterval
+          : null;
     }
     if (wait != null && !_disposed) _timer = Timer(wait, start);
     _emit(SyncRunState(running: false, error: lastError, nextIn: wait));

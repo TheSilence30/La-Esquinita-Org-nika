@@ -269,6 +269,20 @@ void main() {
       },
     );
 
+    test('nothing pending and someone logged in: a round every 60 s to pull '
+        'the Administrador changes; nobody logged in: none', () async {
+      var loggedIn = true;
+      final s = SyncScheduler(
+        SyncClient(store, server),
+        pull: () async {},
+        loggedIn: () => loggedIn,
+      );
+      addTearDown(s.dispose);
+      expect((await round(s)).nextIn, const Duration(seconds: 60));
+      loggedIn = false;
+      expect((await round(s)).nextIn, isNull);
+    });
+
     test('pull runs after the push, in the same round', () async {
       final order = <String>[];
       await store.recordSpikeOperation(op(1), userId: user);

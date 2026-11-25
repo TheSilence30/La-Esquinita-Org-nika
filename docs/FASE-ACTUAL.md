@@ -11,7 +11,7 @@ Estado: **en curso** (desde 2026-11-19). Plan aprobado: `docs/planes/fase-1.md`.
 - [x] 5. PR #16, aprobado y fusionado. App: primer arranque (servidor y registro del equipo), login con contraseña, PIN sin conexión (5 fallos exigen contraseña; el contador vive en la base local cifrada, sobrevive a reiniciar la app y solo vuelve a cero al entrar bien o con contraseña; medir Argon2id en la tablet, nativo si pasa de 1 s), sesión de 7 días
 - [x] 5b. PR #18, aprobado y fusionado; probado en la tablet K70_PRO. Reloj atrasado: guardar en la base cifrada la hora más alta vista por la app (`last_seen_at`) y bloquear el PIN si el reloj del equipo retrocede más de 5 minutos respecto de esa hora, para que no se pueda estirar la sesión de 7 días atrasando la hora. Con su prueba
 - [x] 6. **PR #17 abierto para revisión del usuario** (sincronización). Motor de sincronización completo (push por lotes, pull, reintentos, recuperación) e indicador real
-- [x] 7. **PR #19 para revisión del usuario** (rama `phase-1/admin-screens`); probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
+- [x] 7. PR #19, aprobado y fusionado; probado en la tablet y la PC. Pantallas de Usuarios y Ajustes del negocio (solo Administrador), con cambio de PIN y cierre de sesiones de un equipo perdido (revoca tokens y desactiva el equipo)
 - [ ] 8. Prueba de aceptación en la tablet y la PC con el usuario; informe en `docs/informes/fase-1.md`
 
 ## Pendientes heredados de la Fase 0
@@ -292,3 +292,12 @@ Rama `phase-1/admin-screens`. Plan presentado y aceptado, con estas decisiones:
 - **Probado en dispositivo por el usuario (2026-11-25)**: la tablet en uso (`T2`) se dio de baja y se reactivó varias veces desde la PC (auditoría: 13:34 a 13:52, hora de Lima). Bloqueada, mostraba el aviso; reactivada, volvió a sincronizar con el PIN. La tablet vieja (`T1`) quedó **dada de baja** (13:53). «Todo ok».
 - PR #19 fuera de borrador, para revisión del usuario (autenticación: no se fusiona sin su aprobación).
 - Siguiente: **tarea 8**, prueba de aceptación en la tablet y la PC con el usuario, e informe `docs/informes/fase-1.md`.
+
+### 2026-11-25 — Tarea 8: el PIN cambiado no llegaba a la tablet (PR para revisión)
+
+- **Encontrado en la prueba de aceptación**: el Administrador cambió el PIN de `Leandro` desde la PC (14:04 y 14:08), pero la tablet seguía aceptando el PIN anterior. **Causa**: sin pendientes, el motor no hacía rondas, así que una tablet quieta nunca bajaba cambios; y en la pantalla de ingreso no hay sesión con la que bajarlos.
+- **Decisión del usuario: las dos medidas.**
+  - Con alguien dentro, una ronda **cada 60 s aunque no haya pendientes** para bajar los cambios del Administrador. Los reintentos y los 30 s con pendientes no cambian.
+  - **Antes de comprobar el PIN**, se bajan los cambios con la sesión guardada de ese usuario, con un tiempo máximo de 3 s por pedido. Sin conexión, entra con el PIN que ya tiene el equipo. Se espera a que termine, para no cruzarse con la ronda que empieza al entrar (dos renovaciones del mismo token revocarían la sesión).
+- shortcut: si el servidor tarda más de 3 s justo en renovar el token, esa respuesta se pierde y la sesión pide la contraseña, igual que en la tarea 6. En la Wi-Fi de la tienda no debería pasar.
+- Pruebas: app 234 en verde (nuevas: PIN cambiado y usuario desactivado con conexión, PIN anterior sin conexión, ronda cada 60 s solo con alguien dentro). `flutter analyze` sin observaciones.

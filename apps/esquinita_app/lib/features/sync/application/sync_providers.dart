@@ -25,6 +25,7 @@ SyncScheduler syncEngine(Ref ref) {
       await server.pull();
       await auth.markTimeSeen();
     },
+    loggedIn: () => ref.read(currentSessionProvider) != null,
   );
   var last = 0;
   final sub = store.watchPendingCount().listen((n) {
