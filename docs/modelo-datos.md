@@ -585,7 +585,7 @@ Decisión del usuario (2026-11-19): Trabajo **sí** registra lotes y vencimiento
 | price_changes | ✔ | — | — |
 | lots | ✔ | ✔ réplica + propios | Bajada; los creados al recibir viajan en el comando |
 | stock_movements | ✔ | ✔ **solo propios** | Se crean localmente |
-| stock_balances | ✔ oficial | ✔ réplica | Bajada; stock local = réplica + movimientos propios aún no confirmados |
+| stock_balances | ✔ oficial | ✔ réplica | Bajada; stock local = réplica + movimientos propios que la réplica aún no trae: comando `pending`, o aplicado (`outbox.applied_seq`) después del inicio de la última bajada completa (`local_settings` `pull.covers_applied`) |
 | stock_adjustments(+lines), inventory_counts(+lines), stock_losses | ✔ | ✔ propios | Locales |
 | suppliers | ✔ | ✔ réplica | Bajada |
 | purchases, purchase_items | ✔ | ✔ réplica de **pendientes** | Bajada (para recibir sin conexión) |

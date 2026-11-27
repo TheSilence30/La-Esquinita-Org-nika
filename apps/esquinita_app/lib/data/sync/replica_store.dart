@@ -4,6 +4,7 @@ import 'package:drift/drift.dart';
 import 'package:esquinita_core/esquinita_core.dart';
 
 import '../local/database.dart';
+import 'outbox_store.dart';
 
 /// Local copies of the server masters, filled from `GET /sync/pull`.
 class ReplicaStore {
@@ -82,15 +83,27 @@ class ReplicaStore {
   /// Downloads every page from [cursor] on: [fetch] gets the cursor and
   /// returns one pull answer; each page is stored before asking the next,
   /// so an interrupted download resumes where it stopped.
+  ///
+  /// The last page also stores [coversAppliedKey]: every command applied
+  /// before the download started is in these balances, so its own movements
+  /// stop counting as local stock.
   Future<void> pullAll(
     Future<Map<String, Object?>> Function(int since) fetch,
   ) async {
+    final covers = await _setting(OutboxStore.appliedSeqKey) ?? '0';
     while (true) {
       final page = await fetch(await cursor());
-      await apply(page);
+      await apply(page, coversApplied: covers);
       if (page['more'] != true) return;
     }
   }
+
+  /// `seq.applied` covered by the last complete pull.
+  static const coversAppliedKey = 'pull.covers_applied';
+
+  Future<String?> _setting(String key) async => (await (db.select(
+    db.localSettings,
+  )..where((s) => s.key.equals(key))).getSingleOrNull())?.value;
 
   /// Where the next pull starts (0 on a new device).
   Future<int> cursor() async =>
@@ -102,7 +115,11 @@ class ReplicaStore {
   /// Stores one pull answer: every row and the new cursor in one
   /// transaction, so a crash never keeps rows without their cursor or the
   /// other way round. Rows replace older copies; nothing is deleted.
-  Future<void> apply(Map<String, Object?> pull, {DateTime? now}) async {
+  Future<void> apply(
+    Map<String, Object?> pull, {
+    DateTime? now,
+    String? coversApplied,
+  }) async {
     final changes = pull['changes'];
     final next = pull['cursor'];
     if (changes is! Map<String, Object?> || next is! int) {
@@ -142,6 +159,16 @@ class ReplicaStore {
               lastPullAt: Value(now ?? DateTime.now()),
             ),
           );
+      if (coversApplied != null && pull['more'] != true) {
+        await db
+            .into(db.localSettings)
+            .insertOnConflictUpdate(
+              LocalSettingsCompanion.insert(
+                key: coversAppliedKey,
+                value: coversApplied,
+              ),
+            );
+      }
     });
     db.notifyUpdates({for (final t in touched) TableUpdate.onTable(t)});
   }

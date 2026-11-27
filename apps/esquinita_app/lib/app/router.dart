@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'form_factor.dart';
+
 import '../features/admin/widgets/admin_page.dart';
+import '../features/catalog/desktop/catalog_pages.dart';
+import '../features/catalog/tablet/catalog_pages.dart';
 import '../prototype/cash/cash_page.dart';
 import '../prototype/checkout/checkout_view.dart';
 import '../prototype/checkout/sale_done.dart';
@@ -10,7 +14,6 @@ import '../prototype/demo_store.dart';
 import '../prototype/inventory/inventory_page.dart';
 import '../prototype/more/more_page.dart';
 import '../prototype/pos/pos_page.dart';
-import '../prototype/register/register_product_page.dart';
 import '../prototype/widgets/common.dart';
 import '../shells/app_shell.dart';
 import '../spikes/spikes_home_page.dart';
@@ -38,9 +41,31 @@ GoRouter buildRouter(DemoStore store) => GoRouter(
         // ?code= comes from "Registrar" on an unknown code in the scanner.
         _page(
           '/escanear',
-          (state) => RegisterProductPage(
-            key: ValueKey(state.uri.queryParameters['code']),
-            initialCode: state.uri.queryParameters['code'],
+          (state) => _ByFormFactor(
+            touch: TabletRegisterPage(
+              key: ValueKey(state.uri.queryParameters['code']),
+              initialCode: state.uri.queryParameters['code'],
+            ),
+            desktop: DesktopRegisterPage(
+              key: ValueKey(state.uri.queryParameters['code']),
+              initialCode: state.uri.queryParameters['code'],
+            ),
+          ),
+        ),
+        _page(
+          '/productos',
+          (_) => const _ByFormFactor(
+            touch: TabletProductsPage(),
+            desktop: DesktopProductsPage(),
+          ),
+        ),
+        _page(
+          '/productos/:id',
+          (state) => _ByFormFactor(
+            touch: TabletProductPage(productId: state.pathParameters['id']!),
+            desktop: DesktopProductsPage(
+              selectedId: state.pathParameters['id'],
+            ),
           ),
         ),
         _page('/inventario', (_) => const InventoryPage()),
@@ -82,3 +107,15 @@ GoRoute _page(String path, Widget Function(GoRouterState) builder) => GoRoute(
   path: path,
   pageBuilder: (_, state) => NoTransitionPage(child: builder(state)),
 );
+
+/// Independent screens per platform (CLAUDE.md §2).
+class _ByFormFactor extends StatelessWidget {
+  const _ByFormFactor({required this.touch, required this.desktop});
+
+  final Widget touch;
+  final Widget desktop;
+
+  @override
+  Widget build(BuildContext context) =>
+      FormFactor.of(context) == FormFactor.desktop ? desktop : touch;
+}

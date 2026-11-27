@@ -241,7 +241,105 @@ void main() {
     expect(await replicas.cursor(), 41);
   });
 
-  test('a v2 database (Fase 1) upgrades to v3 and keeps its data', () async {
+  Map<String, Object?> balance(String productId, int qty, int version) => {
+    'product_id': productId,
+    'lot_id': null,
+    'qty_milli': qty,
+    'version': version,
+  };
+
+  Future<ProductSummary> listed(String productId) async =>
+      (await catalog.watchProducts('').first).singleWhere(
+        (x) => x.product.id == productId,
+      );
+
+  test('local stock: pending and applied-but-not-pulled movements count; '
+      'a complete pull after the apply takes them over', () async {
+    final p = quinua('4006381333931');
+    final opId = await catalog.recordCreateProduct(p, userId: _user);
+    final outbox = OutboxStore(db);
+
+    var s = await listed(p.productId);
+    expect((s.stockMilli, s.localStock, s.unitCode), (24000, true, 'und'));
+
+    // Applied, but the connection dropped before the pull (user,
+    // 2026-11-27): the stock must not go missing.
+    await outbox.saveResults([PushResult(opId, PushStatus.applied)]);
+    s = await listed(p.productId);
+    expect((s.stockMilli, s.localStock), (24000, true));
+
+    // The next complete pull brings the server's balance with it.
+    await replicas.pullAll(
+      (_) async => page(20, {
+        'stock_balances': [balance(p.productId, 24000, 19)],
+      }),
+    );
+    s = await listed(p.productId);
+    expect((s.stockMilli, s.localStock), (24000, false));
+
+    // A later duplicate answer keeps its first sequence: no double count.
+    await outbox.saveResults([
+      PushResult(
+        opId,
+        PushStatus.duplicate,
+        originalStatus: PushStatus.applied,
+      ),
+    ]);
+    expect((await listed(p.productId)).stockMilli, 24000);
+  });
+
+  test('a pull interrupted before its last page does not take over the '
+      'applied movements', () async {
+    final p = quinua('4006381333931');
+    final opId = await catalog.recordCreateProduct(p, userId: _user);
+    await OutboxStore(db).saveResults([PushResult(opId, PushStatus.applied)]);
+    await expectLater(
+      replicas.pullAll((since) async {
+        if (since == 10) return {...page(15, {}), 'more': true};
+        throw StateError('offline');
+      }),
+      throwsStateError,
+    );
+    final s = await listed(p.productId);
+    expect((s.stockMilli, s.localStock), (24000, true));
+  });
+
+  test('a rejected product keeps its local copy, without stock, and the '
+      'sheet says why', () async {
+    final p = quinua('4006381333931');
+    final opId = await catalog.recordCreateProduct(p, userId: _user);
+    await OutboxStore(db).saveResults([
+      PushResult(opId, PushStatus.rejected, message: 'Categoría desconocida'),
+    ]);
+    final d = (await catalog.watchProduct(p.productId).first)!;
+    expect(d.rejectedMessage, 'Categoría desconocida');
+    expect((d.stockMilli, d.localStock), (0, false));
+  });
+
+  test('search by name, internal code or exact barcode; the sheet has '
+      'presentations, codes and stock by lot', () async {
+    final p = quinua('4006381333931');
+    await catalog.recordCreateProduct(p, userId: _user);
+    Future<int> found(String q) async =>
+        (await catalog.watchProducts(q).first).length;
+    expect(await found('quin'), 1);
+    expect(await found('T2-0000'), 1);
+    expect(await found('4006381333931'), 1);
+    expect(await found('400638'), 0); // barcodes match whole
+    expect(await found('%'), 0); // LIKE wildcards are escaped
+    final d = (await catalog.watchProduct(p.productId).first)!;
+    expect(d.unit.code, 'und');
+    expect(d.categoryName, 'Orgánicos');
+    expect(d.presentations.single.barcodes.single.code, '4006381333931');
+    expect(d.stock.single.lot, isNull);
+    expect(await catalog.watchProduct(uuidV7()).first, isNull);
+    expect(
+      (await catalog.findBarcode('4006381333931'))?.productId,
+      p.productId,
+    );
+  });
+
+  test('a v2 database (Fase 1) upgrades to v4 and keeps its data', () async {
     final dir = await Directory.systemTemp.createTemp('esq_mig');
     addTearDown(() => dir.delete(recursive: true));
     final file = File('${dir.path}/local.db');
@@ -266,6 +364,7 @@ void main() {
     ]) {
       await old.customStatement('DROP TABLE $t');
     }
+    await old.customStatement('ALTER TABLE outbox DROP COLUMN applied_seq');
     await old.customStatement('PRAGMA user_version = 2');
     await old.close();
 
@@ -282,5 +381,9 @@ void main() {
         )
         .get();
     expect(index, hasLength(1));
+    expect(
+      await upgraded.customSelect('SELECT applied_seq FROM outbox').get(),
+      isEmpty,
+    );
   });
 }

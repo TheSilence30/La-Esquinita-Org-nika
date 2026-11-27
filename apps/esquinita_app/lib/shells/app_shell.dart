@@ -34,6 +34,7 @@ const touchNav = [
 /// Routes reached from "Más" on touch devices.
 const _underMore = [
   '/mas',
+  '/productos',
   '/dashboard',
   '/caja',
   '/ajustes',
@@ -45,7 +46,7 @@ const _underMore = [
 const desktopNav = [
   NavItem('Dashboard', Icons.dashboard_outlined, '/dashboard', adminOnly: true),
   NavItem('Vender', Icons.shopping_basket_outlined, '/vender'),
-  NavItem('Productos', Icons.qr_code_2, '/escanear'),
+  NavItem('Productos', Icons.qr_code_2, '/productos'),
   NavItem('Inventario', Icons.inventory_2_outlined, '/inventario'),
   NavItem('Compras', Icons.local_shipping_outlined, '/compras'),
   NavItem('Pedidos', Icons.receipt_long_outlined, '/pedidos'),
@@ -85,6 +86,7 @@ bool _matches(String location, String path) =>
 String? backTarget(String location, {required bool isAdmin}) {
   final home = isAdmin ? '/dashboard' : '/vender';
   if (_matches(location, home)) return null;
+  if (location.startsWith('/productos/')) return '/productos';
   if (location != '/mas' && _underMore.any((p) => _matches(location, p))) {
     return '/mas';
   }

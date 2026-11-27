@@ -95,24 +95,45 @@ class OutboxStore {
   Future<List<SyncCommand>> pending({int limit = 100}) =>
       commands(limit: limit);
 
+  /// Local counter of applied verdicts (`outbox.applied_seq`).
+  static const appliedSeqKey = 'seq.applied';
+
   /// Stores the verdicts; a duplicate keeps the first delivery's verdict.
-  Future<void> saveResults(List<PushResult> results) => db.batch((b) {
-    for (final r in results) {
-      final verdict = r.status == PushStatus.duplicate
-          ? r.originalStatus ?? PushStatus.applied
-          : r.status;
-      b.update(
-        db.outbox,
-        OutboxCompanion(
-          status: Value(verdict.name),
-          lastResponse: Value(r.status.name),
-          message: Value(r.message),
-          lastError: const Value(null),
-        ),
-        where: (o) => o.opId.equals(r.opId),
-      );
-    }
-  });
+  /// An applied or conflict verdict gets the next [appliedSeqKey], once.
+  Future<void> saveResults(List<PushResult> results) => db.transaction(
+    () async {
+      final seq = (int.tryParse(await _get(appliedSeqKey) ?? '') ?? 0) + 1;
+      await db
+          .into(db.localSettings)
+          .insertOnConflictUpdate(
+            LocalSettingsCompanion.insert(key: appliedSeqKey, value: '$seq'),
+          );
+      await db.batch((b) {
+        for (final r in results) {
+          final verdict = r.status == PushStatus.duplicate
+              ? r.originalStatus ?? PushStatus.applied
+              : r.status;
+          b.update(
+            db.outbox,
+            OutboxCompanion(
+              status: Value(verdict.name),
+              lastResponse: Value(r.status.name),
+              message: Value(r.message),
+              lastError: const Value(null),
+            ),
+            where: (o) => o.opId.equals(r.opId),
+          );
+          if (verdict == PushStatus.applied || verdict == PushStatus.conflict) {
+            b.update(
+              db.outbox,
+              OutboxCompanion(appliedSeq: Value(seq)),
+              where: (o) => o.opId.equals(r.opId) & o.appliedSeq.isNull(),
+            );
+          }
+        }
+      });
+    },
+  );
 
   /// Counts an attempt that got no verdict (offline, timeout, 5xx).
   Future<void> saveFailure(Iterable<String> opIds, String error) =>
