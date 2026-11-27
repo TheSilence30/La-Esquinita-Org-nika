@@ -9,7 +9,7 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
 - [x] 3. PR #27, aprobado y fusionado. `CreateProduct` en el servidor y en la app (outbox, `duplicate_barcode`), bajada del catálogo y réplicas en drift
 - [ ] 4. Pantallas de Productos y Registrar por escaneo (tablet y PC), con stock inicial. **Pedido del usuario:** índice sobre `version` en cada tabla replicada, para que la bajada no recorra tablas completas
 - [ ] 5. Editar producto, presentaciones, códigos y precios en línea (Administrador, `price_changes`)
-- [ ] 6. Stock local, kardex, `AdjustStock` (ajustes y mermas) y PIN de Administrador para autorizar
+- [ ] 6. Stock local, kardex, `AdjustStock` (ajustes y mermas) y PIN de Administrador para autorizar. **Vuelve aquí «Agregar lote nuevo»** al escanear un producto existente (entrada con lote, vencimiento y cantidad); en la Fase 4 también entra por las recepciones
 - [ ] 7. Conteo físico por escaneo y `CloseInventoryCount`
 - [ ] 8. Alertas en Inventario (bajo, agotado, por vencer, vencido; anticipación configurable)
 - [ ] 9. Carga masiva CSV en la PC (vista previa, errores, confirmación) y etiquetas en la Éterma 58 mm
@@ -106,3 +106,37 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
   - `users`, `roles`, `permissions`, `role_permissions`, `user_roles`, `devices`, `settings`;
   - `categories`, `brands`, `units`, `products`, `product_costs`, `product_presentations`, `barcodes`, `lots`, `stock_balances`.
   - Va en una migración nueva del servidor, con una prueba que verifique que cada tabla de `PullService.tables` tiene su índice.
+
+### 2026-11-27 — Tarea 4: pantallas de Productos y Registrar por escaneo
+
+- `git fetch` no conectó con github.com (puerto 443); se trabajó desde el `main` local (`91bf36e`, con el PR #28).
+- Plan aprobado por el usuario, con estos ajustes:
+  - **Productos va en Más → Productos** en la tablet, y «Escanear» es Registrar. Se revisa cuando lleguen las pantallas reales de Inventario.
+  - **Stock local** también suma los movimientos cuyo comando ya se **aplicó** pero que todavía no llegaron en una bajada. Así el stock no se muestra de menos si la conexión se corta entre el envío y la bajada.
+  - «Agregar lote nuevo» vuelve en la **tarea 6** (anotado arriba).
+  - Productos **por peso** y código repetido validado antes de guardar.
+- **Servidor**: migración `20261127000001_version_indexes.sql`, con un índice sobre `version` en las 16 tablas de la bajada (pedido del usuario). La prueba revisa en `pg_indexes` cada tabla de `PullService.tables`; se comprobó que falla si falta la migración.
+- **App, base local v4** (`outbox.applied_seq`):
+  - Cada veredicto `applied` o `conflict` recibe un número de un contador local, una sola vez; un `duplicate` posterior no lo cambia.
+  - Al terminar una bajada **completa** (última página) se guarda hasta qué número cubre: el que había cuando empezó.
+  - Stock local = saldo bajado + movimientos propios `pending` o aplicados después de ese número. Los `rejected` no cuentan.
+  - Se usa un contador y no la hora porque el reloj de la tablet puede moverse, y drift guarda la hora en segundos.
+  - Una bajada que se corta antes de la última página no cubre nada.
+- **Pantallas** (`features/catalog`):
+  - **Registrar**, en tablet y PC:
+    - lee el código con la cámara (sin QR), el lector o a mano;
+    - si el código ya existe, abre la ficha con «Escanear otro»; si es nuevo, abre el formulario;
+    - «sin código» genera un `29…`;
+    - el formulario tiene unidad (und, kg, l) con precio por unidad, kilo o litro, mayorista opcional, otras presentaciones con su factor («Caja» 12 und, «Bolsa 500 g» 0,5 kg) y su código, costo (solo con `catalog.view_cost`), mínimo, lotes y stock inicial con lote y vencimiento;
+    - un código que ya es de otro producto en el equipo se rechaza antes de guardar, con el nombre del producto;
+    - el formulario se conserva al girar la tablet.
+  - **Productos**: búsqueda por nombre, código interno o código de barras (y con la cámara en la tablet); en la PC, tabla con la ficha al lado y F2 para buscar.
+  - **Ficha**: presentaciones, códigos, precios, stock por lote con vencimiento y la marca «Stock local» cuando corresponde. Si el servidor **rechazó** el alta, lo dice con su motivo (se cierra el shortcut de la tarea 3).
+  - Se quitó la pantalla Registrar del prototipo y sus 3 pruebas. Queda «Editar» del prototipo de Inventario hasta las tareas 5 y 6.
+- Pruebas: core 89, servidor 102 y app 252, en verde; analizadores sin observaciones. Nuevas:
+  - índice por tabla;
+  - stock local (pendiente, aplicado sin bajada, bajada completa, bajada cortada, duplicado, rechazado);
+  - búsqueda y ficha;
+  - migración v2 → v4;
+  - pantallas: alta con caja, por peso, sin código con lote, código repetido, Trabajo sin costos, giro de pantalla, lista y ficha en tablet, y tabla con F2 en la PC.
+- **Pendiente de prueba en dispositivo**: el escaneo con la cámara en Registrar y en Productos (SM-X133), y el lector USB en la PC (Spike 2).

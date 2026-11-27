@@ -255,49 +255,6 @@ void main() {
         expect(store.expectedCashCents, cashBefore);
       });
 
-      testWidgets('register a new product by code; a known code shows it', (
-        tester,
-      ) async {
-        final store = await pumpApp(tester, size);
-        await go(tester, '/escanear');
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Código de barras'),
-          '7750543400036',
-        );
-        await tester.testTextInput.receiveAction(TextInputAction.done);
-        await tester.pumpAndSettle();
-        expect(find.text('Ya registrado'), findsOneWidget);
-        await tester.tap(find.text('Escanear otro'));
-        await tester.pumpAndSettle();
-
-        await tester.tap(find.textContaining('Producto sin código'));
-        await tester.pumpAndSettle();
-        expect(
-          find.textContaining('Código interno generado: 291'),
-          findsOneWidget,
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Nombre'),
-          'Mermelada de aguaymanto',
-        );
-        await tester.enterText(
-          find.widgetWithText(TextField, 'Precio por unidad (S/)'),
-          '12.90',
-        );
-        await tester.scrollUntilVisible(
-          find.text('Guardar producto'),
-          300,
-          scrollable: find
-              .byType(Scrollable)
-              .first, // the page list, not a TextField
-        );
-        await tester.tap(find.text('Guardar producto'));
-        await tester.pumpAndSettle();
-        expect(store.catalog.last.name, 'Mermelada de aguaymanto');
-        expect(store.catalog.last.base.retailCents, 1290);
-        expect(tester.takeException(), isNull);
-      });
-
       testWidgets('cash close warns about unsent sales on the PC', (
         tester,
       ) async {
@@ -553,49 +510,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  for (final size in const [Size(360, 640), Size(533, 893)]) {
-    testWidgets('scan a known product $size → new lot; asks about no-lot', (
-      tester,
-    ) async {
-      final store = await pumpApp(tester, size);
-      final cafe = store.catalog.firstWhere((p) => p.id == 'cafe'); // 18
-      await go(tester, '/escanear');
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Código de barras'),
-        '7752345600018',
-      );
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      await tester.pumpAndSettle();
-      expect(find.text('Ya registrado'), findsOneWidget);
-      await tester.ensureVisible(find.text('Agregar lote nuevo'));
-      await tester.tap(find.text('Agregar lote nuevo'));
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Guardar lote'));
-      await tester.pump();
-      expect(find.byKey(const Key('lot-error')), findsOneWidget); // no code
-      await tester.enterText(
-        find.widgetWithText(TextField, 'Código de lote'),
-        'LOT36',
-      );
-      await tester.tap(find.text('Fecha de vencimiento'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('ACEPTAR')); // Spanish date picker
-      await tester.pumpAndSettle();
-      expect(find.textContaining('Vence '), findsOneWidget);
-      await pad(tester, '3');
-      await tester.ensureVisible(find.text('Guardar lote'));
-      await tester.tap(find.text('Guardar lote'));
-      await tester.pumpAndSettle();
-      expect(find.text('Stock sin lote'), findsOneWidget); // 18 und without lot
-      await tester.tap(find.text('Pasar al lote'));
-      await tester.pumpAndSettle();
-      final lot = cafe.lots.single;
-      expect((lot.code, lot.qtyMilli, cafe.stockMilli), ('LOT36', 21000, 0));
-      expect(tester.takeException(), isNull);
-    });
-  }
-
   testWidgets('Trabajo: can receive a lot, cannot adjust stock', (
     tester,
   ) async {
@@ -610,29 +524,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextField, 'Código de lote'), findsOneWidget);
     expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('register form keeps what was typed when rotating', (
-    tester,
-  ) async {
-    await pumpApp(tester, const Size(533, 893));
-    await go(tester, '/escanear');
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Código de barras'),
-      '7799999999999',
-    );
-    await tester.testTextInput.receiveAction(TextInputAction.done);
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.widgetWithText(TextField, 'Nombre'),
-      'Mermelada de aguaymanto',
-    );
-    for (final size in const [Size(893, 533), Size(533, 893)]) {
-      tester.view.physicalSize = size;
-      await tester.pumpAndSettle();
-      expect(find.text('Mermelada de aguaymanto'), findsOneWidget);
-      expect(tester.takeException(), isNull);
-    }
   });
 
   // Sales scanner: camera + live cart, traffic-light notices on top of it.

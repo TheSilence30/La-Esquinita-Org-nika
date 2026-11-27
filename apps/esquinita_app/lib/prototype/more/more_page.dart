@@ -30,6 +30,12 @@ class MorePage extends StatelessWidget {
             onTap: () => context.go('/ajustes'),
           ),
         ListTile(
+          leading: const Icon(Icons.qr_code_2),
+          title: const Text('Productos'),
+          subtitle: const Text('Buscar, ver ficha y stock'),
+          onTap: () => context.go('/productos'),
+        ),
+        ListTile(
           leading: const Icon(Icons.point_of_sale),
           title: const Text('Caja: arqueo y cierre'),
           onTap: () => context.go('/caja'),

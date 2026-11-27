@@ -33,6 +33,12 @@ class Outbox extends Table {
   IntColumn get attempts => integer().withDefault(const Constant(0))();
   TextColumn get lastError => text().nullable()();
 
+  /// Local counter (`seq.applied`) when the server applied it (`applied` or
+  /// `conflict`); null before. Its stock counts as local until a complete
+  /// pull that started after it (`pull.covers_applied`). A counter, not the
+  /// clock: the tablet's clock can jump.
+  IntColumn get appliedSeq => integer().nullable()();
+
   @override
   Set<Column> get primaryKey => {opId};
 }
@@ -362,8 +368,9 @@ class AppDatabase extends _$AppDatabase {
 
   // 1: the encrypted local.db (the Fase 0 unencrypted file is left where it
   // was). 2: local_sessions. 3: catalog and inventory (Fase 2).
+  // 4: outbox.applied_seq (local stock until the pull brings it).
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -386,6 +393,7 @@ class AppDatabase extends _$AppDatabase {
         }
         await m.createIndex(stockMovementsProduct);
       }
+      if (from < 4) await m.addColumn(outbox, outbox.appliedSeq);
     },
   );
 }

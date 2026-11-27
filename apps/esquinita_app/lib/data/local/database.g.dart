@@ -331,6 +331,17 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _appliedSeqMeta = const VerificationMeta(
+    'appliedSeq',
+  );
+  @override
+  late final GeneratedColumn<int> appliedSeq = GeneratedColumn<int>(
+    'applied_seq',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     opId,
@@ -344,6 +355,7 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
     message,
     attempts,
     lastError,
+    appliedSeq,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -438,6 +450,12 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta),
       );
     }
+    if (data.containsKey('applied_seq')) {
+      context.handle(
+        _appliedSeqMeta,
+        appliedSeq.isAcceptableOrUnknown(data['applied_seq']!, _appliedSeqMeta),
+      );
+    }
     return context;
   }
 
@@ -491,6 +509,10 @@ class $OutboxTable extends Outbox with TableInfo<$OutboxTable, OutboxData> {
         DriftSqlType.string,
         data['${effectivePrefix}last_error'],
       ),
+      appliedSeq: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}applied_seq'],
+      ),
     );
   }
 
@@ -519,6 +541,12 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
   final String? message;
   final int attempts;
   final String? lastError;
+
+  /// Local counter (`seq.applied`) when the server applied it (`applied` or
+  /// `conflict`); null before. Its stock counts as local until a complete
+  /// pull that started after it (`pull.covers_applied`). A counter, not the
+  /// clock: the tablet's clock can jump.
+  final int? appliedSeq;
   const OutboxData({
     required this.opId,
     required this.deviceId,
@@ -531,6 +559,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     this.message,
     required this.attempts,
     this.lastError,
+    this.appliedSeq,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -551,6 +580,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     map['attempts'] = Variable<int>(attempts);
     if (!nullToAbsent || lastError != null) {
       map['last_error'] = Variable<String>(lastError);
+    }
+    if (!nullToAbsent || appliedSeq != null) {
+      map['applied_seq'] = Variable<int>(appliedSeq);
     }
     return map;
   }
@@ -574,6 +606,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       lastError: lastError == null && nullToAbsent
           ? const Value.absent()
           : Value(lastError),
+      appliedSeq: appliedSeq == null && nullToAbsent
+          ? const Value.absent()
+          : Value(appliedSeq),
     );
   }
 
@@ -594,6 +629,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       message: serializer.fromJson<String?>(json['message']),
       attempts: serializer.fromJson<int>(json['attempts']),
       lastError: serializer.fromJson<String?>(json['lastError']),
+      appliedSeq: serializer.fromJson<int?>(json['appliedSeq']),
     );
   }
   @override
@@ -611,6 +647,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       'message': serializer.toJson<String?>(message),
       'attempts': serializer.toJson<int>(attempts),
       'lastError': serializer.toJson<String?>(lastError),
+      'appliedSeq': serializer.toJson<int?>(appliedSeq),
     };
   }
 
@@ -626,6 +663,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     Value<String?> message = const Value.absent(),
     int? attempts,
     Value<String?> lastError = const Value.absent(),
+    Value<int?> appliedSeq = const Value.absent(),
   }) => OutboxData(
     opId: opId ?? this.opId,
     deviceId: deviceId ?? this.deviceId,
@@ -638,6 +676,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     message: message.present ? message.value : this.message,
     attempts: attempts ?? this.attempts,
     lastError: lastError.present ? lastError.value : this.lastError,
+    appliedSeq: appliedSeq.present ? appliedSeq.value : this.appliedSeq,
   );
   OutboxData copyWithCompanion(OutboxCompanion data) {
     return OutboxData(
@@ -654,6 +693,9 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
       message: data.message.present ? data.message.value : this.message,
       attempts: data.attempts.present ? data.attempts.value : this.attempts,
       lastError: data.lastError.present ? data.lastError.value : this.lastError,
+      appliedSeq: data.appliedSeq.present
+          ? data.appliedSeq.value
+          : this.appliedSeq,
     );
   }
 
@@ -670,7 +712,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           ..write('lastResponse: $lastResponse, ')
           ..write('message: $message, ')
           ..write('attempts: $attempts, ')
-          ..write('lastError: $lastError')
+          ..write('lastError: $lastError, ')
+          ..write('appliedSeq: $appliedSeq')
           ..write(')'))
         .toString();
   }
@@ -688,6 +731,7 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
     message,
     attempts,
     lastError,
+    appliedSeq,
   );
   @override
   bool operator ==(Object other) =>
@@ -703,7 +747,8 @@ class OutboxData extends DataClass implements Insertable<OutboxData> {
           other.lastResponse == this.lastResponse &&
           other.message == this.message &&
           other.attempts == this.attempts &&
-          other.lastError == this.lastError);
+          other.lastError == this.lastError &&
+          other.appliedSeq == this.appliedSeq);
 }
 
 class OutboxCompanion extends UpdateCompanion<OutboxData> {
@@ -718,6 +763,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
   final Value<String?> message;
   final Value<int> attempts;
   final Value<String?> lastError;
+  final Value<int?> appliedSeq;
   final Value<int> rowid;
   const OutboxCompanion({
     this.opId = const Value.absent(),
@@ -731,6 +777,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.message = const Value.absent(),
     this.attempts = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.appliedSeq = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OutboxCompanion.insert({
@@ -745,6 +792,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     this.message = const Value.absent(),
     this.attempts = const Value.absent(),
     this.lastError = const Value.absent(),
+    this.appliedSeq = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : opId = Value(opId),
        deviceId = Value(deviceId),
@@ -764,6 +812,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Expression<String>? message,
     Expression<int>? attempts,
     Expression<String>? lastError,
+    Expression<int>? appliedSeq,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -778,6 +827,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       if (message != null) 'message': message,
       if (attempts != null) 'attempts': attempts,
       if (lastError != null) 'last_error': lastError,
+      if (appliedSeq != null) 'applied_seq': appliedSeq,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -794,6 +844,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     Value<String?>? message,
     Value<int>? attempts,
     Value<String?>? lastError,
+    Value<int?>? appliedSeq,
     Value<int>? rowid,
   }) {
     return OutboxCompanion(
@@ -808,6 +859,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
       message: message ?? this.message,
       attempts: attempts ?? this.attempts,
       lastError: lastError ?? this.lastError,
+      appliedSeq: appliedSeq ?? this.appliedSeq,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -848,6 +900,9 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
     if (lastError.present) {
       map['last_error'] = Variable<String>(lastError.value);
     }
+    if (appliedSeq.present) {
+      map['applied_seq'] = Variable<int>(appliedSeq.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -868,6 +923,7 @@ class OutboxCompanion extends UpdateCompanion<OutboxData> {
           ..write('message: $message, ')
           ..write('attempts: $attempts, ')
           ..write('lastError: $lastError, ')
+          ..write('appliedSeq: $appliedSeq, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -9056,6 +9112,7 @@ typedef $$OutboxTableCreateCompanionBuilder = OutboxCompanion Function({
   Value<String?> message,
   Value<int> attempts,
   Value<String?> lastError,
+  Value<int?> appliedSeq,
   Value<int> rowid,
 });
 typedef $$OutboxTableUpdateCompanionBuilder = OutboxCompanion Function({
@@ -9070,6 +9127,7 @@ typedef $$OutboxTableUpdateCompanionBuilder = OutboxCompanion Function({
   Value<String?> message,
   Value<int> attempts,
   Value<String?> lastError,
+  Value<int?> appliedSeq,
   Value<int> rowid,
 });
 
@@ -9134,6 +9192,11 @@ class $$OutboxTableFilterComposer
 
   ColumnFilters<String> get lastError => $composableBuilder(
     column: $table.lastError,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get appliedSeq => $composableBuilder(
+    column: $table.appliedSeq,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -9201,6 +9264,11 @@ class $$OutboxTableOrderingComposer
     column: $table.lastError,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get appliedSeq => $composableBuilder(
+    column: $table.appliedSeq,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxTableAnnotationComposer
@@ -9246,6 +9314,11 @@ class $$OutboxTableAnnotationComposer
 
   GeneratedColumn<String> get lastError =>
       $composableBuilder(column: $table.lastError, builder: (column) => column);
+
+  GeneratedColumn<int> get appliedSeq => $composableBuilder(
+    column: $table.appliedSeq,
+    builder: (column) => column,
+  );
 }
 
 class $$OutboxTableTableManager
@@ -9287,6 +9360,7 @@ class $$OutboxTableTableManager
                 Value<String?> message = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
+                Value<int?> appliedSeq = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OutboxCompanion(
                 opId: opId,
@@ -9300,6 +9374,7 @@ class $$OutboxTableTableManager
                 message: message,
                 attempts: attempts,
                 lastError: lastError,
+                appliedSeq: appliedSeq,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -9315,6 +9390,7 @@ class $$OutboxTableTableManager
                 Value<String?> message = const Value.absent(),
                 Value<int> attempts = const Value.absent(),
                 Value<String?> lastError = const Value.absent(),
+                Value<int?> appliedSeq = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OutboxCompanion.insert(
                 opId: opId,
@@ -9328,6 +9404,7 @@ class $$OutboxTableTableManager
                 message: message,
                 attempts: attempts,
                 lastError: lastError,
+                appliedSeq: appliedSeq,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
