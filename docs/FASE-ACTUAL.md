@@ -140,3 +140,16 @@ Estado: **en curso** (desde 2026-11-25). Plan aprobado: `docs/planes/fase-2.md`.
   - migración v2 → v4;
   - pantallas: alta con caja, por peso, sin código con lote, código repetido, Trabajo sin costos, giro de pantalla, lista y ficha en tablet, y tabla con F2 en la PC.
 - **Pendiente de prueba en dispositivo**: el escaneo con la cámara en Registrar y en Productos (SM-X133), y el lector USB en la PC (Spike 2).
+
+### 2026-11-27 — PR #29 abierto; pendiente de revisión
+
+- Con el hotspot, `git fetch` funcionó. `origin/main` seguía en `91bf36e`, así que no hizo falta rebasar. Se subió `phase-2/products-screens` y se abrió el **PR #29**: https://github.com/TheSilence30/La-Esquinita-Org-nika/pull/29
+- **Pendiente de la revisión del usuario.** No se fusiona sin su aprobación.
+- **Pruebas en dispositivo que faltan** (no se instala nada hasta que el usuario lo autorice):
+  - **Tablet SM-X133**: instalar con `adb install -r`, que actualiza y conserva los datos; nunca `flutter drive` ni desinstalar. La base local pasa de v3 a v4 sin borrar nada. Probar la cámara en **Registrar** (código existente → ficha; código nuevo → formulario) y en **Productos** (botón de escaneo en la búsqueda).
+  - **PC**: el **lector USB** en Registrar y en la búsqueda de Productos (Spike 2).
+- **Siguiente paso exacto:**
+  1. El usuario revisa el PR #29.
+  2. Con su aprobación y la CI en verde, se fusiona en `main`.
+  3. Con su permiso, se instala en la tablet con `adb install -r` y se hacen las pruebas de cámara; luego el lector USB en la PC.
+  4. Después se empieza la **tarea 5** (editar producto, presentaciones, códigos y precios en línea, con `price_changes`), solo cuando el usuario lo indique.
